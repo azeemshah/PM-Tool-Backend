@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:6
+    container_name: pm-tool-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: pm-tool
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - pm-tool-network
+
+  # NestJS API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pm-tool-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/pm-tool?authSource=admin
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      EMAIL_FROM: ${EMAIL_FROM}
+      FRONTEND_URL: ${FRONTEND_URL}
+    depends_on:
+      - mongodb
+    networks:
+      - pm-tool-network
+    volumes:
+      - ./logs:/app/logs
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  pm-tool-network:
+    driver: bridge
