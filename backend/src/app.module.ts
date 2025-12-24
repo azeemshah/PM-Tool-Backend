@@ -6,10 +6,14 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { EmailModule } from './email/email.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { ProjectManagementModule } from './project-management/project-management.module';
+
 
 @Module({
   imports: [
     // Configuration
+    MongooseModule.forRoot('mongodb://localhost:27017/pm_tool'),
+    ProjectManagementModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',

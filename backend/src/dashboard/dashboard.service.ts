@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Project } from '../projects/schemas/project.schema';
+import { Project } from '../project-management/schemas/project-management.schema';
 import { Issue } from '../issue/schemas/issue.schema';
 import { Sprint } from '../sprint/schemas/sprint.schema';
 import { TimeLog } from '../time-log/schemas/time-log.schema';

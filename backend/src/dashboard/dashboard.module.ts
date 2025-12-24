@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
-import { Project, ProjectSchema } from '../projects/schemas/project.schema';
+import { Project, ProjectSchema } from '../project-management/schemas/project-management.schema';
 import { Issue, IssueSchema } from '../issue/schemas/issue.schema';
 import { Sprint, SprintSchema } from '../sprint/schemas/sprint.schema';
 import { TimeLog, TimeLogSchema } from '../time-log/schemas/time-log.schema';
