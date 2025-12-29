@@ -6,7 +6,7 @@ import { Project, Epic, Story, Task, Subtask, Bug } from './schemas/project-mana
 
 @Controller('projects')
 export class ProjectManagementController {
-  constructor(private readonly projectService: ProjectManagementService) {}
+  constructor(private readonly projectService: ProjectManagementService) { }
 
   /* ------------------------- Helper Functions ------------------------- */
   private isValidObjectId(id: string) {

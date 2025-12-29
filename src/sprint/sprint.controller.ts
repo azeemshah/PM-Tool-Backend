@@ -1,9 +1,9 @@
-import { Controller, Post, Get, Param, Body, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { SprintService } from './sprint.service';
 
 @Controller('sprints')
 export class SprintController {
-  constructor(private readonly sprintService: SprintService) {}
+  constructor(private readonly sprintService: SprintService) { }
 
   @Post()
   create(@Body() body: any) {
