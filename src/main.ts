@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import * as compression from 'compression';
+import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -18,6 +19,9 @@ async function bootstrap() {
     origin: configService.get('FRONTEND_URL') || 'http://localhost:3000',
     credentials: true,
   });
+
+  // Cookie parser for reading refresh token cookies
+  app.use(cookieParser());
 
   // Global validation pipe
   app.useGlobalPipes(

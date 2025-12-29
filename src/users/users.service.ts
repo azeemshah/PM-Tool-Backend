@@ -82,6 +82,21 @@ export class UsersService {
     await user.save();
   }
 
+  async setRefreshToken(id: string, token: string, expires: Date): Promise<void> {
+    await this.userModel.updateOne({ _id: id }, { refreshToken: token, refreshTokenExpires: expires });
+  }
+
+  async clearRefreshToken(id: string): Promise<void> {
+    await this.userModel.updateOne({ _id: id }, { refreshToken: null, refreshTokenExpires: null });
+  }
+
+  async findByRefreshToken(token: string) {
+    return this.userModel
+      .findOne({ refreshToken: token, refreshTokenExpires: { $gt: Date.now() } })
+      .select('+password')
+      .exec();
+  }
+
   async setPasswordResetToken(email: string, token: string, expires: Date): Promise<void> {
     await this.userModel.updateOne(
       { email },

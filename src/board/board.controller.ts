@@ -3,7 +3,7 @@ import { BoardService } from './board.service';
 
 @Controller('boards')
 export class BoardController {
-  constructor(private readonly boardService: BoardService) {}
+  constructor(private readonly boardService: BoardService) { }
 
   @Post()
   create(@Body() body: any) {
