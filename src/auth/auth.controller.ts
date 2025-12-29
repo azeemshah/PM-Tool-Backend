@@ -7,7 +7,15 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+<<<<<<< HEAD
 } from '@nestjs/common';
+=======
+  Res,
+  Req,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { Response, Request as ExRequest } from 'express';
+>>>>>>> owais
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -27,14 +35,62 @@ export class AuthController {
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
+<<<<<<< HEAD
   async register(@Body() registerDto: RegisterDto): Promise<AuthResponseDto> {
     return this.authService.register(registerDto);
+=======
+  async register(
+    @Body() registerDto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponseDto> {
+    const result = await this.authService.register(registerDto);
+
+    // set refresh token cookie if present
+    if (result.refreshToken) {
+      const refreshExpirationMs = Number(
+        process.env.JWT_REFRESH_EXPIRATION_MS || 30 * 24 * 60 * 60 * 1000,
+      );
+      res.cookie('refreshToken', result.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: refreshExpirationMs,
+      });
+    }
+
+    // Do not include refreshToken in response body for clients that rely on cookie
+    const { refreshToken, ...body } = result as any;
+    return body;
+>>>>>>> owais
   }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+<<<<<<< HEAD
   async login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
     return this.authService.login(loginDto);
+=======
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponseDto> {
+    const result = await this.authService.login(loginDto);
+
+    if (result.refreshToken) {
+      const refreshExpirationMs = Number(
+        process.env.JWT_REFRESH_EXPIRATION_MS || 30 * 24 * 60 * 60 * 1000,
+      );
+      res.cookie('refreshToken', result.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: refreshExpirationMs,
+      });
+    }
+
+    const { refreshToken, ...body } = result as any;
+    return body;
+>>>>>>> owais
   }
 
   @Post('forgot-password')
@@ -59,10 +115,80 @@ export class AuthController {
     return this.authService.changePassword(req.user.userId, changePasswordDto);
   }
 
+<<<<<<< HEAD
+=======
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  async refresh(
+    @Req() req: ExRequest,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ accessToken: string }> {
+    const refreshToken = req.cookies?.refreshToken;
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token missing');
+    }
+
+    const { payload, user } = await this.authService.verifyRefreshToken(refreshToken);
+
+    // Issue new tokens
+    const tokens = this.authService['generateTokens'](payload.sub, payload.email, payload.role);
+
+    // Persist new refresh token
+    try {
+      const refreshExpirationMs = Number(
+        process.env.JWT_REFRESH_EXPIRATION_MS || 30 * 24 * 60 * 60 * 1000,
+      );
+      const refreshExpiresAt = new Date(Date.now() + refreshExpirationMs);
+      await this.usersService.setRefreshToken(
+        user._id.toString(),
+        tokens.refreshToken,
+        refreshExpiresAt,
+      );
+    } catch (err) {
+      // ignore
+    }
+
+    // Set cookie
+    const refreshExpirationMs = Number(
+      process.env.JWT_REFRESH_EXPIRATION_MS || 30 * 24 * 60 * 60 * 1000,
+    );
+    res.cookie('refreshToken', tokens.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: refreshExpirationMs,
+    });
+
+    return { accessToken: tokens.accessToken };
+  }
+
+>>>>>>> owais
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async getMe(@Request() req) {
     const user = await this.usersService.findOne(req.user.userId);
     return this.usersService.serializeUser(user);
   }
+<<<<<<< HEAD
+=======
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async logout(
+    @Request() req,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ message: string }> {
+    // Clear refresh token cookie and user stored token
+    try {
+      await this.usersService.clearRefreshToken(req.user.userId);
+    } catch (err) {
+      // ignore
+    }
+    // Clear cookie by setting empty with immediate expiry
+    // Note: using passthrough response isn't necessary here; controller can rely on frontend to drop cookie
+    res.clearCookie('refreshToken');
+    return { message: 'Logged out successfully' };
+  }
+>>>>>>> owais
 }

@@ -35,6 +35,15 @@ export class AuthService {
     // Generate tokens
     const tokens = this.generateTokens(user._id.toString(), user.email, user.role);
 
+    // Persist refresh token for future refresh flow
+    try {
+      const refreshExpirationMs = Number(this.configService.get('JWT_REFRESH_EXPIRATION_MS', `${30 * 24 * 60 * 60 * 1000}`));
+      const refreshExpiresAt = new Date(Date.now() + refreshExpirationMs);
+      await this.usersService.setRefreshToken(user._id.toString(), tokens.refreshToken, refreshExpiresAt);
+    } catch (err) {
+      // swallow - non-fatal
+    }
+
     return {
       ...tokens,
       user: {
@@ -43,6 +52,7 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        currentWorkspace: user._id.toString(),
       },
     };
   }
@@ -73,6 +83,15 @@ export class AuthService {
     // Generate tokens
     const tokens = this.generateTokens(user._id.toString(), user.email, user.role);
 
+    // Persist refresh token
+    try {
+      const refreshExpirationMs = Number(this.configService.get('JWT_REFRESH_EXPIRATION_MS', `${30 * 24 * 60 * 60 * 1000}`));
+      const refreshExpiresAt = new Date(Date.now() + refreshExpirationMs);
+      await this.usersService.setRefreshToken(user._id.toString(), tokens.refreshToken, refreshExpiresAt);
+    } catch (err) {
+      // swallow
+    }
+
     return {
       ...tokens,
       user: {
@@ -81,6 +100,7 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        currentWorkspace: user._id.toString(),
       },
     };
   }
@@ -178,7 +198,23 @@ export class AuthService {
     return null;
   }
 
-  private generateTokens(
+  async verifyRefreshToken(token: string): Promise<any> {
+    try {
+      const payload = this.jwtService.verify(token, {
+        secret: this.configService.get('JWT_REFRESH_SECRET'),
+      });
+
+      // Ensure token exists on user and not expired
+      const user = await this.usersService.findByRefreshToken(token);
+      if (!user) throw new UnauthorizedException('Invalid refresh token');
+
+      return { payload, user };
+    } catch (error) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
+  public generateTokens(
     userId: string,
     email: string,
     role: string,

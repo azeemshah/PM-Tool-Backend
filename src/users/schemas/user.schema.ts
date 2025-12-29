@@ -43,6 +43,12 @@ export class User {
   passwordResetExpires: Date;
 
   @Prop({ default: null })
+  refreshToken: string;
+
+  @Prop({ default: null })
+  refreshTokenExpires: Date;
+
+  @Prop({ default: null })
   lastLoginAt: Date;
 
   // For future JIRA features
