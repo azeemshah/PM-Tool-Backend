@@ -1,0 +1,210 @@
+// src/kanban/kanban.module.ts
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+
+// Project
+import { KanbanProjectController } from './project/kanban-project.controller';
+import { KanbanProjectService } from './project/kanban-project.service';
+import { KanbanProject, KanbanProjectSchema } from './project/schemas/kanban-project.schema';
+
+// Roles
+import { KanbanRoleController } from './roles/kanban-role.controller';
+import { KanbanRoleService } from './roles/kanban-role.service';
+import { KanbanRole, KanbanRoleSchema } from './roles/schemas/kanban-role.schema';
+
+// Workflow
+import { WorkflowController } from './workflow/workflow.controller';
+import { WorkflowService } from './workflow/workflow.service';
+import { Workflow, WorkflowSchema } from './workflow/schemas/workflow.schema';
+import { WorkflowState, WorkflowStateSchema } from './workflow/schemas/workflow-state.schema';
+import { WorkflowTransition, WorkflowTransitionSchema } from './workflow/schemas/workflow-transition.schema';
+import { WorkflowActivity, WorkflowActivitySchema } from './workflow/schemas/workflow-activity.schema';
+
+// Board
+import { KanbanBoardController } from './board/kanban-board.controller';
+import { KanbanBoardService } from './board/kanban-board.service';
+import { KanbanBoard, KanbanBoardSchema } from './board/schemas/kanban-board.schema';
+import { KanbanColumn, KanbanColumnSchema } from './board/schemas/kanban-column.schema';
+import { WipRule, WipRuleSchema } from './board/schemas/wip-rule.schema';
+import { Swimlane, SwimlaneSchema } from './board/schemas/swimlane.schema';
+
+// Work Item
+import { WorkItemController } from './work-item/work-item.controller';
+import { WorkItemService } from './work-item/work-item.service';
+import { WorkItem, WorkItemSchema } from './work-item/schemas/work-item.schema';
+import { Epic, EpicSchema } from './work-item/schemas/epic.schema';
+import { Story, StorySchema } from './work-item/schemas/story.schema';
+import { Task, TaskSchema } from './work-item/schemas/task.schema';
+import { Subtask, SubtaskSchema } from './work-item/schemas/subtask.schema';
+import { Bug, BugSchema } from './work-item/schemas/bug.schema';
+import { Improvement, ImprovementSchema } from './work-item/schemas/improvement.schema';
+
+// Flow
+import { FlowMetricsController } from './flow/flow-metrics.controller';
+import { FlowMetricsService } from './flow/flow-metrics.service';
+import { CycleTime, CycleTimeSchema } from './flow/schemas/cycle-time.schema';
+import { LeadTime, LeadTimeSchema } from './flow/schemas/lead-time.schema';
+import { Throughput, ThroughputSchema } from './flow/schemas/throughput.schema';
+
+// Estimation
+import { EstimationController } from './estimation/estimation.controller';
+import { EstimationService } from './estimation/estimation.service';
+import { Estimation, EstimationSchema } from './estimation/schemas/estimation.schema';
+
+// Time Tracking
+import { TimeTrackingController } from './time-tracking/time-tracking.controller';
+import { TimeTrackingService } from './time-tracking/time-tracking.service';
+import { TimeLog, TimeLogSchema } from './time-tracking/schemas/time-log.schema';
+import { Timesheet, TimesheetSchema } from './time-tracking/schemas/timesheet.schema';
+
+// Linking
+import { WorkItemLinkController } from './linking/work-item-link.controller';
+import { WorkItemLinkService } from './linking/work-item-link.service';
+import { WorkItemLink, WorkItemLinkSchema } from './linking/schemas/work-item-link.schema';
+
+// Comment
+import { CommentController } from './comment/comment.controller';
+import { CommentService } from './comment/comment.service';
+import { Comment, CommentSchema } from './comment/schemas/comment.schema';
+
+// Attachment
+import { AttachmentController } from './attachment/attachment.controller';
+import { AttachmentService } from './attachment/attachment.service';
+import { Attachment, AttachmentSchema } from './attachment/schemas/attachment.schema';
+
+// Notification
+import { NotificationController } from './notification/notification.controller';
+import { NotificationService } from './notification/notification.service';
+import { Notification, NotificationSchema } from './notification/schemas/notification.schema';
+
+// Report
+import { KanbanReportController } from './report/kanban-report.controller';
+import { KanbanReportService } from './report/kanban-report.service';
+import { CumulativeFlowReport, CumulativeFlowReportSchema } from './report/schemas/cumulative-flow-report.schema';
+import { CycleTimeReport, CycleTimeReportSchema } from './report/schemas/cycle-time-report.schema';
+import { LeadTimeReport, LeadTimeReportSchema } from './report/schemas/lead-time-report.schema';
+import { WorkloadReport, WorkloadReportSchema } from './report/schemas/workload-report.schema';
+
+// Dashboard
+import { DashboardController } from './dashboard/dashboard.controller';
+import { DashboardService } from './dashboard/dashboard.service';
+import { DashboardWidget, DashboardWidgetSchema } from './dashboard/schemas/dashboard-widget.schema';
+
+// Audit
+import { AuditController } from './audit/audit.controller';
+import { AuditService } from './audit/audit.service';
+import { AuditLog, AuditLogSchema } from './audit/schemas/audit-log.schema';
+
+// Search
+import { SearchController } from './search/search.controller';
+import { SearchService } from './search/search.service';
+import { SavedFilter, SavedFilterSchema } from './search/schemas/saved-filter.schema';
+
+@Module({
+  imports: [
+    MongooseModule.forFeature([
+      // Project
+      { name: KanbanProject.name, schema: KanbanProjectSchema },
+
+      // Roles
+      { name: KanbanRole.name, schema: KanbanRoleSchema },
+
+      // Workflow
+      { name: Workflow.name, schema: WorkflowSchema },
+      { name: WorkflowState.name, schema: WorkflowStateSchema },
+      { name: WorkflowTransition.name, schema: WorkflowTransitionSchema },
+      { name: WorkflowActivity.name, schema: WorkflowActivitySchema },
+
+      // Board
+      { name: KanbanBoard.name, schema: KanbanBoardSchema },
+      { name: KanbanColumn.name, schema: KanbanColumnSchema },
+      { name: WipRule.name, schema: WipRuleSchema },
+      { name: Swimlane.name, schema: SwimlaneSchema },
+
+      // Work Item
+      { name: WorkItem.name, schema: WorkItemSchema },
+      { name: Epic.name, schema: EpicSchema },
+      { name: Story.name, schema: StorySchema },
+      { name: Task.name, schema: TaskSchema },
+      { name: Subtask.name, schema: SubtaskSchema },
+      { name: Bug.name, schema: BugSchema },
+      { name: Improvement.name, schema: ImprovementSchema },
+
+      // Flow
+      { name: CycleTime.name, schema: CycleTimeSchema },
+      { name: LeadTime.name, schema: LeadTimeSchema },
+      { name: Throughput.name, schema: ThroughputSchema },
+
+      // Estimation
+      { name: Estimation.name, schema: EstimationSchema },
+
+      // Time Tracking
+      { name: TimeLog.name, schema: TimeLogSchema },
+      { name: Timesheet.name, schema: TimesheetSchema },
+
+      // Linking
+      { name: WorkItemLink.name, schema: WorkItemLinkSchema },
+
+      // Comment
+      { name: Comment.name, schema: CommentSchema },
+
+      // Attachment
+      { name: Attachment.name, schema: AttachmentSchema },
+
+      // Notification
+      { name: Notification.name, schema: NotificationSchema },
+
+      // Report
+      { name: CumulativeFlowReport.name, schema: CumulativeFlowReportSchema },
+      { name: CycleTimeReport.name, schema: CycleTimeReportSchema },
+      { name: LeadTimeReport.name, schema: LeadTimeReportSchema },
+      { name: WorkloadReport.name, schema: WorkloadReportSchema },
+
+      // Dashboard
+      { name: DashboardWidget.name, schema: DashboardWidgetSchema },
+
+      // Audit
+      { name: AuditLog.name, schema: AuditLogSchema },
+
+      // Search
+      { name: SavedFilter.name, schema: SavedFilterSchema },
+    ]),
+  ],
+  controllers: [
+    KanbanProjectController,
+    KanbanRoleController,
+    WorkflowController,
+    KanbanBoardController,
+    WorkItemController,
+    FlowMetricsController,
+    EstimationController,
+    TimeTrackingController,
+    WorkItemLinkController,
+    CommentController,
+    AttachmentController,
+    NotificationController,
+    KanbanReportController,
+    DashboardController,
+    AuditController,
+    SearchController,
+  ],
+  providers: [
+    KanbanProjectService,
+    KanbanRoleService,
+    WorkflowService,
+    KanbanBoardService,
+    WorkItemService,
+    FlowMetricsService,
+    EstimationService,
+    TimeTrackingService,
+    WorkItemLinkService,
+    CommentService,
+    AttachmentService,
+    NotificationService,
+    KanbanReportService,
+    DashboardService,
+    AuditService,
+    SearchService,
+  ],
+})
+export class KanbanModule {}

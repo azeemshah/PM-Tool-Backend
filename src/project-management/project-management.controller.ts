@@ -1,10 +1,30 @@
 // src/project-management/project-management.controller.ts
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  Query,
+  BadRequestException,
+  UseInterceptors,
+  UploadedFile,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import * as path from 'path';
 import { Types } from 'mongoose';
 import { ProjectManagementService } from './project-management.service';
 import { Project, Epic, Story, Task, Subtask, Bug } from './schemas/project-management.schema';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import type { Multer } from 'multer';
 
 @Controller('projects')
+@UseGuards(JwtAuthGuard)
 export class ProjectManagementController {
   constructor(private readonly projectService: ProjectManagementService) { }
 
@@ -21,19 +41,27 @@ export class ProjectManagementController {
 
   /* ------------------------- Project Routes ------------------------- */
   @Post()
-  createProject(@Body() data: Partial<Project>) {
-    return this.projectService.createProject(data);
+  createProject(@Request() req: any, @Body() data: Partial<Project>) {
+    return this.projectService.createProject(data, req.user.userId);
   }
 
   @Get()
-  getProjects() {
-    return this.projectService.getProjects();
+  async getProjects(@Query('workspaceId') workspaceId?: string) {
+    const projects = await this.projectService.getProjects(workspaceId);
+    return { projects };
   }
 
   @Get(':id')
-  getProjectById(@Param('id') id: string) {
+  async getProjectById(@Param('id') id: string) {
     this.validateId(id, 'Project ID');
-    return this.projectService.getProjectById(id);
+    const project = await this.projectService.getProjectById(id);
+    return { project };
+  }
+
+  @Get(':id/analytics')
+  getProjectAnalytics(@Param('id') id: string) {
+    this.validateId(id, 'Project ID');
+    return this.projectService.getProjectAnalytics(id);
   }
 
   @Put(':id')
@@ -123,6 +151,50 @@ export class ProjectManagementController {
     return this.projectService.deleteTask(id);
   }
 
+  @Put('tasks/bulk')
+  bulkUpdateTasks(@Body() body: { ids: string[]; data: Partial<Task> }) {
+    const { ids, data } = body || { ids: [], data: {} };
+    if (!Array.isArray(ids) || ids.length === 0) return { modifiedCount: 0 };
+    ids.forEach((i) => this.validateId(i, 'Task ID'));
+    return this.projectService.bulkUpdateTasks(ids, data);
+  }
+
+  @Delete('tasks/bulk')
+  bulkDeleteTasks(@Body() body: { ids: string[] }) {
+    const { ids } = body || { ids: [] };
+    if (!Array.isArray(ids) || ids.length === 0) return { deletedCount: 0 };
+    ids.forEach((i) => this.validateId(i, 'Task ID'));
+    return this.projectService.bulkDeleteTasks(ids);
+  }
+
+  /* ------------------------- Global Task List (pagination/filter/search) ------------------------- */
+  @Get('tasks')
+  getAllTasks(
+    @Query('workspaceId') workspaceId?: string,
+    @Query('projectId') projectId?: string,
+    @Query('storyId') storyId?: string,
+    @Query('keyword') keyword?: string,
+    @Query('priority') priority?: string,
+    @Query('status') status?: string,
+    @Query('assignedTo') assignedTo?: string,
+    @Query('pageNumber') pageNumber = '1',
+    @Query('pageSize') pageSize = '10',
+  ) {
+    const pNum = parseInt(pageNumber as any, 10) || 1;
+    const pSize = Math.min(100, parseInt(pageSize as any, 10) || 10);
+    return this.projectService.getAllTasks({
+      workspaceId,
+      projectId,
+      storyId,
+      keyword,
+      priority,
+      status,
+      assignedTo,
+      pageNumber: pNum,
+      pageSize: pSize,
+    });
+  }
+
   /* ------------------------- Subtask Routes ------------------------- */
   @Post('tasks/:taskId/subtasks')
   createSubtask(@Param('taskId') taskId: string, @Body() data: Partial<Subtask>) {
@@ -176,5 +248,66 @@ export class ProjectManagementController {
   deleteBug(@Param('id') id: string) {
     this.validateId(id, 'Bug ID');
     return this.projectService.deleteBug(id);
+  }
+
+  /* ------------------------- Attachments Upload ------------------------- */
+  @Post('bugs/:id/attachments')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, cb) => {
+          const name = path.parse(file.originalname).name.replace(/\s+/g, '-');
+          const fileExtName = path.extname(file.originalname);
+          const timestamp = Date.now();
+          cb(null, `${name}-${timestamp}${fileExtName}`);
+        },
+      }),
+    }),
+  )
+  async uploadBugAttachment(@Param('id') id: string, @UploadedFile() file: Multer.File) {
+    this.validateId(id, 'Bug ID');
+    if (!file) throw new BadRequestException('File is required');
+    const url = `/uploads/${file.filename}`;
+    await this.projectService.addAttachmentToBug(id, url);
+    return { url };
+  }
+
+  @Post('tasks/:id/attachments')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, cb) => {
+          const name = path.parse(file.originalname).name.replace(/\s+/g, '-');
+          const fileExtName = path.extname(file.originalname);
+          const timestamp = Date.now();
+          cb(null, `${name}-${timestamp}${fileExtName}`);
+        },
+      }),
+    }),
+  )
+  async uploadTaskAttachment(@Param('id') id: string, @UploadedFile() file: Multer.File) {
+    this.validateId(id, 'Task ID');
+    if (!file) throw new BadRequestException('File is required');
+    const url = `/uploads/${file.filename}`;
+    await this.projectService.addAttachmentToTask(id, url);
+    return { url };
+  }
+
+  @Delete('tasks/:id/attachments')
+  async deleteTaskAttachment(@Param('id') id: string, @Query('url') url: string) {
+    this.validateId(id, 'Task ID');
+    if (!url) throw new BadRequestException('URL is required');
+    await this.projectService.removeAttachmentFromTask(id, url);
+    return { message: 'Attachment deleted' };
+  }
+
+  @Delete('bugs/:id/attachments')
+  async deleteBugAttachment(@Param('id') id: string, @Query('url') url: string) {
+    this.validateId(id, 'Bug ID');
+    if (!url) throw new BadRequestException('URL is required');
+    await this.projectService.removeAttachmentFromBug(id, url);
+    return { message: 'Attachment deleted' };
   }
 }

@@ -3,13 +3,21 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ProjectManagementService } from './project-management.service';
 import { ProjectManagementController } from './project-management.controller';
-import { Project, ProjectSchema, Epic, EpicSchema, Story, StorySchema, Task,
+import {
+  Project,
+  ProjectSchema,
+  Epic,
+  EpicSchema,
+  Story,
+  StorySchema,
+  Task,
   TaskSchema,
   Subtask,
   SubtaskSchema,
   Bug,
   BugSchema,
 } from './schemas/project-management.schema';
+import { Workspace, WorkspaceSchema } from '../workspace/schemas/workspace.schema';
 
 @Module({
   imports: [
@@ -20,6 +28,7 @@ import { Project, ProjectSchema, Epic, EpicSchema, Story, StorySchema, Task,
       { name: Task.name, schema: TaskSchema },
       { name: Subtask.name, schema: SubtaskSchema },
       { name: Bug.name, schema: BugSchema },
+      { name: Workspace.name, schema: WorkspaceSchema },
     ]),
   ],
   controllers: [ProjectManagementController],
