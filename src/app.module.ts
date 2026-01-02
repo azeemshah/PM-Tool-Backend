@@ -6,8 +6,9 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { EmailModule } from './email/email.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { KanbanModule } from './kanban/kanban.module';
 import { ProjectManagementModule } from './project-management/project-management.module';
-
+import { WorkspaceModule } from './workspace/workspace.module';
 
 @Module({
   imports: [
@@ -45,6 +46,8 @@ import { ProjectManagementModule } from './project-management/project-management
     UsersModule,
     EmailModule,
     DashboardModule,
+    KanbanModule,
+    WorkspaceModule,
     // ProjectsModule,
     // IssueModule,
     // SprintModule,

@@ -106,6 +106,9 @@ export class Task extends Document {
 }
 
 export const TaskSchema = SchemaFactory.createForClass(Task);
+// Indexes for search and performance
+TaskSchema.index({ title: 'text', description: 'text' });
+TaskSchema.index({ projectId: 1 });
 
 /* ----------------------------- Story Schema ----------------------------- */
 @Schema({ timestamps: true })
@@ -126,6 +129,7 @@ export class Story extends Document {
   projectId?: Types.ObjectId;
 }
 
+BugSchema.index({ projectId: 1 });
 export const StorySchema = SchemaFactory.createForClass(Story);
 
 /* ----------------------------- Epic Schema ----------------------------- */
@@ -155,6 +159,15 @@ export class Project extends Document {
   @Prop()
   description?: string;
 
+  @Prop()
+  emoji?: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'Workspace' })
+  workspace?: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  createdBy: Types.ObjectId;
+
   @Prop([EpicSchema])
   epics?: Epic[];
 
@@ -172,3 +185,6 @@ export class Project extends Document {
 }
 
 export const ProjectSchema = SchemaFactory.createForClass(Project);
+// Add index for workspace queries
+ProjectSchema.index({ workspace: 1 });
+ProjectSchema.index({ createdBy: 1 });
