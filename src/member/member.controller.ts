@@ -1,0 +1,160 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Put,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import { MemberService } from './member.service';
+import { CreateMemberDto } from './dto/create-member.dto';
+import { UpdateMemberDto } from './dto/update-member.dto';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { Public } from '../common/decorators/public.decorator';
+
+@Controller('members')
+@UseGuards(JwtAuthGuard)
+export class MemberController {
+  constructor(private memberService: MemberService) {}
+
+  /**
+   * Add a new member to a workspace
+   * POST /members
+   */
+  @Post()
+  async addMember(@Body() createMemberDto: CreateMemberDto) {
+    const member = await this.memberService.addMember(createMemberDto);
+    return {
+      statusCode: 201,
+      message: 'Member added successfully',
+      data: member,
+    };
+  }
+
+  /**
+   * Get current user's role in a workspace
+   * GET /members/me/role/:workspaceId
+   */
+  @Get('me/role/:workspaceId')
+  async getUserRoleInWorkspace(@Param('workspaceId') workspaceId: string, @Request() req: any) {
+    const userRole = await this.memberService.getUserRoleInWorkspace(req.user.userId, workspaceId);
+    return {
+      statusCode: 200,
+      message: 'User role retrieved',
+      data: userRole,
+    };
+  }
+
+  /**
+   * Get member statistics
+   * GET /members/workspace/:workspaceId/stats
+   */
+  @Get('workspace/:workspaceId/stats')
+  async getMemberStats(@Param('workspaceId') workspaceId: string) {
+    const stats = await this.memberService.getMemberStats(workspaceId);
+    return {
+      statusCode: 200,
+      message: 'Member statistics retrieved',
+      data: stats,
+    };
+  }
+
+  /**
+   * Get all members of a workspace with available roles
+   * GET /members/workspace/:workspaceId
+   */
+  @Get('workspace/:workspaceId')
+  async getWorkspaceMembers(@Param('workspaceId') workspaceId: string) {
+    const members = await this.memberService.getWorkspaceMembers(workspaceId);
+
+    // Return available roles along with members
+    const roles = [
+      { _id: 'admin', name: 'ADMIN' },
+      { _id: 'member', name: 'MEMBER' },
+      { _id: 'viewer', name: 'VIEWER' },
+    ];
+
+    return {
+      statusCode: 200,
+      message: 'Members retrieved successfully',
+      data: {
+        members,
+        roles,
+      },
+    };
+  }
+
+  /**
+   * Get member details
+   * GET /members/:memberId
+   */
+  @Get(':memberId')
+  async getMember(@Param('memberId') memberId: string) {
+    const member = await this.memberService.getMember(memberId);
+    return {
+      statusCode: 200,
+      message: 'Member retrieved successfully',
+      data: member,
+    };
+  }
+
+  /**
+   * Update member role
+   * PUT /members/:memberId
+   */
+  @Put(':memberId')
+  async updateMemberRole(
+    @Param('memberId') memberId: string,
+    @Body() updateMemberDto: UpdateMemberDto,
+  ) {
+    const member = await this.memberService.updateMemberRole(memberId, updateMemberDto);
+    return {
+      statusCode: 200,
+      message: 'Member updated successfully',
+      data: member,
+    };
+  }
+
+  /**
+   * Remove member from workspace
+   * DELETE /members/:memberId
+   */
+  @Delete(':memberId')
+  async removeMember(@Param('memberId') memberId: string) {
+    const result = await this.memberService.removeMember(memberId);
+    return {
+      statusCode: 200,
+      message: result.message,
+    };
+  }
+
+  /**
+   * Join workspace by invite code
+   * POST /members/join/:inviteCode
+   */
+  @Public()
+  @Post('join/:inviteCode')
+  async joinWorkspaceByInvite(@Param('inviteCode') inviteCode: string, @Request() req: any) {
+    console.log('🌐 API Request: POST /members/join/:inviteCode');
+    console.log('📋 inviteCode:', inviteCode);
+    console.log('👤 User ID from request:', req.user?.userId);
+    console.log('👤 Full user object:', req.user);
+
+    const result = await this.memberService.joinWorkspaceByInvite(req.user?.userId, inviteCode);
+
+    const response = {
+      statusCode: 200,
+      message: result.message,
+      data: {
+        workspaceId: result.workspaceId,
+        role: result.role,
+      },
+    };
+
+    console.log('📤 Sending response:', response);
+    return response;
+  }
+}

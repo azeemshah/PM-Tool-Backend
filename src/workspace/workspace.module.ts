@@ -3,9 +3,15 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { WorkspaceService } from './workspace.service';
 import { WorkspaceController } from './workspace.controller';
 import { Workspace, WorkspaceSchema } from './schemas/workspace.schema';
+import { MemberSchema } from '../member/schemas/member.schema';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: Workspace.name, schema: WorkspaceSchema }])],
+  imports: [
+    MongooseModule.forFeature([
+      { name: Workspace.name, schema: WorkspaceSchema },
+      { name: 'Member', schema: MemberSchema },
+    ]),
+  ],
   controllers: [WorkspaceController],
   providers: [WorkspaceService],
   exports: [WorkspaceService],

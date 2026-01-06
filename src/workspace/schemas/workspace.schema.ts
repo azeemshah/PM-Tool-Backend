@@ -31,6 +31,9 @@ export class Workspace {
 
   @Prop({ type: Map, default: {} })
   settings: Record<string, any>;
+
+  @Prop({ required: true, unique: true, trim: true })
+  inviteCode: string;
 }
 
 export const WorkspaceSchema = SchemaFactory.createForClass(Workspace);

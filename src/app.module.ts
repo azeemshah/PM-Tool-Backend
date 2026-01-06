@@ -9,6 +9,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { KanbanModule } from './kanban/kanban.module';
 import { ProjectManagementModule } from './project-management/project-management.module';
 import { WorkspaceModule } from './workspace/workspace.module';
+import { MemberModule } from './member/member.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { WorkspaceModule } from './workspace/workspace.module';
     DashboardModule,
     KanbanModule,
     WorkspaceModule,
+    MemberModule,
     // ProjectsModule,
     // IssueModule,
     // SprintModule,

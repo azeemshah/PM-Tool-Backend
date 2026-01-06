@@ -1,5 +1,10 @@
 // src/kanban/board/kanban-board.service.ts
-import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { KanbanBoard } from './schemas/kanban-board.schema';
@@ -11,8 +16,6 @@ import { UpdateColumnDto } from './dto/update-column.dto';
 import { MoveWorkItemDto } from './dto/move-work-item.dto';
 import { CreateWorkItemDto } from '../work-item/dto/create-work-item.dto';
 import { WorkItem } from '../work-item/schemas/work-item.schema';
-
-
 
 @Injectable()
 export class KanbanBoardService {
@@ -29,7 +32,6 @@ export class KanbanBoardService {
     return board.save();
   }
 
-  
   // Nested populate to get work items inside columns
   async findAllBoards(): Promise<KanbanBoard[]> {
     return this.boardModel
@@ -55,7 +57,9 @@ export class KanbanBoardService {
   }
 
   async updateBoard(id: string, updateBoardDto: UpdateBoardDto): Promise<KanbanBoard> {
-    const updated = await this.boardModel.findByIdAndUpdate(id, updateBoardDto, { new: true }).exec();
+    const updated = await this.boardModel
+      .findByIdAndUpdate(id, updateBoardDto, { new: true })
+      .exec();
     if (!updated) throw new NotFoundException(`Board with ID ${id} not found`);
     return updated;
   }
@@ -63,6 +67,12 @@ export class KanbanBoardService {
   async deleteBoard(id: string): Promise<void> {
     const result = await this.boardModel.findByIdAndDelete(id).exec();
     if (!result) throw new NotFoundException(`Board with ID ${id} not found`);
+  }
+
+  // Get all columns for a board
+  async getBoardColumns(boardId: string): Promise<KanbanColumn[]> {
+    const board = await this.findBoardById(boardId);
+    return board.columns as any;
   }
 
   // -------------------- Column CRUD --------------------
@@ -76,9 +86,15 @@ export class KanbanBoardService {
     return column;
   }
 
-  async updateColumn(boardId: string, columnId: string, updateColumnDto: UpdateColumnDto): Promise<KanbanColumn> {
+  async updateColumn(
+    boardId: string,
+    columnId: string,
+    updateColumnDto: UpdateColumnDto,
+  ): Promise<KanbanColumn> {
     await this.findBoardById(boardId);
-    const column = await this.columnModel.findByIdAndUpdate(columnId, updateColumnDto, { new: true }).exec();
+    const column = await this.columnModel
+      .findByIdAndUpdate(columnId, updateColumnDto, { new: true })
+      .exec();
     if (!column) throw new NotFoundException(`Column with ID ${columnId} not found`);
     return column;
   }
@@ -87,7 +103,7 @@ export class KanbanBoardService {
     const board = await this.findBoardById(boardId);
     const column = await this.columnModel.findByIdAndDelete(columnId).exec();
     if (!column) throw new NotFoundException(`Column with ID ${columnId} not found`);
-    board.columns = board.columns.filter(id => id.toString() !== columnId);
+    board.columns = board.columns.filter((id) => id.toString() !== columnId);
     await board.save();
   }
 
@@ -99,8 +115,10 @@ export class KanbanBoardService {
     // Validate IDs
     if (!Types.ObjectId.isValid(boardId)) throw new BadRequestException('Invalid board ID');
     if (!Types.ObjectId.isValid(workItemId)) throw new BadRequestException('Invalid work item ID');
-    if (!Types.ObjectId.isValid(fromColumnId)) throw new BadRequestException('Invalid source column ID');
-    if (!Types.ObjectId.isValid(toColumnId)) throw new BadRequestException('Invalid target column ID');
+    if (!Types.ObjectId.isValid(fromColumnId))
+      throw new BadRequestException('Invalid source column ID');
+    if (!Types.ObjectId.isValid(toColumnId))
+      throw new BadRequestException('Invalid target column ID');
 
     try {
       // Find board
@@ -108,7 +126,7 @@ export class KanbanBoardService {
       if (!board) throw new NotFoundException('Board not found');
 
       // Ensure target column belongs to this board
-      if (!board.columns.map(c => c._id.toString()).includes(toColumnId)) {
+      if (!board.columns.map((c) => c._id.toString()).includes(toColumnId)) {
         throw new BadRequestException('Target column does not belong to this board');
       }
 
@@ -119,12 +137,15 @@ export class KanbanBoardService {
       if (!toColumn) throw new NotFoundException('Target column not found');
 
       // Check work item exists in source column
-      if (!fromColumn.workItems || !fromColumn.workItems.find(id => id.toString() === workItemId)) {
+      if (
+        !fromColumn.workItems ||
+        !fromColumn.workItems.find((id) => id.toString() === workItemId)
+      ) {
         throw new NotFoundException('Work item not found in source column');
       }
 
       // Remove work item from source column
-      fromColumn.workItems = fromColumn.workItems.filter(id => id.toString() !== workItemId);
+      fromColumn.workItems = fromColumn.workItems.filter((id) => id.toString() !== workItemId);
 
       // Add work item to target column at correct position
       if (!toColumn.workItems) toColumn.workItems = [];
@@ -145,5 +166,4 @@ export class KanbanBoardService {
       throw new InternalServerErrorException('Failed to move work item');
     }
   }
-
 }
