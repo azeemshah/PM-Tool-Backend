@@ -28,9 +28,44 @@ export class WorkItemsService {
     private readonly workItemModel: Model<WorkItem>,
   ) {}
 
+  /**
+   * Validates work item hierarchy:
+   * - Epic: No parent
+   * - Story/Task/Bug: Must have epicId, no parentId
+   * - Subtask: Must have parentId (pointing to Story/Task/Bug), no epicId
+   */
+  private validateHierarchy(dto: CreateWorkItemDto) {
+    const { issueType, parentId, epicId } = dto;
+
+    if (issueType === 'epic') {
+      if (parentId || epicId) {
+        throw new BadRequestException('Epic cannot have a parent');
+      }
+    } else if (['story', 'task', 'bug'].includes(issueType)) {
+      if (!epicId) {
+        throw new BadRequestException(`${issueType} must have an epicId`);
+      }
+      if (parentId) {
+        throw new BadRequestException(`${issueType} must link to Epic via epicId, not parentId`);
+      }
+    } else if (issueType === 'subtask') {
+      if (!parentId) {
+        throw new BadRequestException(
+          'Subtask must have a parentId pointing to Story, Task, or Bug',
+        );
+      }
+      if (epicId) {
+        throw new BadRequestException('Subtask should not have epicId, only parentId');
+      }
+    }
+  }
+
   /* ================= CREATE ================= */
 
   async create(dto: CreateWorkItemDto): Promise<WorkItem> {
+    // Validate hierarchy
+    this.validateHierarchy(dto);
+
     const workItem = new this.workItemModel({
       ...dto,
       status: WorkStatus.CREATE,
@@ -55,15 +90,17 @@ export class WorkItemsService {
 
   /* ================= UPDATE ================= */
 
-  async update(
-    id: string,
-    dto: UpdateWorkItemDto,
-  ): Promise<WorkItem> {
-    const updated = await this.workItemModel.findByIdAndUpdate(
-      id,
-      dto,
-      { new: true },
-    );
+  async update(id: string, dto: UpdateWorkItemDto): Promise<WorkItem> {
+    const item = await this.workItemModel.findById(id);
+    if (!item) throw new NotFoundException('Work item not found');
+
+    // Validate hierarchy if issueType or parent references are being changed
+    if (dto.issueType || 'parentId' in dto || 'epicId' in dto) {
+      const merged = { ...item.toObject(), ...dto };
+      this.validateHierarchy(merged as CreateWorkItemDto);
+    }
+
+    const updated = await this.workItemModel.findByIdAndUpdate(id, dto, { new: true });
 
     if (!updated) throw new NotFoundException('Work item not found');
     return updated;
@@ -71,10 +108,7 @@ export class WorkItemsService {
 
   /* ================= STATUS / WORKFLOW ================= */
 
-  async changeStatus(
-    id: string,
-    newStatus: WorkStatus,
-  ): Promise<WorkItem> {
+  async changeStatus(id: string, newStatus: WorkStatus): Promise<WorkItem> {
     const item = await this.findById(id);
 
     const allowedTransitions = WORKFLOW_TRANSITIONS[item.status];

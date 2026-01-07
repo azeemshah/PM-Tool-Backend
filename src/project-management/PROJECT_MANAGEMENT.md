@@ -987,6 +987,12 @@ Project
                     └── Subtask
                     └── Bug
 ```
+Correct 
+
+Project
+ └── Epic
+      └── Story / Task / Bug
+           └── Sub-task
 
 ### 3. Status Management
 Use appropriate status values for different entities:
