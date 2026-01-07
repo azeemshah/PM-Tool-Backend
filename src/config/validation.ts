@@ -3,7 +3,7 @@
 
 // export const validationSchema = Joi.object({
 //   NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
-//   PORT: Joi.number().default(3000),
+//   PORT: Joi.number().default(5000),
 //   API_PREFIX: Joi.string().default('api/v1'),
 //   
 //   MONGODB_URI: Joi.string().required(),

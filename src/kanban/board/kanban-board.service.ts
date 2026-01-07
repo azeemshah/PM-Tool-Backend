@@ -19,10 +19,10 @@ import { WorkItem } from '../work-item/schemas/work-item.schema';
 
 @Injectable()
 export class KanbanBoardService {
-  workItemModel: any;
   constructor(
     @InjectModel(KanbanBoard.name) private readonly boardModel: Model<KanbanBoard>,
     @InjectModel(KanbanColumn.name) private readonly columnModel: Model<KanbanColumn>,
+    @InjectModel(WorkItem.name) private readonly workItemModel: Model<WorkItem>,
   ) {}
 
   // -------------------- Board CRUD --------------------
@@ -71,8 +71,10 @@ export class KanbanBoardService {
 
   // Get all columns for a board
   async getBoardColumns(boardId: string): Promise<KanbanColumn[]> {
-    const board = await this.findBoardById(boardId);
-    return board.columns as any;
+    // Return the full column documents for the board to ensure frontend
+    // receives `name`, `position`, and `workItems` fields (avoid returning
+    // only ObjectId strings).
+    return this.columnModel.find({ board: new Types.ObjectId(boardId) }).exec();
   }
 
   // -------------------- Column CRUD --------------------
@@ -136,34 +138,97 @@ export class KanbanBoardService {
       if (!fromColumn) throw new NotFoundException('Source column not found');
       if (!toColumn) throw new NotFoundException('Target column not found');
 
-      // Check work item exists in source column
-      if (
-        !fromColumn.workItems ||
-        !fromColumn.workItems.find((id) => id.toString() === workItemId)
-      ) {
-        throw new NotFoundException('Work item not found in source column');
+      // Check if card exists (verify by looking up the work item directly)
+      // This is more flexible than relying on column.workItems array which might not be populated
+      const workItem = this.workItemModel.findById(workItemId);
+      if (!workItem) throw new NotFoundException('Work item not found');
+
+      // Remove from source column (safely - might not be there)
+      if (fromColumn.workItems && Array.isArray(fromColumn.workItems)) {
+        fromColumn.workItems = fromColumn.workItems.filter((id) => {
+          const idStr = id.toString();
+          const workItemIdStr = workItemId.toString();
+          return idStr !== workItemIdStr;
+        });
       }
 
-      // Remove work item from source column
-      fromColumn.workItems = fromColumn.workItems.filter((id) => id.toString() !== workItemId);
-
-      // Add work item to target column at correct position
+      // Add to target column at correct position
       if (!toColumn.workItems) toColumn.workItems = [];
       const insertPos =
         position !== undefined && position >= 0 && position <= toColumn.workItems.length
           ? position
           : toColumn.workItems.length;
-      toColumn.workItems.splice(insertPos, 0, new Types.ObjectId(workItemId));
+
+      // Only add if not already there
+      const alreadyExists = toColumn.workItems.some(
+        (id) => id.toString() === workItemId.toString(),
+      );
+      if (!alreadyExists) {
+        toColumn.workItems.splice(insertPos, 0, new Types.ObjectId(workItemId));
+      }
 
       // Save columns
       await fromColumn.save();
       await toColumn.save();
+
+      // Update the work item's status to the new column ID
+      await this.workItemModel
+        .findByIdAndUpdate(workItemId, { status: toColumnId }, { new: true })
+        .exec();
 
       return { message: 'Work item moved successfully' };
     } catch (err) {
       console.error('Move Work Item Error:', err);
       if (err.status && err.response) throw err;
       throw new InternalServerErrorException('Failed to move work item');
+    }
+  }
+
+  /* ================= Reorder Cards in List ================= */
+  async reorderCardsInList(
+    boardId: string,
+    columnId: string,
+    cardIds: string[],
+  ): Promise<{ message: string }> {
+    // Validate IDs
+    if (!Types.ObjectId.isValid(boardId)) throw new BadRequestException('Invalid board ID');
+    if (!Types.ObjectId.isValid(columnId)) throw new BadRequestException('Invalid column ID');
+
+    // Verify all card IDs are valid
+    for (const cardId of cardIds) {
+      if (!Types.ObjectId.isValid(cardId)) {
+        throw new BadRequestException(`Invalid card ID: ${cardId}`);
+      }
+    }
+
+    try {
+      // Find board to verify it exists
+      const board = await this.boardModel.findById(boardId).exec();
+      if (!board) throw new NotFoundException('Board not found');
+
+      // Verify column belongs to this board by checking if columnId is in board.columns array
+      const columnBelongsToBoard = (board.columns as any[]).some(
+        (colId) => colId.toString() === columnId.toString(),
+      );
+      if (!columnBelongsToBoard) {
+        throw new BadRequestException('Column does not belong to this board');
+      }
+
+      // Find column
+      const column = await this.columnModel.findById(columnId).exec();
+      if (!column) throw new NotFoundException('Column not found');
+
+      // Update the workItems array with the new order
+      column.workItems = cardIds.map((id) => new Types.ObjectId(id));
+
+      // Save column
+      await column.save();
+
+      return { message: 'Cards reordered successfully' };
+    } catch (err) {
+      console.error('Reorder Cards Error:', err);
+      if (err.status && err.response) throw err;
+      throw new InternalServerErrorException('Failed to reorder cards');
     }
   }
 }

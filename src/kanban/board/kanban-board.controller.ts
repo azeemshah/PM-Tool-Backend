@@ -85,10 +85,26 @@ export class KanbanBoardController {
     return this.boardService.deleteColumn(boardId, columnId);
   }
 
+  @Get(':boardId/columns')
+  async getColumns(@Param('boardId') boardId: string): Promise<KanbanColumn[]> {
+    return this.boardService.getBoardColumns(boardId);
+  }
+
   // -------------------- Move Work Item --------------------
 
   @Post(':boardId/move-work-item')
   async moveWorkItem(@Param('boardId') boardId: string, @Body() moveWorkItemDto: MoveWorkItemDto) {
     return this.boardService.moveWorkItem(boardId, moveWorkItemDto);
+  }
+
+  // -------------------- Reorder Cards in List --------------------
+
+  @Put(':boardId/columns/:columnId/reorder-cards')
+  async reorderCardsInList(
+    @Param('boardId') boardId: string,
+    @Param('columnId') columnId: string,
+    @Body() body: { cardIds: string[] },
+  ) {
+    return this.boardService.reorderCardsInList(boardId, columnId, body.cardIds);
   }
 }

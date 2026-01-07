@@ -33,6 +33,10 @@ export class CreateWorkItemDto {
 
   @IsMongoId()
   @IsOptional()
+  columnId?: string; // Associated Kanban column
+
+  @IsMongoId()
+  @IsOptional()
   parentId?: string; // Parent item (for Story -> Epic, Task -> Story, Subtask -> Task)
 
   @IsMongoId()

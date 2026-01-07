@@ -7,10 +7,14 @@ import { CreateWorkItemDto } from './dto/create-work-item.dto';
 import { UpdateWorkItemDto } from './dto/update-work-item.dto';
 import { MoveStatusDto } from './dto/move-status.dto';
 import { AssignUserDto } from './dto/assign-user.dto';
+import { KanbanColumn } from '../board/schemas/kanban-column.schema';
 
 @Injectable()
 export class WorkItemService {
-  constructor(@InjectModel(WorkItem.name) private workItemModel: Model<WorkItem>) {}
+  constructor(
+    @InjectModel(WorkItem.name) private workItemModel: Model<WorkItem>,
+    @InjectModel(KanbanColumn.name) private columnModel: Model<KanbanColumn>,
+  ) {}
 
   /* ================= Create Work Item ================= */
   async create(createDto: CreateWorkItemDto): Promise<WorkItem> {
@@ -23,6 +27,10 @@ export class WorkItemService {
     if ((createDto as any).boardId) {
       payload.board = (createDto as any).boardId;
       delete payload.boardId;
+    }
+    // If a columnId is provided, set the WorkItem.status to that column ID
+    if ((createDto as any).columnId) {
+      payload.status = (createDto as any).columnId;
     }
     if ((createDto as any).parentId) {
       payload.parent = (createDto as any).parentId;
@@ -39,7 +47,17 @@ export class WorkItemService {
     }
 
     const createdItem = new this.workItemModel(payload);
-    return createdItem.save();
+    const savedItem = await createdItem.save();
+
+    // Automatically add to column's workItems array if columnId/column is provided
+    if ((createDto as any).columnId) {
+      const columnId = (createDto as any).columnId;
+      await this.columnModel
+        .findByIdAndUpdate(columnId, { $push: { workItems: savedItem._id } }, { new: true })
+        .exec();
+    }
+
+    return savedItem;
   }
 
   /* ================= Find All Work Items ================= */
