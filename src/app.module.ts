@@ -50,6 +50,7 @@ import { MemberModule } from './member/member.module';
     KanbanModule,
     WorkspaceModule,
     MemberModule,
+    EmailModule,
     // ProjectsModule,
     // IssueModule,
     // SprintModule,
