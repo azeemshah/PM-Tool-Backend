@@ -30,7 +30,7 @@ export class WorkspaceService {
 
     const workspace = new this.workspaceModel({
       ...createWorkspaceDto,
-      createdBy: new Types.ObjectId(userId),
+      OwneredBy: new Types.ObjectId(userId),
       members: [new Types.ObjectId(userId)],
       inviteCode,
     });
@@ -56,7 +56,7 @@ export class WorkspaceService {
   async findAll(userId: string): Promise<WorkspaceDocument[]> {
     return this.workspaceModel
       .find({ members: new Types.ObjectId(userId) })
-      .populate('createdBy', '-password')
+      .populate('OwneredBy', '-password')
       .populate('members', '-password')
       .exec();
   }
@@ -68,7 +68,7 @@ export class WorkspaceService {
 
     const workspace = await this.workspaceModel
       .findById(workspaceId)
-      .populate('createdBy', '-password')
+      .populate('OwneredBy', '-password')
       .populate('members', '-password')
       .exec();
 
@@ -89,7 +89,7 @@ export class WorkspaceService {
 
     const workspace = await this.workspaceModel
       .findByIdAndUpdate(workspaceId, updateWorkspaceDto, { new: true })
-      .populate('createdBy', '-password')
+      .populate('OwneredBy', '-password')
       .populate('members', '-password')
       .exec();
 

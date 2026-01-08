@@ -12,7 +12,7 @@ export class Workspace {
   description: string;
 
   @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
-  createdBy: Types.ObjectId;
+  OwneredBy: Types.ObjectId;
 
   @Prop({ type: [Types.ObjectId], ref: 'User', default: [] })
   members: Types.ObjectId[];

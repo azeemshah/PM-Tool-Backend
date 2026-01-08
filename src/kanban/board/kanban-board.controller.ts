@@ -59,7 +59,7 @@ export class KanbanBoardController {
 
   // -------------------- Columns --------------------
 
-  @Post(':boardId/columns')
+  @Post('columns')
   async createColumn(
     @Param('boardId') boardId: string,
     @Body() createColumnDto: CreateColumnDto,
