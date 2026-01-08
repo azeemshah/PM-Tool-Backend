@@ -22,8 +22,8 @@ export class WorkItem extends Document {
   @Prop({ enum: WorkItemType, required: true })
   type: WorkItemType;
 
-  @Prop({ type: Types.ObjectId, ref: 'KanbanProject' })
-  project?: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Workspaces' })
+  spaceid?: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'KanbanBoard' })
   board?: Types.ObjectId;

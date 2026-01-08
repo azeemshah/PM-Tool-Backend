@@ -17,9 +17,6 @@ export class Workspace {
   @Prop({ type: [Types.ObjectId], ref: 'User', default: [] })
   members: Types.ObjectId[];
 
-  @Prop({ type: [Types.ObjectId], ref: 'Project', default: [] })
-  projects: Types.ObjectId[];
-
   @Prop({ default: 'active', enum: ['active', 'inactive', 'archived'] })
   status: string;
 

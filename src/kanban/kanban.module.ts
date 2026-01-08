@@ -7,19 +7,6 @@ import { KanbanProjectController } from './project/kanban-project.controller';
 import { KanbanProjectService } from './project/kanban-project.service';
 import { KanbanProject, KanbanProjectSchema } from './project/schemas/kanban-project.schema';
 
-// Roles
-import { KanbanRoleController } from './roles/kanban-role.controller';
-import { KanbanRoleService } from './roles/kanban-role.service';
-import { KanbanRole, KanbanRoleSchema } from './roles/schemas/kanban-role.schema';
-
-// Workflow
-import { WorkflowController } from './workflow/workflow.controller';
-import { WorkflowService } from './workflow/workflow.service';
-import { Workflow, WorkflowSchema } from './workflow/schemas/workflow.schema';
-import { WorkflowState, WorkflowStateSchema } from './workflow/schemas/workflow-state.schema';
-import { WorkflowTransition, WorkflowTransitionSchema } from './workflow/schemas/workflow-transition.schema';
-import { WorkflowActivity, WorkflowActivitySchema } from './workflow/schemas/workflow-activity.schema';
-
 // Board
 import { KanbanBoardController } from './board/kanban-board.controller';
 import { KanbanBoardService } from './board/kanban-board.service';
@@ -39,12 +26,6 @@ import { Subtask, SubtaskSchema } from './work-item/schemas/subtask.schema';
 import { Bug, BugSchema } from './work-item/schemas/bug.schema';
 import { Improvement, ImprovementSchema } from './work-item/schemas/improvement.schema';
 
-// Flow
-import { FlowMetricsController } from './flow/flow-metrics.controller';
-import { FlowMetricsService } from './flow/flow-metrics.service';
-import { CycleTime, CycleTimeSchema } from './flow/schemas/cycle-time.schema';
-import { LeadTime, LeadTimeSchema } from './flow/schemas/lead-time.schema';
-import { Throughput, ThroughputSchema } from './flow/schemas/throughput.schema';
 
 // Estimation
 import { EstimationController } from './estimation/estimation.controller';
@@ -57,10 +38,6 @@ import { TimeTrackingService } from './time-tracking/time-tracking.service';
 import { TimeLog, TimeLogSchema } from './time-tracking/schemas/time-log.schema';
 import { Timesheet, TimesheetSchema } from './time-tracking/schemas/timesheet.schema';
 
-// Linking
-import { WorkItemLinkController } from './linking/work-item-link.controller';
-import { WorkItemLinkService } from './linking/work-item-link.service';
-import { WorkItemLink, WorkItemLinkSchema } from './linking/schemas/work-item-link.schema';
 
 // Comment
 import { CommentController } from './comment/comment.controller';
@@ -106,15 +83,6 @@ import { SavedFilter, SavedFilterSchema } from './search/schemas/saved-filter.sc
       // Project
       { name: KanbanProject.name, schema: KanbanProjectSchema },
 
-      // Roles
-      { name: KanbanRole.name, schema: KanbanRoleSchema },
-
-      // Workflow
-      { name: Workflow.name, schema: WorkflowSchema },
-      { name: WorkflowState.name, schema: WorkflowStateSchema },
-      { name: WorkflowTransition.name, schema: WorkflowTransitionSchema },
-      { name: WorkflowActivity.name, schema: WorkflowActivitySchema },
-
       // Board
       { name: KanbanBoard.name, schema: KanbanBoardSchema },
       { name: KanbanColumn.name, schema: KanbanColumnSchema },
@@ -130,20 +98,12 @@ import { SavedFilter, SavedFilterSchema } from './search/schemas/saved-filter.sc
       { name: Bug.name, schema: BugSchema },
       { name: Improvement.name, schema: ImprovementSchema },
 
-      // Flow
-      { name: CycleTime.name, schema: CycleTimeSchema },
-      { name: LeadTime.name, schema: LeadTimeSchema },
-      { name: Throughput.name, schema: ThroughputSchema },
-
       // Estimation
       { name: Estimation.name, schema: EstimationSchema },
 
       // Time Tracking
       { name: TimeLog.name, schema: TimeLogSchema },
       { name: Timesheet.name, schema: TimesheetSchema },
-
-      // Linking
-      { name: WorkItemLink.name, schema: WorkItemLinkSchema },
 
       // Comment
       { name: Comment.name, schema: CommentSchema },
@@ -172,15 +132,10 @@ import { SavedFilter, SavedFilterSchema } from './search/schemas/saved-filter.sc
   ],
   controllers: [
     KanbanProjectController,
-    KanbanRoleController,
-    WorkflowController,
+
     KanbanBoardController,
     WorkItemController,
-    FlowMetricsController,
-    EstimationController,
     TimeTrackingController,
-    WorkItemLinkController,
-    CommentController,
     AttachmentController,
     NotificationController,
     KanbanReportController,
@@ -190,15 +145,9 @@ import { SavedFilter, SavedFilterSchema } from './search/schemas/saved-filter.sc
   ],
   providers: [
     KanbanProjectService,
-    KanbanRoleService,
-    WorkflowService,
     KanbanBoardService,
     WorkItemService,
-    FlowMetricsService,
-    EstimationService,
     TimeTrackingService,
-    WorkItemLinkService,
-    CommentService,
     AttachmentService,
     NotificationService,
     KanbanReportService,

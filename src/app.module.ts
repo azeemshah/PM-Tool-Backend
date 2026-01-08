@@ -5,17 +5,14 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { EmailModule } from './email/email.module';
-import { DashboardModule } from './dashboard/dashboard.module';
 import { KanbanModule } from './kanban/kanban.module';
-import { ProjectManagementModule } from './project-management/project-management.module';
 import { WorkspaceModule } from './workspace/workspace.module';
 import { MemberModule } from './member/member.module';
 
 @Module({
   imports: [
     // Configuration
-    MongooseModule.forRoot('mongodb://localhost:27017/pm_tool'),
-    ProjectManagementModule,
+    MongooseModule.forRoot('mongodb://localhost:27017/pm_tool2'),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
@@ -46,7 +43,6 @@ import { MemberModule } from './member/member.module';
     AuthModule,
     UsersModule,
     EmailModule,
-    DashboardModule,
     KanbanModule,
     WorkspaceModule,
     MemberModule,

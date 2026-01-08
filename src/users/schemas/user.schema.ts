@@ -52,12 +52,6 @@ export class User {
   lastLoginAt: Date;
 
   // For future JIRA features
-  @Prop({ type: [String], default: [] })
-  projectIds: string[];
-
-  @Prop({ type: [String], default: [] })
-  teamIds: string[];
-
   // Method to compare passwords
   async comparePassword(candidatePassword: string): Promise<boolean> {
     return bcrypt.compare(candidatePassword, this.password);
