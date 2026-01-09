@@ -20,14 +20,14 @@ export class ColumnController {
 
   // -------------------- Columns --------------------
 
-  @Post('columns')
+  @Post('create')
   async createColumn(
     @Body() createColumnDto: CreateColumnDto,
   ): Promise<KanbanColumn> {
     return this.columnService.createColumn(createColumnDto);
   }
 
-  @Put(':boardId/columns/:columnId')
+  @Put('columns/:columnId')
   async updateColumn(
     @Param('boardId') boardId: string,
     @Param('columnId') columnId: string,

@@ -40,7 +40,6 @@ export class KanbanBoardService {
 
     const columns = await this.columnModel
       .find({ BoardId: board._id })
-      .populate('workItems')
       .exec();
 
     return {

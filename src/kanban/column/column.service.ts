@@ -9,25 +9,28 @@ import { WorkItem } from '../work-item/schemas/work-item.schema';
 import { UpdateColumnDto } from './dto/update-column.dto';
 import { CreateColumnDto } from './dto/create-column.dto';
 import { KanbanColumn } from './schemas/column.schema';
+import { KanbanBoard } from '../board/schemas/kanban-board.schema';
 
 @Injectable()
 export class ColumnService {
   getBoardColumns(boardId: string): KanbanColumn[] | PromiseLike<KanbanColumn[]> {
-      throw new Error('Method not implemented.');
+    throw new Error('Method not implemented.');
   }
   constructor(
     @InjectModel(KanbanColumn.name)
     private readonly columnModel: Model<KanbanColumn>,
+    @InjectModel(KanbanBoard.name)
+    private readonly boardModel: Model<KanbanBoard>,
     @InjectModel(WorkItem.name)
     private readonly workItemModel: Model<WorkItem>,
-  ) {}
+  ) { }
 
   // -------------------- Column CRUD --------------------
 
   async createColumn(
     createColumnDto: CreateColumnDto,
   ): Promise<KanbanColumn> {
-    const board = await this.columnModel
+    const board = await this.boardModel
       .findById(createColumnDto.BoardId)
       .exec();
 
