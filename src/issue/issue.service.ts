@@ -2,10 +2,14 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Issue } from './schemas/issue.schema';
+import { Counter } from './schemas/counter.schema';
 
 @Injectable()
 export class IssueService {
-  constructor(@InjectModel(Issue.name) private issueModel: Model<Issue>) {}
+  constructor(
+    @InjectModel(Issue.name) private issueModel: Model<Issue>,
+    @InjectModel(Counter.name) private counterModel: Model<Counter>,
+  ) {}
 
   /**
    * Validates issue hierarchy according to Jira rules:
@@ -47,10 +51,58 @@ export class IssueService {
   }
 
   /**
+   * Generates a unique issue key atomically using MongoDB counter
+   * Format: ISS-123
+   * Uses findOneAndUpdate to prevent race conditions
+   * Falls back to finding next available key if counter conflicts with existing keys
+   */
+  private async generateIssueKey(projectId: string): Promise<string> {
+    const counterId = `issue_counter_${projectId}`;
+
+    // Try up to 10 times to find an unused key
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const counter = await this.counterModel.findOneAndUpdate(
+        { counterId: counterId },
+        { $inc: { sequence: 1 } },
+        { new: true, upsert: true },
+      );
+
+      const key = `ISS-${counter.sequence}`;
+
+      // Check if this key already exists
+      const existing = await this.issueModel.findOne({ key }).exec();
+      if (!existing) {
+        return key;
+      }
+
+      // If key exists, continue loop to get next sequence number
+    }
+
+    // Fallback: find highest existing key and use next one
+    const maxKey = await this.issueModel
+      .findOne({ key: /^ISS-\d+$/ })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    if (!maxKey || !maxKey.key) {
+      return 'ISS-1';
+    }
+
+    const match = maxKey.key.match(/^ISS-(\d+)$/);
+    const nextNum = match ? parseInt(match[1]) + 1 : 1;
+    return `ISS-${nextNum}`;
+  }
+
+  /**
    * Creates an issue with hierarchy validation
    */
   async create(data: any): Promise<Issue> {
     this.validateHierarchy(data);
+
+    // Generate unique key if not provided
+    if (!data.key) {
+      data.key = await this.generateIssueKey(data.projectId);
+    }
 
     // If parentIssueId is provided, validate that parent is Story/Task/Bug
     if (data.parentIssueId) {
@@ -83,34 +135,77 @@ export class IssueService {
    * Get all issues for a project
    */
   async getByProject(projectId: string): Promise<Issue[]> {
-    return this.issueModel.find({ projectId }).populate('assignee reporter').exec();
+    return this.issueModel
+      .find({ projectId: new Types.ObjectId(projectId) })
+      .populate('assignee reporter')
+      .exec();
   }
 
   /**
    * Get all epics for a project
    */
   async getEpicsByProject(projectId: string): Promise<Issue[]> {
-    return this.issueModel.find({ projectId, type: 'epic' }).populate('assignee reporter').exec();
+    // First try as ObjectId
+    let epics = await this.issueModel
+      .find({ projectId: new Types.ObjectId(projectId), type: 'epic' })
+      .populate('assignee reporter')
+      .exec();
+
+    // If no results, try as string (in case projectId was stored as string)
+    if (!epics || epics.length === 0) {
+      epics = await this.issueModel
+        .find({ projectId: projectId as any, type: 'epic' })
+        .populate('assignee reporter')
+        .exec();
+    }
+
+    return epics || [];
   }
 
   /**
    * Get all Story/Task/Bug under an Epic
    */
   async getChildrenByEpic(epicId: string): Promise<Issue[]> {
-    return this.issueModel
-      .find({ epicId, type: { $in: ['story', 'task', 'bug'] } })
+    // Try matching as ObjectId first (normal case)
+    try {
+      const children = await this.issueModel
+        .find({ epicId: new Types.ObjectId(epicId), type: { $in: ['story', 'task', 'bug'] } })
+        .populate('assignee reporter')
+        .exec();
+      if (children && children.length > 0) return children;
+    } catch (e) {
+      // ignore cast errors and fall back to string match
+    }
+
+    // Fallback: match epicId stored as string (some records may have string IDs)
+    const fallback = await this.issueModel
+      .find({ epicId: epicId as any, type: { $in: ['story', 'task', 'bug'] } })
       .populate('assignee reporter')
       .exec();
+    return fallback || [];
   }
 
   /**
    * Get all Subtasks under a parent issue (Story/Task/Bug)
    */
   async getSubtasks(parentIssueId: string): Promise<Issue[]> {
-    return this.issueModel
-      .find({ parentIssueId, type: 'subtask' })
+    // Try matching as ObjectId first
+    try {
+      const subtasks = await this.issueModel
+        .find({ parentIssueId: new Types.ObjectId(parentIssueId), type: 'subtask' })
+        .populate('assignee reporter')
+        .exec();
+      if (subtasks && subtasks.length > 0) return subtasks;
+    } catch (e) {
+      // ignore
+    }
+
+    // Fallback to string match
+    const fallback = await this.issueModel
+      .find({ parentIssueId: parentIssueId as any, type: 'subtask' })
       .populate('assignee reporter')
       .exec();
+    return fallback || [];
   }
 
   /**
@@ -141,7 +236,7 @@ export class IssueService {
    * Change issue status
    */
   async changeStatus(id: string, status: string): Promise<Issue> {
-    const validStatuses = ['todo', 'in-progress', 'done'];
+    const validStatuses = ['backlog', 'todo', 'in_progress', 'in_review', 'done'];
     if (!validStatuses.includes(status)) {
       throw new BadRequestException(`Invalid status: ${status}`);
     }

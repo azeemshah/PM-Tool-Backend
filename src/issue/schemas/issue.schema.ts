@@ -65,8 +65,8 @@ export class Issue extends Document {
   priority: string; // lowest | low | medium | high | highest
 
   @Prop({
-    enum: ['todo', 'in-progress', 'done'],
-    default: 'todo',
+    enum: ['backlog', 'todo', 'in_progress', 'in_review', 'done'],
+    default: 'backlog',
   })
   status: string;
 
