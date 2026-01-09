@@ -14,15 +14,17 @@ import { UpdateBoardDto } from './dto/update-board.dto';
 import { CreateColumnDto } from './dto/create-column.dto';
 import { UpdateColumnDto } from './dto/update-column.dto';
 import { MoveWorkItemDto } from './dto/move-work-item.dto';
-import { CreateWorkItemDto } from '../work-item/dto/create-work-item.dto';
 import { WorkItem } from '../work-item/schemas/work-item.schema';
 
 @Injectable()
 export class KanbanBoardService {
   constructor(
-    @InjectModel(KanbanBoard.name) private readonly boardModel: Model<KanbanBoard>,
-    @InjectModel(KanbanColumn.name) private readonly columnModel: Model<KanbanColumn>,
-    @InjectModel(WorkItem.name) private readonly workItemModel: Model<WorkItem>,
+    @InjectModel(KanbanBoard.name)
+    private readonly boardModel: Model<KanbanBoard>,
+    @InjectModel(KanbanColumn.name)
+    private readonly columnModel: Model<KanbanColumn>,
+    @InjectModel(WorkItem.name)
+    private readonly workItemModel: Model<WorkItem>,
   ) {}
 
   // -------------------- Board CRUD --------------------
@@ -32,60 +34,70 @@ export class KanbanBoardService {
     return board.save();
   }
 
-  // Nested populate to get work items inside columns
-  async findAllBoards(): Promise<KanbanBoard[]> {
-    return this.boardModel
-      .find()
-      .populate({
-        path: 'columns',
-        populate: { path: 'workItems' },
-      })
-      .exec();
-  }
-
-  async findBoardById(id: string): Promise<KanbanBoard> {
-    const board = await this.boardModel
-      .findById(id)
-      .populate({
-        path: 'columns',
-        populate: { path: 'workItems' },
-      })
-      .exec();
-
+  async findBoardById(id: string): Promise<any> {
+    const board = await this.boardModel.findById(id).exec();
     if (!board) throw new NotFoundException(`Board with ID ${id} not found`);
-    return board;
+
+    const columns = await this.columnModel
+      .find({ BoardId: board._id })
+      .populate('workItems')
+      .exec();
+
+    return {
+      ...board.toObject(),
+      columns,
+    };
   }
 
   async updateBoard(id: string, updateBoardDto: UpdateBoardDto): Promise<KanbanBoard> {
     const updated = await this.boardModel
       .findByIdAndUpdate(id, updateBoardDto, { new: true })
       .exec();
+
     if (!updated) throw new NotFoundException(`Board with ID ${id} not found`);
     return updated;
   }
 
   async deleteBoard(id: string): Promise<void> {
-    const result = await this.boardModel.findByIdAndDelete(id).exec();
-    if (!result) throw new NotFoundException(`Board with ID ${id} not found`);
+    const board = await this.boardModel.findById(id).exec();
+    if (!board) throw new NotFoundException(`Board with ID ${id} not found`);
+
+    // Remove board reference from all columns
+    await this.columnModel.updateMany(
+      { BoardId: board._id },
+      { $pull: { BoardId: board._id } },
+    );
+
+    await board.deleteOne();
   }
 
-  // Get all columns for a board
+  // -------------------- Get Board Columns --------------------
+
   async getBoardColumns(boardId: string): Promise<KanbanColumn[]> {
-    // Return the full column documents for the board to ensure frontend
-    // receives `name`, `position`, and `workItems` fields (avoid returning
-    // only ObjectId strings).
-    return this.columnModel.find({ board: new Types.ObjectId(boardId) }).exec();
+    if (!Types.ObjectId.isValid(boardId)) {
+      throw new BadRequestException('Invalid board ID');
+    }
+
+    return this.columnModel
+      .find({ BoardId: new Types.ObjectId(boardId) })
+      .populate('workItems')
+      .exec();
   }
 
   // -------------------- Column CRUD --------------------
 
-  async createColumn(boardId: string, createColumnDto: CreateColumnDto): Promise<KanbanColumn> {
-    const board = await this.findBoardById(boardId);
-    const column = new this.columnModel({ ...createColumnDto, board: board._id });
-    await column.save();
-    board.columns.push(column._id);
-    await board.save();
-    return column;
+  async createColumn(
+    createColumnDto: CreateColumnDto,
+  ): Promise<KanbanColumn> {
+    const board = await this.boardModel.findById(createColumnDto.BoardId).exec();
+    if (!board) throw new NotFoundException('Board not found');
+
+    const column = new this.columnModel({
+      ...createColumnDto,
+      BoardId: board._id,
+    });
+
+    return column.save();
   }
 
   async updateColumn(
@@ -93,142 +105,113 @@ export class KanbanBoardService {
     columnId: string,
     updateColumnDto: UpdateColumnDto,
   ): Promise<KanbanColumn> {
-    await this.findBoardById(boardId);
-    const column = await this.columnModel
-      .findByIdAndUpdate(columnId, updateColumnDto, { new: true })
-      .exec();
+    if (!Types.ObjectId.isValid(boardId)) {
+      throw new BadRequestException('Invalid board ID');
+    }
+
+    const column = await this.columnModel.findOneAndUpdate(
+      { _id: columnId, BoardId: boardId },
+      updateColumnDto,
+      { new: true },
+    );
+
     if (!column) throw new NotFoundException(`Column with ID ${columnId} not found`);
     return column;
   }
 
-  async deleteColumn(boardId: string, columnId: string): Promise<void> {
-    const board = await this.findBoardById(boardId);
-    const column = await this.columnModel.findByIdAndDelete(columnId).exec();
-    if (!column) throw new NotFoundException(`Column with ID ${columnId} not found`);
-    board.columns = board.columns.filter((id) => id.toString() !== columnId);
-    await board.save();
-  }
+async deleteColumn(columnId: string): Promise<void> {
+  // Find the column by ID
+  const column = await this.columnModel.findById(columnId).exec();
+  if (!column) throw new NotFoundException(`Column with ID ${columnId} not found`);
+
+  // Delete all work items in this column
+  await this.workItemModel.deleteMany({ status: column._id }).exec();
+
+  // Delete the column itself
+  await column.deleteOne();
+}
+
 
   // -------------------- Move Work Item --------------------
 
-  async moveWorkItem(boardId: string, moveWorkItemDto: MoveWorkItemDto) {
-    const { workItemId, fromColumnId, toColumnId, position } = moveWorkItemDto;
+  // async moveWorkItem(boardId: string, moveWorkItemDto: MoveWorkItemDto) {
+  //   const { workItemId, fromColumnId, toColumnId, position } = moveWorkItemDto;
 
-    // Validate IDs
-    if (!Types.ObjectId.isValid(boardId)) throw new BadRequestException('Invalid board ID');
-    if (!Types.ObjectId.isValid(workItemId)) throw new BadRequestException('Invalid work item ID');
-    if (!Types.ObjectId.isValid(fromColumnId))
-      throw new BadRequestException('Invalid source column ID');
-    if (!Types.ObjectId.isValid(toColumnId))
-      throw new BadRequestException('Invalid target column ID');
+  //   if (!Types.ObjectId.isValid(boardId)) throw new BadRequestException('Invalid board ID');
+  //   if (!Types.ObjectId.isValid(workItemId))
+  //     throw new BadRequestException('Invalid work item ID');
 
-    try {
-      // Find board
-      const board = await this.boardModel.findById(boardId).populate('columns').exec();
-      if (!board) throw new NotFoundException('Board not found');
+  //   try {
+  //     // Ensure target column belongs to board
+  //     const targetColumn = await this.columnModel.findOne({
+  //       _id: toColumnId,
+  //       BoardId: boardId,
+  //     });
 
-      // Ensure target column belongs to this board
-      if (!board.columns.map((c) => c._id.toString()).includes(toColumnId)) {
-        throw new BadRequestException('Target column does not belong to this board');
-      }
+  //     if (!targetColumn) {
+  //       throw new BadRequestException('Target column does not belong to this board');
+  //     }
 
-      // Find columns
-      const fromColumn = await this.columnModel.findById(fromColumnId).exec();
-      const toColumn = await this.columnModel.findById(toColumnId).exec();
-      if (!fromColumn) throw new NotFoundException('Source column not found');
-      if (!toColumn) throw new NotFoundException('Target column not found');
+  //     const fromColumn = await this.columnModel.findById(fromColumnId);
+  //     if (!fromColumn) throw new NotFoundException('Source column not found');
 
-      // Check if card exists (verify by looking up the work item directly)
-      // This is more flexible than relying on column.workItems array which might not be populated
-      const workItem = this.workItemModel.findById(workItemId);
-      if (!workItem) throw new NotFoundException('Work item not found');
+  //     const workItem = await this.workItemModel.findById(workItemId);
+  //     if (!workItem) throw new NotFoundException('Work item not found');
 
-      // Remove from source column (safely - might not be there)
-      if (fromColumn.workItems && Array.isArray(fromColumn.workItems)) {
-        fromColumn.workItems = fromColumn.workItems.filter((id) => {
-          const idStr = id.toString();
-          const workItemIdStr = workItemId.toString();
-          return idStr !== workItemIdStr;
-        });
-      }
+  //     // Remove from source column
+  //     fromColumn.workItems = (fromColumn.workItems || []).filter(
+  //       (id) => id.toString() !== workItemId,
+  //     );
 
-      // Add to target column at correct position
-      if (!toColumn.workItems) toColumn.workItems = [];
-      const insertPos =
-        position !== undefined && position >= 0 && position <= toColumn.workItems.length
-          ? position
-          : toColumn.workItems.length;
+  //     // Insert into target column
+  //     if (!targetColumn.workItems) targetColumn.workItems = [];
 
-      // Only add if not already there
-      const alreadyExists = toColumn.workItems.some(
-        (id) => id.toString() === workItemId.toString(),
-      );
-      if (!alreadyExists) {
-        toColumn.workItems.splice(insertPos, 0, new Types.ObjectId(workItemId));
-      }
+  //     const insertPos =
+  //       position !== undefined &&
+  //       position >= 0 &&
+  //       position <= targetColumn.workItems.length
+  //         ? position
+  //         : targetColumn.workItems.length;
 
-      // Save columns
-      await fromColumn.save();
-      await toColumn.save();
+  //     targetColumn.workItems.splice(insertPos, 0, new Types.ObjectId(workItemId));
 
-      // Update the work item's status to the new column ID
-      await this.workItemModel
-        .findByIdAndUpdate(workItemId, { status: toColumnId }, { new: true })
-        .exec();
+  //     await fromColumn.save();
+  //     await targetColumn.save();
 
-      return { message: 'Work item moved successfully' };
-    } catch (err) {
-      console.error('Move Work Item Error:', err);
-      if (err.status && err.response) throw err;
-      throw new InternalServerErrorException('Failed to move work item');
-    }
-  }
+  //     await this.workItemModel.findByIdAndUpdate(workItemId, {
+  //       status: targetColumn._id,
+  //     });
 
-  /* ================= Reorder Cards in List ================= */
-  async reorderCardsInList(
-    boardId: string,
-    columnId: string,
-    cardIds: string[],
-  ): Promise<{ message: string }> {
-    // Validate IDs
-    if (!Types.ObjectId.isValid(boardId)) throw new BadRequestException('Invalid board ID');
-    if (!Types.ObjectId.isValid(columnId)) throw new BadRequestException('Invalid column ID');
+  //     return { message: 'Work item moved successfully' };
+  //   } catch (err) {
+  //     console.error('Move Work Item Error:', err);
+  //     if (err.status) throw err;
+  //     throw new InternalServerErrorException('Failed to move work item');
+  //   }
+  // }
 
-    // Verify all card IDs are valid
-    for (const cardId of cardIds) {
-      if (!Types.ObjectId.isValid(cardId)) {
-        throw new BadRequestException(`Invalid card ID: ${cardId}`);
-      }
-    }
+  // -------------------- Reorder Cards in List --------------------
 
-    try {
-      // Find board to verify it exists
-      const board = await this.boardModel.findById(boardId).exec();
-      if (!board) throw new NotFoundException('Board not found');
+//   async reorderCardsInList(
+//     boardId: string,
+//     columnId: string,
+//     cardIds: string[],
+//   ): Promise<{ message: string }> {
+//     if (!Types.ObjectId.isValid(boardId)) throw new BadRequestException('Invalid board ID');
+//     if (!Types.ObjectId.isValid(columnId)) throw new BadRequestException('Invalid column ID');
 
-      // Verify column belongs to this board by checking if columnId is in board.columns array
-      const columnBelongsToBoard = (board.columns as any[]).some(
-        (colId) => colId.toString() === columnId.toString(),
-      );
-      if (!columnBelongsToBoard) {
-        throw new BadRequestException('Column does not belong to this board');
-      }
+//     const column = await this.columnModel.findOne({
+//       _id: columnId,
+//       BoardId: boardId,
+//     });
 
-      // Find column
-      const column = await this.columnModel.findById(columnId).exec();
-      if (!column) throw new NotFoundException('Column not found');
+//     if (!column) {
+//       throw new BadRequestException('Column does not belong to this board');
+//     }
 
-      // Update the workItems array with the new order
-      column.workItems = cardIds.map((id) => new Types.ObjectId(id));
+//     column.workItems = cardIds.map((id) => new Types.ObjectId(id));
+//     await column.save();
 
-      // Save column
-      await column.save();
-
-      return { message: 'Cards reordered successfully' };
-    } catch (err) {
-      console.error('Reorder Cards Error:', err);
-      if (err.status && err.response) throw err;
-      throw new InternalServerErrorException('Failed to reorder cards');
-    }
-  }
+//     return { message: 'Cards reordered successfully' };
+//   }
 }

@@ -2,11 +2,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
-// Project
-import { KanbanProjectController } from './project/kanban-project.controller';
-import { KanbanProjectService } from './project/kanban-project.service';
-import { KanbanProject, KanbanProjectSchema } from './project/schemas/kanban-project.schema';
-
 // Board
 import { KanbanBoardController } from './board/kanban-board.controller';
 import { KanbanBoardService } from './board/kanban-board.service';
@@ -80,8 +75,6 @@ import { SavedFilter, SavedFilterSchema } from './search/schemas/saved-filter.sc
 @Module({
   imports: [
     MongooseModule.forFeature([
-      // Project
-      { name: KanbanProject.name, schema: KanbanProjectSchema },
 
       // Board
       { name: KanbanBoard.name, schema: KanbanBoardSchema },
@@ -131,8 +124,6 @@ import { SavedFilter, SavedFilterSchema } from './search/schemas/saved-filter.sc
     ]),
   ],
   controllers: [
-    KanbanProjectController,
-
     KanbanBoardController,
     WorkItemController,
     TimeTrackingController,
@@ -144,7 +135,6 @@ import { SavedFilter, SavedFilterSchema } from './search/schemas/saved-filter.sc
     SearchController,
   ],
   providers: [
-    KanbanProjectService,
     KanbanBoardService,
     WorkItemService,
     TimeTrackingService,

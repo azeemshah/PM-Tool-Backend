@@ -70,34 +70,4 @@ export class WorkspaceController {
       message: 'Workspace deleted successfully',
     };
   }
-
-  @Post(':id/members/:userId')
-  async addMember(@Param('id') id: string, @Param('userId') userId: string) {
-    const workspace = await this.workspaceService.addMember(id, userId);
-    return {
-      success: true,
-      message: 'Member added to workspace',
-      workspace,
-    };
-  }
-
-  @Delete(':id/members/:userId')
-  async removeMember(@Param('id') id: string, @Param('userId') userId: string) {
-    const workspace = await this.workspaceService.removeMember(id, userId);
-    return {
-      success: true,
-      message: 'Member removed from workspace',
-      workspace,
-    };
-  }
-
-  @Get(':id/members')
-  async getMembers(@Param('id') id: string) {
-    const members = await this.workspaceService.getMembers(id);
-    return {
-      success: true,
-      message: 'Members fetched successfully',
-      members,
-    };
-  }
 }

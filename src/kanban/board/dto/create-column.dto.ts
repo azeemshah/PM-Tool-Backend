@@ -1,5 +1,5 @@
 // src/kanban/board/dto/create-column.dto.ts
-import { IsString, IsOptional, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsMongoId } from 'class-validator';
 
 export class CreateColumnDto {
   @IsString()
@@ -8,6 +8,9 @@ export class CreateColumnDto {
   @IsOptional()
   @IsString()
   readonly description?: string; // Optional description
+
+  @IsMongoId()
+  readonly BoardId: string;
 
   @IsOptional()
   @IsNumber()

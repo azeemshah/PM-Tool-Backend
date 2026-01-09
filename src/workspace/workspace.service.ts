@@ -30,7 +30,7 @@ export class WorkspaceService {
 
     const workspace = new this.workspaceModel({
       ...createWorkspaceDto,
-      OwneredBy: new Types.ObjectId(userId),
+      OwnedBy: new Types.ObjectId(userId),
       members: [new Types.ObjectId(userId)],
       inviteCode,
     });
@@ -56,7 +56,7 @@ export class WorkspaceService {
   async findAll(userId: string): Promise<WorkspaceDocument[]> {
     return this.workspaceModel
       .find({ members: new Types.ObjectId(userId) })
-      .populate('OwneredBy', '-password')
+      .populate('OwnedBy', '-password')
       .populate('members', '-password')
       .exec();
   }
@@ -68,7 +68,7 @@ export class WorkspaceService {
 
     const workspace = await this.workspaceModel
       .findById(workspaceId)
-      .populate('OwneredBy', '-password')
+      .populate('OwnedBy', '-password')
       .populate('members', '-password')
       .exec();
 
@@ -89,7 +89,7 @@ export class WorkspaceService {
 
     const workspace = await this.workspaceModel
       .findByIdAndUpdate(workspaceId, updateWorkspaceDto, { new: true })
-      .populate('OwneredBy', '-password')
+      .populate('OwnedBy', '-password')
       .populate('members', '-password')
       .exec();
 
@@ -110,63 +110,5 @@ export class WorkspaceService {
     if (result.deletedCount === 0) {
       throw new NotFoundException('Workspace not found');
     }
-  }
-
-  async addMember(workspaceId: string, userId: string): Promise<WorkspaceDocument> {
-    if (!Types.ObjectId.isValid(workspaceId)) {
-      throw new BadRequestException('Invalid workspace ID');
-    }
-
-    const workspace = await this.workspaceModel.findById(workspaceId);
-    if (!workspace) {
-      throw new NotFoundException('Workspace not found');
-    }
-
-    const userObjectId = new Types.ObjectId(userId);
-    if (workspace.members.includes(userObjectId)) {
-      throw new ConflictException('User is already a member of this workspace');
-    }
-
-    workspace.members.push(userObjectId);
-    return workspace.save();
-  }
-
-  async removeMember(workspaceId: string, userId: string): Promise<WorkspaceDocument> {
-    if (!Types.ObjectId.isValid(workspaceId)) {
-      throw new BadRequestException('Invalid workspace ID');
-    }
-
-    const workspace = await this.workspaceModel.findById(workspaceId);
-    if (!workspace) {
-      throw new NotFoundException('Workspace not found');
-    }
-
-    const userObjectId = new Types.ObjectId(userId);
-    workspace.members = workspace.members.filter(
-      (memberId) => memberId.toString() !== userObjectId.toString(),
-    );
-
-    return workspace.save();
-  }
-
-  async getMembers(workspaceId: string): Promise<any[]> {
-    if (!Types.ObjectId.isValid(workspaceId)) {
-      throw new BadRequestException('Invalid workspace ID');
-    }
-
-    const workspace = await this.workspaceModel.findById(workspaceId).exec();
-
-    if (!workspace) {
-      throw new NotFoundException('Workspace not found');
-    }
-
-    // Return full member documents (so frontend gets role and populated user info)
-    const members = await this.memberModel
-      .find({ workspaceId: new Types.ObjectId(workspaceId) })
-      .populate('userId', 'name email profilePicture')
-      .sort({ joinedAt: -1 })
-      .exec();
-
-    return members;
   }
 }

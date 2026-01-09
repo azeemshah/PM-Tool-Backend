@@ -1,15 +1,13 @@
-// src/kanban/board/dto/create-board.dto.ts
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsMongoId } from 'class-validator';
 
 export class CreateBoardDto {
   @IsString()
-  readonly name: string; // Name of the board
+  readonly name: string;
 
   @IsOptional()
   @IsString()
-  readonly description?: string; // Optional description of the board
+  readonly description?: string;
 
-  @IsOptional()
-  @IsString()
-  projectId?: string;
+  @IsMongoId()
+  readonly workspaceId: string;
 }
