@@ -21,21 +21,16 @@ import { MoveWorkItemDto } from './dto/move-work-item.dto';
 //import { CreateWorkItemDto } from './dto/create-work-item.dto';
 import { WorkItem } from '../work-item/schemas/work-item.schema';
 
-@Controller('kanban/boards')
+@Controller('board')
 export class KanbanBoardController {
   workItemService: any;
   constructor(private readonly boardService: KanbanBoardService) {}
 
   // -------------------- Boards --------------------
 
-  @Post()
+  @Post('create')
   async createBoard(@Body() createBoardDto: CreateBoardDto): Promise<KanbanBoard> {
     return this.boardService.createBoard(createBoardDto);
-  }
-
-  @Get()
-  async findAllBoards(): Promise<KanbanBoard[]> {
-    return this.boardService.findAllBoards();
   }
 
   @Get(':id')
@@ -61,10 +56,9 @@ export class KanbanBoardController {
 
   @Post('columns')
   async createColumn(
-    @Param('boardId') boardId: string,
     @Body() createColumnDto: CreateColumnDto,
   ): Promise<KanbanColumn> {
-    return this.boardService.createColumn(boardId, createColumnDto);
+    return this.boardService.createColumn(createColumnDto);
   }
 
   @Put(':boardId/columns/:columnId')
@@ -76,14 +70,12 @@ export class KanbanBoardController {
     return this.boardService.updateColumn(boardId, columnId, updateColumnDto);
   }
 
-  @Delete(':boardId/columns/:columnId')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteColumn(
-    @Param('boardId') boardId: string,
-    @Param('columnId') columnId: string,
-  ): Promise<void> {
-    return this.boardService.deleteColumn(boardId, columnId);
-  }
+@Delete('columns/:columnId')
+@HttpCode(HttpStatus.NO_CONTENT)
+async deleteColumn(@Param('columnId') columnId: string): Promise<void> {
+  return this.boardService.deleteColumn(columnId);
+}
+
 
   @Get(':boardId/columns')
   async getColumns(@Param('boardId') boardId: string): Promise<KanbanColumn[]> {
@@ -92,19 +84,19 @@ export class KanbanBoardController {
 
   // -------------------- Move Work Item --------------------
 
-  @Post(':boardId/move-work-item')
-  async moveWorkItem(@Param('boardId') boardId: string, @Body() moveWorkItemDto: MoveWorkItemDto) {
-    return this.boardService.moveWorkItem(boardId, moveWorkItemDto);
-  }
+  // @Post(':boardId/move-work-item')
+  // async moveWorkItem(@Param('boardId') boardId: string, @Body() moveWorkItemDto: MoveWorkItemDto) {
+  //   return this.boardService.moveWorkItem(boardId, moveWorkItemDto);
+  // }
 
   // -------------------- Reorder Cards in List --------------------
 
-  @Put(':boardId/columns/:columnId/reorder-cards')
-  async reorderCardsInList(
-    @Param('boardId') boardId: string,
-    @Param('columnId') columnId: string,
-    @Body() body: { cardIds: string[] },
-  ) {
-    return this.boardService.reorderCardsInList(boardId, columnId, body.cardIds);
-  }
+//   @Put(':boardId/columns/:columnId/reorder-cards')
+//   async reorderCardsInList(
+//     @Param('boardId') boardId: string,
+//     @Param('columnId') columnId: string,
+//     @Body() body: { cardIds: string[] },
+//   ) {
+//     return this.boardService.reorderCardsInList(boardId, columnId, body.cardIds);
+//   }
 }

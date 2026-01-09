@@ -52,7 +52,6 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
-        currentWorkspace: user._id.toString(),
       },
     };
   }
@@ -100,7 +99,6 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
-        currentWorkspace: user._id.toString(),
       },
     };
   }

@@ -16,9 +16,5 @@ export class KanbanBoard extends Document {
 
   @Prop()
   description?: string;
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'KanbanColumn' }], default: [] })
-  columns: Types.ObjectId[];
-
 }
 export const KanbanBoardSchema = SchemaFactory.createForClass(KanbanBoard);
