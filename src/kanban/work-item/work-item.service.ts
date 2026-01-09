@@ -7,7 +7,7 @@ import { CreateWorkItemDto } from './dto/create-work-item.dto';
 import { UpdateWorkItemDto } from './dto/update-work-item.dto';
 import { MoveStatusDto } from './dto/move-status.dto';
 import { AssignUserDto } from './dto/assign-user.dto';
-import { KanbanColumn } from '../board/schemas/kanban-column.schema';
+import { KanbanColumn } from '../column/schemas/column.schema';
 
 @Injectable()
 export class WorkItemService {

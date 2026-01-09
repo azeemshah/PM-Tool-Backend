@@ -1,7 +1,7 @@
 // src/kanban/board/schemas/kanban-board.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { KanbanColumn } from './kanban-column.schema';
+import { KanbanColumn } from '../../column/schemas/column.schema';
 
 export type KanbanBoardDocument = KanbanBoard & Document;
 

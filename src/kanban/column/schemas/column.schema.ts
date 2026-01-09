@@ -1,8 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { KanbanBoard } from './kanban-board.schema';
 
-export type KanbanColumnDocument = KanbanColumn & Document;
+export type ColumnDocument = KanbanColumn & Document;
 
 @Schema({ timestamps: true })
 export class KanbanColumn extends Document {
@@ -16,7 +15,7 @@ export class KanbanColumn extends Document {
   description?: string;
 
   @Prop({ type: Number, default: 0 })
-  position: number; // Column order
+  position: number;
 }
 
-export const KanbanColumnSchema = SchemaFactory.createForClass(KanbanColumn);
+export const ColumnSchema = SchemaFactory.createForClass(KanbanColumn);

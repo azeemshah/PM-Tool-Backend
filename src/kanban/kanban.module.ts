@@ -6,7 +6,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { KanbanBoardController } from './board/kanban-board.controller';
 import { KanbanBoardService } from './board/kanban-board.service';
 import { KanbanBoard, KanbanBoardSchema } from './board/schemas/kanban-board.schema';
-import { KanbanColumn, KanbanColumnSchema } from './board/schemas/kanban-column.schema';
+import { ColumnSchema } from './column/schemas/column.schema';
 import { WipRule, WipRuleSchema } from './board/schemas/wip-rule.schema';
 import { Swimlane, SwimlaneSchema } from './board/schemas/swimlane.schema';
 
@@ -72,15 +72,23 @@ import { SearchController } from './search/search.controller';
 import { SearchService } from './search/search.service';
 import { SavedFilter, SavedFilterSchema } from './search/schemas/saved-filter.schema';
 
+// Column
+import { KanbanColumn } from './column/schemas/column.schema';
+import { ColumnService } from './column/column.service';
+import { ColumnController } from './column/column.controller';
+
+
 @Module({
   imports: [
     MongooseModule.forFeature([
 
       // Board
       { name: KanbanBoard.name, schema: KanbanBoardSchema },
-      { name: KanbanColumn.name, schema: KanbanColumnSchema },
       { name: WipRule.name, schema: WipRuleSchema },
       { name: Swimlane.name, schema: SwimlaneSchema },
+
+      // Column
+      { name: KanbanColumn.name, schema: ColumnSchema },
 
       // Work Item
       { name: WorkItem.name, schema: WorkItemSchema },
@@ -133,6 +141,7 @@ import { SavedFilter, SavedFilterSchema } from './search/schemas/saved-filter.sc
     DashboardController,
     AuditController,
     SearchController,
+    ColumnController,
   ],
   providers: [
     KanbanBoardService,
@@ -144,6 +153,7 @@ import { SavedFilter, SavedFilterSchema } from './search/schemas/saved-filter.sc
     DashboardService,
     AuditService,
     SearchService,
+    ColumnService,
   ],
 })
 export class KanbanModule {}

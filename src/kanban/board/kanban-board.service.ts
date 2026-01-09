@@ -8,11 +8,11 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { KanbanBoard } from './schemas/kanban-board.schema';
-import { KanbanColumn } from './schemas/kanban-column.schema';
+import { KanbanColumn } from '../column/schemas/column.schema';
 import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
-import { CreateColumnDto } from './dto/create-column.dto';
-import { UpdateColumnDto } from './dto/update-column.dto';
+import { CreateColumnDto } from '../column/dto/create-column.dto';
+import { UpdateColumnDto } from '../column/dto/update-column.dto';
 import { MoveWorkItemDto } from './dto/move-work-item.dto';
 import { WorkItem } from '../work-item/schemas/work-item.schema';
 
@@ -84,54 +84,7 @@ export class KanbanBoardService {
       .exec();
   }
 
-  // -------------------- Column CRUD --------------------
-
-  async createColumn(
-    createColumnDto: CreateColumnDto,
-  ): Promise<KanbanColumn> {
-    const board = await this.boardModel.findById(createColumnDto.BoardId).exec();
-    if (!board) throw new NotFoundException('Board not found');
-
-    const column = new this.columnModel({
-      ...createColumnDto,
-      BoardId: board._id,
-    });
-
-    return column.save();
-  }
-
-  async updateColumn(
-    boardId: string,
-    columnId: string,
-    updateColumnDto: UpdateColumnDto,
-  ): Promise<KanbanColumn> {
-    if (!Types.ObjectId.isValid(boardId)) {
-      throw new BadRequestException('Invalid board ID');
-    }
-
-    const column = await this.columnModel.findOneAndUpdate(
-      { _id: columnId, BoardId: boardId },
-      updateColumnDto,
-      { new: true },
-    );
-
-    if (!column) throw new NotFoundException(`Column with ID ${columnId} not found`);
-    return column;
-  }
-
-async deleteColumn(columnId: string): Promise<void> {
-  // Find the column by ID
-  const column = await this.columnModel.findById(columnId).exec();
-  if (!column) throw new NotFoundException(`Column with ID ${columnId} not found`);
-
-  // Delete all work items in this column
-  await this.workItemModel.deleteMany({ status: column._id }).exec();
-
-  // Delete the column itself
-  await column.deleteOne();
-}
-
-
+  
   // -------------------- Move Work Item --------------------
 
   // async moveWorkItem(boardId: string, moveWorkItemDto: MoveWorkItemDto) {

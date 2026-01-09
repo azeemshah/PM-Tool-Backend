@@ -12,11 +12,11 @@ import {
 } from '@nestjs/common';
 import { KanbanBoardService } from './kanban-board.service';
 import { KanbanBoard } from './schemas/kanban-board.schema';
-import { KanbanColumn } from './schemas/kanban-column.schema';
+import { KanbanColumn } from '../column/schemas/column.schema';
 import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
-import { CreateColumnDto } from './dto/create-column.dto';
-import { UpdateColumnDto } from './dto/update-column.dto';
+import { CreateColumnDto } from '../column/dto/create-column.dto';
+import { UpdateColumnDto } from '../column/dto/update-column.dto';
 import { MoveWorkItemDto } from './dto/move-work-item.dto';
 //import { CreateWorkItemDto } from './dto/create-work-item.dto';
 import { WorkItem } from '../work-item/schemas/work-item.schema';
@@ -51,37 +51,6 @@ export class KanbanBoardController {
   async deleteBoard(@Param('id') id: string): Promise<void> {
     return this.boardService.deleteBoard(id);
   }
-
-  // -------------------- Columns --------------------
-
-  @Post('columns')
-  async createColumn(
-    @Body() createColumnDto: CreateColumnDto,
-  ): Promise<KanbanColumn> {
-    return this.boardService.createColumn(createColumnDto);
-  }
-
-  @Put(':boardId/columns/:columnId')
-  async updateColumn(
-    @Param('boardId') boardId: string,
-    @Param('columnId') columnId: string,
-    @Body() updateColumnDto: UpdateColumnDto,
-  ): Promise<KanbanColumn> {
-    return this.boardService.updateColumn(boardId, columnId, updateColumnDto);
-  }
-
-@Delete('columns/:columnId')
-@HttpCode(HttpStatus.NO_CONTENT)
-async deleteColumn(@Param('columnId') columnId: string): Promise<void> {
-  return this.boardService.deleteColumn(columnId);
-}
-
-
-  @Get(':boardId/columns')
-  async getColumns(@Param('boardId') boardId: string): Promise<KanbanColumn[]> {
-    return this.boardService.getBoardColumns(boardId);
-  }
-
   // -------------------- Move Work Item --------------------
 
   // @Post(':boardId/move-work-item')
