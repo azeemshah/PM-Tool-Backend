@@ -21,6 +21,4 @@ export class KanbanBoard extends Document {
   columns: Types.ObjectId[];
 
 }
-
-
 export const KanbanBoardSchema = SchemaFactory.createForClass(KanbanBoard);
