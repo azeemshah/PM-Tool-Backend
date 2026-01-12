@@ -8,6 +8,7 @@ import { EmailModule } from './email/email.module';
 import { KanbanModule } from './kanban/kanban.module';
 import { WorkspaceModule } from './workspace/workspace.module';
 import { MemberModule } from './member/member.module';
+import { ItemModule } from './work-items/work-item.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { MemberModule } from './member/member.module';
     WorkspaceModule,
     MemberModule,
     EmailModule,
+    ItemModule,
     // ProjectsModule,
     // IssueModule,
     // SprintModule,
