@@ -132,6 +132,7 @@ export class UsersService {
   }
 
   serializeUser(user: UserDocument): UserResponseDto {
+    console.log('Serializing user:', user);
     return plainToClass(UserResponseDto, user.toObject(), {
       excludeExtraneousValues: true,
     });
