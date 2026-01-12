@@ -2,19 +2,24 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Issue } from './schemas/issue.schema';
+import { Project } from '../project-management/schemas/project-management.schema';
 import { Counter } from './schemas/counter.schema';
+import { IssueEventsGateway } from './events.gateway';
 
 @Injectable()
 export class IssueService {
   constructor(
     @InjectModel(Issue.name) private issueModel: Model<Issue>,
     @InjectModel(Counter.name) private counterModel: Model<Counter>,
+    @InjectModel(Project.name) private projectModel: Model<Project>,
+    private readonly eventsGateway: IssueEventsGateway,
   ) {}
 
   /**
    * Validates issue hierarchy according to Jira rules:
    * - Epic: No parent (epicId and parentIssueId must be null)
-   * - Story/Task/Bug: Must have epicId, no parentIssueId
+   * - Story/Bug: Must have epicId, no parentIssueId
+   * - Task: Can have epicId OR neither (epicId is optional for Task)
    * - Subtask: Must have parentIssueId pointing to Story/Task/Bug, no epicId
    */
   private validateHierarchy(data: any) {
@@ -27,8 +32,8 @@ export class IssueService {
           'Epic cannot have a parent. Remove epicId and parentIssueId.',
         );
       }
-    } else if (['story', 'task', 'bug'].includes(type)) {
-      // Story/Task/Bug: must be under Epic
+    } else if (['story', 'bug'].includes(type)) {
+      // Story/Bug: must be under Epic
       if (!epicId) {
         throw new BadRequestException(`${type} must have an epicId. Cannot have parentIssueId.`);
       }
@@ -37,6 +42,16 @@ export class IssueService {
           `${type} must link to Epic via epicId, not have a parentIssueId.`,
         );
       }
+    } else if (type === 'task') {
+      // Task: epicId is OPTIONAL (can be created without Epic and added later)
+      // If epicId is provided, it must be valid
+      // If parentIssueId is provided, that's an error
+      if (parentIssueId) {
+        throw new BadRequestException(
+          'Task must link to Epic via epicId, not have a parentIssueId.',
+        );
+      }
+      // epicId is optional - no error if missing
     } else if (type === 'subtask') {
       // Subtask: must have parent Story/Task/Bug
       if (!parentIssueId) {
@@ -128,17 +143,54 @@ export class IssueService {
       }
     }
 
-    return this.issueModel.create(data);
+    const issue = await this.issueModel.create(data);
+
+    // Emit real-time event for issue creation
+    if (issue) {
+      this.eventsGateway.emitIssueCreated({
+        id: issue._id.toString(),
+        projectId: issue.projectId?.toString() || '',
+        workspaceId: data.workspaceId?.toString() || '',
+        key: issue.key,
+        type: issue.type,
+        title: issue.title,
+        status: issue.status,
+      });
+    }
+
+    return issue;
   }
 
   /**
    * Get all issues for a project
    */
-  async getByProject(projectId: string): Promise<Issue[]> {
-    return this.issueModel
-      .find({ projectId: new Types.ObjectId(projectId) })
+  async getByProject(projectId: string, type?: string): Promise<Issue[]> {
+    const query: any = { projectId: new Types.ObjectId(projectId) };
+    
+    // Add type filter if provided
+    if (type) {
+      query.type = type.toLowerCase();
+    }
+
+    // First try matching projectId as ObjectId
+    let issues = await this.issueModel
+      .find(query)
       .populate('assignee reporter')
       .exec();
+
+    // If no results, try matching projectId as string (some records may store it as string)
+    if (!issues || issues.length === 0) {
+      const stringQuery: any = { projectId: projectId as any };
+      if (type) {
+        stringQuery.type = type.toLowerCase();
+      }
+      issues = await this.issueModel
+        .find(stringQuery)
+        .populate('assignee reporter')
+        .exec();
+    }
+
+    return issues || [];
   }
 
   /**
@@ -229,6 +281,21 @@ export class IssueService {
 
     const updated = await this.issueModel.findByIdAndUpdate(id, data, { new: true }).exec();
     if (!updated) throw new NotFoundException('Issue not found');
+
+    // Emit real-time event for issue update
+    if (updated) {
+      this.eventsGateway.emitIssueUpdated({
+        id: updated._id.toString(),
+        projectId: updated.projectId?.toString() || '',
+        workspaceId: data.workspaceId?.toString() || '',
+        key: updated.key,
+        type: updated.type,
+        title: updated.title,
+        status: updated.status,
+        changes: data,
+      });
+    }
+
     return updated;
   }
 
@@ -266,6 +333,13 @@ export class IssueService {
       throw new NotFoundException('Issue not found');
     }
 
+    // Get project to obtain workspaceId for event emission
+    const project = await this.projectModel
+      .findById(issue.projectId)
+      .exec()
+      .catch(() => null);
+    const workspaceId = project?.workspace?.toString() || '';
+
     // If deleting an Epic, also delete all Story/Task/Bug under it
     if (issue.type === 'epic') {
       const children = await this.issueModel.find({ epicId: id }).exec();
@@ -283,6 +357,15 @@ export class IssueService {
 
     // Finally delete the issue itself
     await this.issueModel.findByIdAndDelete(id).exec();
+
+    // Emit real-time event for issue deletion
+    this.eventsGateway.emitIssueDeleted({
+      id: issue._id.toString(),
+      projectId: issue.projectId?.toString() || '',
+      workspaceId: workspaceId,
+      key: issue.key,
+    });
+
     return { message: 'Issue deleted successfully' };
   }
 
@@ -295,5 +378,64 @@ export class IssueService {
       throw new NotFoundException('Issue not found');
     }
     return issue;
+  }
+
+  /**
+   * Get all issues in a workspace by looking up projects for the workspace
+   * If no workspaceId provided, returns all issues in the DB
+   * Supports server-side pagination
+   */
+  async findAll(options?: {
+    workspaceId?: string;
+    type?: string;
+    pageNumber?: number;
+    pageSize?: number;
+  }): Promise<{
+    data: Issue[];
+    pagination: { totalCount: number; pageNumber: number; pageSize: number };
+  }> {
+    const { workspaceId, type, pageNumber = 1, pageSize = 10 } = options || {};
+    const pn = Math.max(1, pageNumber);
+    const ps = Math.max(1, Math.min(pageSize, 100)); // Max 100 per page
+
+    // Build filter
+    const filter: any = {};
+    if (type) filter.type = type;
+
+    // If workspaceId provided, add project filtering
+    if (workspaceId) {
+      const projects = await this.projectModel
+        .find({ workspace: new Types.ObjectId(workspaceId) })
+        .exec()
+        .catch(() => []);
+      const projectIds = (projects || []).map((p: any) => p._id).filter(Boolean);
+      if (projectIds.length > 0) {
+        filter.projectId = { $in: projectIds };
+      } else {
+        // No projects in workspace, return empty
+        return { data: [], pagination: { totalCount: 0, pageNumber: pn, pageSize: ps } };
+      }
+    }
+
+    // Count total documents matching filter
+    const totalCount = await this.issueModel.countDocuments(filter).exec();
+
+    // Fetch paginated results
+    const skip = (pn - 1) * ps;
+    const data = await this.issueModel
+      .find(filter)
+      .populate('assignee reporter')
+      .skip(skip)
+      .limit(ps)
+      .exec();
+
+    return {
+      data,
+      pagination: {
+        totalCount,
+        pageNumber: pn,
+        pageSize: ps,
+      },
+    };
   }
 }

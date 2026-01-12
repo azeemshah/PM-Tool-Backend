@@ -12,12 +12,14 @@ import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { plainToClass } from 'class-transformer';
 import { WorkspaceResponseDto } from './dto/workspace-response.dto';
 import { v4 as uuidv4 } from 'uuid';
+import { Issue } from '../issue/schemas/issue.schema';
 
 @Injectable()
 export class WorkspaceService {
   constructor(
     @InjectModel(Workspace.name) private workspaceModel: Model<WorkspaceDocument>,
     @InjectModel('Member') private memberModel: Model<any>,
+    @InjectModel(Issue.name) private issueModel: Model<Issue>,
   ) {}
 
   async create(createWorkspaceDto: CreateWorkspaceDto, userId: string): Promise<WorkspaceDocument> {
@@ -168,5 +170,55 @@ export class WorkspaceService {
       .exec();
 
     return members;
+  }
+
+  async getAnalytics(
+    workspaceId: string,
+  ): Promise<{ totalTasks: number; overdueTasks: number; completedTasks: number }> {
+    if (!Types.ObjectId.isValid(workspaceId)) {
+      throw new BadRequestException('Invalid workspace ID');
+    }
+
+    const workspace = await this.workspaceModel.findById(workspaceId).exec();
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    // Get all projects for this workspace
+    // For now, we'll fetch all issues and count them
+    // In a more advanced implementation, we could fetch projects first then issues per project
+
+    try {
+      // Count all tasks (type: 'task') in issues - simplified approach
+      // Get all issues and filter by workspace projects
+      const totalIssues = await this.issueModel.countDocuments({}).exec();
+
+      // Count completed issues (status: 'done')
+      const completedIssues = await this.issueModel.countDocuments({ status: 'done' }).exec();
+
+      // Count overdue issues (dueDate < today and status !== 'done')
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+
+      const overdueIssues = await this.issueModel
+        .countDocuments({
+          dueDate: { $lt: now },
+          status: { $ne: 'done' },
+        })
+        .exec();
+
+      return {
+        totalTasks: totalIssues,
+        overdueTasks: overdueIssues,
+        completedTasks: completedIssues,
+      };
+    } catch (error) {
+      console.error('Error calculating analytics:', error);
+      return {
+        totalTasks: 0,
+        overdueTasks: 0,
+        completedTasks: 0,
+      };
+    }
   }
 }

@@ -23,21 +23,15 @@ export class ProjectManagementService {
     userId: string,
   ): Promise<{ message: string; project: Project }> {
     // Handle both 'workspace' and 'workspaceId' fields
-    const workspaceId = (data as any).workspaceId || data.workspace;
+    const workspaceId = (data as any).workspaceId || (data as any).workspace;
 
-    // Convert workspaceId string to ObjectId
-    const projectData = {
+    // Convert workspaceId string to ObjectId when present
+    const projectData: any = {
       ...data,
       createdBy: new Types.ObjectId(userId),
-      workspace: workspaceId
-        ? typeof workspaceId === 'string'
-          ? new Types.ObjectId(workspaceId)
-          : workspaceId
-        : undefined,
+      workspace: workspaceId ? new Types.ObjectId(String(workspaceId)) : undefined,
     };
 
-    // Remove workspaceId from payload if it exists (it's not a schema field)
-    delete (projectData as any).workspaceId;
     const project = new this.projectModel(projectData);
     const savedProject = await project.save();
 
@@ -374,14 +368,58 @@ export class ProjectManagementService {
   async getProjectAnalytics(
     projectId: string,
   ): Promise<{ analytics: { totalTasks: number; overdueTasks: number; completedTasks: number } }> {
-    const totalTasks = await this.taskModel.countDocuments({ projectId }).exec();
-    const overdueTasks = await this.taskModel
-      .countDocuments({ projectId, dueDate: { $lt: new Date() }, status: { $ne: 'done' } })
-      .exec();
-    const completedTasks = await this.taskModel
-      .countDocuments({ projectId, status: 'done' })
-      .exec();
-    return { analytics: { totalTasks, overdueTasks, completedTasks } };
+    // Count all issue types (Epic, Story, Task, Bug, Subtask)
+    const [totalEpics, totalStories, totalTasks, totalBugs, totalSubtasks] = await Promise.all([
+      this.epicModel.countDocuments({ projectId }).exec(),
+      this.storyModel.countDocuments({ projectId }).exec(),
+      this.taskModel.countDocuments({ projectId }).exec(),
+      this.bugModel.countDocuments({ projectId }).exec(),
+      this.subtaskModel.countDocuments({ projectId }).exec(),
+    ]);
+    const totalIssues = totalEpics + totalStories + totalTasks + totalBugs + totalSubtasks;
+
+    // Count overdue issues (with dueDate in past and status not 'done')
+    const now = new Date();
+    const [overdueEpics, overdueStories, overdueTasks, overdueBugs, overdueSubtasks] =
+      await Promise.all([
+        this.epicModel
+          .countDocuments({ projectId, dueDate: { $lt: now }, status: { $ne: 'done' } })
+          .exec(),
+        this.storyModel
+          .countDocuments({ projectId, dueDate: { $lt: now }, status: { $ne: 'done' } })
+          .exec(),
+        this.taskModel
+          .countDocuments({ projectId, dueDate: { $lt: now }, status: { $ne: 'done' } })
+          .exec(),
+        this.bugModel
+          .countDocuments({ projectId, dueDate: { $lt: now }, status: { $ne: 'done' } })
+          .exec(),
+        this.subtaskModel
+          .countDocuments({ projectId, dueDate: { $lt: now }, status: { $ne: 'done' } })
+          .exec(),
+      ]);
+    const totalOverdueIssues =
+      overdueEpics + overdueStories + overdueTasks + overdueBugs + overdueSubtasks;
+
+    // Count completed issues (status = 'done')
+    const [completedEpics, completedStories, completedTasks, completedBugs, completedSubtasks] =
+      await Promise.all([
+        this.epicModel.countDocuments({ projectId, status: 'done' }).exec(),
+        this.storyModel.countDocuments({ projectId, status: 'done' }).exec(),
+        this.taskModel.countDocuments({ projectId, status: 'done' }).exec(),
+        this.bugModel.countDocuments({ projectId, status: 'done' }).exec(),
+        this.subtaskModel.countDocuments({ projectId, status: 'done' }).exec(),
+      ]);
+    const totalCompletedIssues =
+      completedEpics + completedStories + completedTasks + completedBugs + completedSubtasks;
+
+    return {
+      analytics: {
+        totalTasks: totalIssues,
+        overdueTasks: totalOverdueIssues,
+        completedTasks: totalCompletedIssues,
+      },
+    };
   }
 
   /* ------------------------- Subtask CRUD ------------------------- */

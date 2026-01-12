@@ -19,6 +19,7 @@ import { IssueService } from './issue.service';
  * - POST   /issues/epic/:epicId/story          - Create Story under Epic
  * - POST   /issues/epic/:epicId/task           - Create Task under Epic
  * - POST   /issues/epic/:epicId/bug            - Create Bug under Epic
+ * - POST   /issues/task                        - Create Task WITHOUT Epic (Epic is optional, can be added later)
  * - POST   /issues/:parentId/subtask           - Create Subtask under Story/Task/Bug
  *
  * - GET    /issues/project/:projectId          - Get all issues
@@ -126,6 +127,28 @@ export class IssueController {
   }
 
   /**
+   * Create a Task WITHOUT Epic (Epic is optional, can be added later)
+   * POST /issues/task
+   * This allows creating a Task without immediately assigning an Epic
+   * The Epic can be added or changed later via PATCH /issues/:id
+   */
+  @Post('task')
+  createTaskWithoutEpic(@Body() body: any) {
+    if (!body.projectId) {
+      throw new BadRequestException('projectId is required');
+    }
+    if (!body.title) {
+      throw new BadRequestException('title is required');
+    }
+    return this.issueService.create({
+      ...body,
+      type: 'task',
+      epicId: body.epicId || undefined, // Epic is optional
+      parentIssueId: undefined,
+    });
+  }
+
+  /**
    * ============ SUBTASK ENDPOINTS ============
    */
 
@@ -157,6 +180,22 @@ export class IssueController {
    * Get issue by ID
    * GET /issues/:id
    */
+  /**
+   * Get issues with optional workspace filter and pagination
+   * GET /issues?workspaceId=...&type=...&pageNumber=1&pageSize=10
+   * Returns: { data: Issue[], pagination: { totalCount, pageNumber, pageSize } }
+   */
+  @Get()
+  getAll(@Query() query: any) {
+    const { workspaceId, type, pageNumber, pageSize } = query || {};
+    return this.issueService.findAll({
+      workspaceId,
+      type,
+      pageNumber: pageNumber ? parseInt(pageNumber, 10) : 1,
+      pageSize: pageSize ? parseInt(pageSize, 10) : 10,
+    });
+  }
+
   @Get(':id')
   getById(@Param('id') id: string) {
     return this.issueService.findById(id);
@@ -165,10 +204,11 @@ export class IssueController {
   /**
    * Get all issues in a project
    * GET /issues/project/:projectId
+   * Optional query param: ?type=epic|story|task|bug|subtask
    */
   @Get('project/:projectId')
-  getByProject(@Param('projectId') projectId: string) {
-    return this.issueService.getByProject(projectId);
+  getByProject(@Param('projectId') projectId: string, @Query('type') type?: string) {
+    return this.issueService.getByProject(projectId, type);
   }
 
   /**

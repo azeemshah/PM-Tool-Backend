@@ -100,4 +100,14 @@ export class WorkspaceController {
       members,
     };
   }
+
+  @Get('analytics/:id')
+  async getAnalytics(@Param('id') id: string) {
+    const analytics = await this.workspaceService.getAnalytics(id);
+    return {
+      statusCode: 200,
+      message: 'Analytics fetched successfully',
+      analytics,
+    };
+  }
 }
