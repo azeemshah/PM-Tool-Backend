@@ -13,6 +13,7 @@ export class WorkItemController {
   /* ================= Create Work Item ================= */
   @Post()
   async createWorkItem(@Body() createDto: CreateWorkItemDto) {
+    console.log('DTO Received in Controller:', createDto);
     return this.workItemService.create(createDto);
   }
 
