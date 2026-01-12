@@ -1,3 +1,4 @@
+import { Subtask } from './../../kanban/work-item/schemas/subtask.schema';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
@@ -6,6 +7,7 @@ export enum ItemType {
   BUG = 'bug',
   TASK = 'task',
   EPIC = 'epic',
+  SUBTASK = 'subtask'
 }
 
 export enum ItemStatus {
