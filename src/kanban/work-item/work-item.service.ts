@@ -18,12 +18,8 @@ export class WorkItemService {
 
   /* ================= Create Work Item ================= */
   async create(createDto: CreateWorkItemDto): Promise<WorkItem> {
-    // Map incoming DTO fields to schema fields (projectId -> project, boardId -> board, etc.)
+    // Map incoming DTO fields to schema fields (boardId -> board, etc.)
     const payload: any = { ...createDto };
-    if ((createDto as any).projectId) {
-      payload.project = (createDto as any).projectId;
-      delete payload.projectId;
-    }
     if ((createDto as any).boardId) {
       payload.board = (createDto as any).boardId;
       delete payload.boardId;
@@ -76,10 +72,6 @@ export class WorkItemService {
   async update(id: string, updateDto: UpdateWorkItemDto): Promise<WorkItem> {
     // Map DTO fields to schema fields before updating
     const updatePayload: any = { ...updateDto };
-    if ((updateDto as any).projectId) {
-      updatePayload.project = (updateDto as any).projectId;
-      delete updatePayload.projectId;
-    }
     if ((updateDto as any).boardId) {
       updatePayload.board = (updateDto as any).boardId;
       delete updatePayload.boardId;

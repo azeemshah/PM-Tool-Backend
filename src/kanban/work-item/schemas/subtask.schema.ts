@@ -23,5 +23,5 @@ export class Subtask extends WorkItem {
 export const SubtaskSchema = SchemaFactory.createForClass(Subtask);
 
 /* ================= Indexes ================= */
-SubtaskSchema.index({ project: 1, task: 1, status: 1 });
+SubtaskSchema.index({ spaceid: 1, task: 1, status: 1 });
 SubtaskSchema.index({ assignee: 1 });

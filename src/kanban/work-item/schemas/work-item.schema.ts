@@ -3,12 +3,11 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 export enum WorkItemType {
-  EPIC = 'Epic',
-  STORY = 'Story',
-  TASK = 'Task',
-  SUBTASK = 'Subtask',
-  BUG = 'Bug',
-  IMPROVEMENT = 'Improvement',
+  EPIC = 'epic',
+  STORY = 'story',
+  TASK = 'task',
+  SUBTASK = 'subtask',
+  BUG = 'bug',
 }
 
 @Schema({ timestamps: true })
@@ -47,6 +46,6 @@ export class WorkItem extends Document {
 export const WorkItemSchema = SchemaFactory.createForClass(WorkItem);
 
 /* ================= Indexes ================= */
-WorkItemSchema.index({ project: 1, board: 1, status: 1 });
+WorkItemSchema.index({ spaceid: 1, board: 1, status: 1 });
 WorkItemSchema.index({ assignee: 1 });
 WorkItemSchema.index({ parent: 1 });

@@ -22,13 +22,13 @@ export class SearchController {
     return this.searchService.createFilter(filterDto);
   }
 
-  /* ================= Get All Filters for User/Project ================= */
+  /* ================= Get All Filters for User/Workspace ================= */
   @Get('filters')
   getFilters(
-    @Query('projectId') projectId: string,
+    @Query('workspaceId') workspaceId: string,
     @Query('userId') userId: string,
   ) {
-    return this.searchService.getFilters(projectId, userId);
+    return this.searchService.getFilters(workspaceId, userId);
   }
 
   /* ================= Get Single Filter ================= */

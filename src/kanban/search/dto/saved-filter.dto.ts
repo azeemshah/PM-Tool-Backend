@@ -13,7 +13,7 @@ export class SavedFilterDto {
 
   @IsString()
   @IsNotEmpty()
-  projectId: string; // Filter associated with a project
+  workspaceId: string; // Filter associated with a workspace
 
   @IsString()
   @IsNotEmpty()

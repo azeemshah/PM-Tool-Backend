@@ -10,9 +10,9 @@ import { Document, Types } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class CycleTimeReport extends Document {
-  /* ================= Project ================= */
-  @Prop({ type: Types.ObjectId, ref: 'KanbanProject', required: true })
-  project: Types.ObjectId;
+  /* ================= Workspace ================= */
+  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
+  workspace: Types.ObjectId;
 
   /* ================= Work Item ================= */
   @Prop({ type: Types.ObjectId, ref: 'WorkItem', required: true })
@@ -36,7 +36,7 @@ export class CycleTimeReport extends Document {
   cycleTimeInHours: number;
 
   /* ================= Metadata ================= */
-  @Prop({ enum: ['epic', 'story', 'task', 'subtask', 'bug', 'improvement'] })
+  @Prop({ enum: ['epic', 'story', 'task', 'subtask', 'bug'] })
   workItemType: string;
 
   @Prop({ type: Types.ObjectId, ref: 'KanbanBoard' })
@@ -46,9 +46,8 @@ export class CycleTimeReport extends Document {
   column?: Types.ObjectId;
 }
 
-export const CycleTimeReportSchema =
-  SchemaFactory.createForClass(CycleTimeReport);
+export const CycleTimeReportSchema = SchemaFactory.createForClass(CycleTimeReport);
 
 /* ================= Indexes ================= */
-CycleTimeReportSchema.index({ project: 1, endDate: 1 });
+CycleTimeReportSchema.index({ workspace: 1, endDate: 1 });
 CycleTimeReportSchema.index({ workItem: 1 }, { unique: true });

@@ -17,9 +17,9 @@ export class SavedFilter extends Document {
   @Prop()
   description?: string;
 
-  /* ================= Project Context ================= */
-  @Prop({ type: Types.ObjectId, ref: 'KanbanProject', required: true })
-  project: Types.ObjectId;
+  /* ================= Workspace Context ================= */
+  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
+  workspace: Types.ObjectId;
 
   /* ================= Owner ================= */
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
@@ -37,4 +37,4 @@ export class SavedFilter extends Document {
 export const SavedFilterSchema = SchemaFactory.createForClass(SavedFilter);
 
 /* ================= Indexes ================= */
-SavedFilterSchema.index({ project: 1, user: 1, name: 1 }, { unique: true });
+SavedFilterSchema.index({ workspace: 1, user: 1, name: 1 }, { unique: true });

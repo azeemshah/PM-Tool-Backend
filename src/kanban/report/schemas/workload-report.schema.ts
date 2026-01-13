@@ -10,9 +10,9 @@ import { Document, Types } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class WorkloadReport extends Document {
-  /* ================= Project ================= */
-  @Prop({ type: Types.ObjectId, ref: 'KanbanProject', required: true })
-  project: Types.ObjectId;
+  /* ================= Workspace ================= */
+  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
+  workspace: Types.ObjectId;
 
   /* ================= User ================= */
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
@@ -29,7 +29,7 @@ export class WorkloadReport extends Document {
   @Prop({ type: Types.ObjectId, ref: 'WorkItem', required: true })
   workItem: Types.ObjectId;
 
-  @Prop({ enum: ['epic', 'story', 'task', 'subtask', 'bug', 'improvement'] })
+  @Prop({ enum: ['epic', 'story', 'task', 'subtask', 'bug'] })
   workItemType: string;
 
   /* ================= Status ================= */
@@ -58,5 +58,5 @@ export const WorkloadReportSchema =
   SchemaFactory.createForClass(WorkloadReport);
 
 /* ================= Indexes ================= */
-WorkloadReportSchema.index({ project: 1, user: 1, startDate: 1 });
+WorkloadReportSchema.index({ workspace: 1, user: 1, startDate: 1 });
 WorkloadReportSchema.index({ workItem: 1 });

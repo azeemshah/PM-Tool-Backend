@@ -25,10 +25,10 @@ export class DashboardController {
   /* ================= Get All Widgets ================= */
   @Get('widgets')
   getWidgets(
-    @Query('projectId') projectId: string,
+    @Query('workspaceId') workspaceId: string,
     @Query('userId') userId: string,
   ) {
-    return this.dashboardService.getWidgets(projectId, userId);
+    return this.dashboardService.getWidgets(workspaceId, userId);
   }
 
   /* ================= Get Single Widget ================= */

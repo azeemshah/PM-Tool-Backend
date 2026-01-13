@@ -10,9 +10,9 @@ import { Document, Types } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class LeadTimeReport extends Document {
-  /* ================= Project ================= */
-  @Prop({ type: Types.ObjectId, ref: 'KanbanProject', required: true })
-  project: Types.ObjectId;
+  /* ================= Workspace ================= */
+  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
+  workspace: Types.ObjectId;
 
   /* ================= Work Item ================= */
   @Prop({ type: Types.ObjectId, ref: 'WorkItem', required: true })
@@ -36,7 +36,7 @@ export class LeadTimeReport extends Document {
   leadTimeInHours: number;
 
   /* ================= Metadata ================= */
-  @Prop({ enum: ['epic', 'story', 'task', 'subtask', 'bug', 'improvement'] })
+  @Prop({ enum: ['epic', 'story', 'task', 'subtask', 'bug'] })
   workItemType: string;
 
   @Prop({ type: Types.ObjectId, ref: 'KanbanBoard' })
@@ -50,5 +50,5 @@ export const LeadTimeReportSchema =
   SchemaFactory.createForClass(LeadTimeReport);
 
 /* ================= Indexes ================= */
-LeadTimeReportSchema.index({ project: 1, completedDate: 1 });
+LeadTimeReportSchema.index({ workspace: 1, completedDate: 1 });
 LeadTimeReportSchema.index({ workItem: 1 }, { unique: true });

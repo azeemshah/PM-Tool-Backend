@@ -19,8 +19,6 @@ import { Story, StorySchema } from './work-item/schemas/story.schema';
 import { Task, TaskSchema } from './work-item/schemas/task.schema';
 import { Subtask, SubtaskSchema } from './work-item/schemas/subtask.schema';
 import { Bug, BugSchema } from './work-item/schemas/bug.schema';
-import { Improvement, ImprovementSchema } from './work-item/schemas/improvement.schema';
-
 
 // Estimation
 import { EstimationController } from './estimation/estimation.controller';
@@ -97,7 +95,6 @@ import { ColumnController } from './column/column.controller';
       { name: Task.name, schema: TaskSchema },
       { name: Subtask.name, schema: SubtaskSchema },
       { name: Bug.name, schema: BugSchema },
-      { name: Improvement.name, schema: ImprovementSchema },
 
       // Estimation
       { name: Estimation.name, schema: EstimationSchema },

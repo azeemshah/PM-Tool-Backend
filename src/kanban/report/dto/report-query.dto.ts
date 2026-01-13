@@ -22,10 +22,6 @@ export enum ReportMetric {
 export class ReportQueryDto {
   /* ================= Filters ================= */
   @IsOptional()
-  @IsString()
-  projectId?: string;
-
-  @IsOptional()
   @IsArray()
   userIds?: string[];
 

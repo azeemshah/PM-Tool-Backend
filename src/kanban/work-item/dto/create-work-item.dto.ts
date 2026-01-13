@@ -2,12 +2,11 @@
 import { IsString, IsNotEmpty, IsOptional, IsEnum, IsMongoId, IsISO8601 } from 'class-validator';
 
 export enum WorkItemType {
-  EPIC = 'Epic',
-  STORY = 'Story',
-  TASK = 'Task',
-  SUBTASK = 'Subtask',
-  BUG = 'Bug',
-  IMPROVEMENT = 'Improvement',
+  EPIC = 'epic',
+  STORY = 'story',
+  TASK = 'task',
+  SUBTASK = 'subtask',
+  BUG = 'bug',
 }
 
 export class CreateWorkItemDto {
@@ -22,10 +21,6 @@ export class CreateWorkItemDto {
   @IsEnum(WorkItemType)
   @IsNotEmpty()
   type: WorkItemType;
-
-  @IsMongoId()
-  @IsOptional()
-  projectId?: string; // Associated project
 
   @IsMongoId()
   @IsOptional()
