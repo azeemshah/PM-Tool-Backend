@@ -14,6 +14,8 @@ import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
+import { InviteMemberDto } from './dto/invite-member.dto';
+import { AcceptInviteDto } from './dto/accept-invite.dto';
 
 @Controller('members')
 @UseGuards(JwtAuthGuard)
@@ -48,19 +50,6 @@ export class MemberController {
     };
   }
 
-  /**
-   * Get member statistics
-   * GET /members/workspace/:workspaceId/stats
-   */
-  @Get('workspace/:workspaceId/stats')
-  async getMemberStats(@Param('workspaceId') workspaceId: string) {
-    const stats = await this.memberService.getMemberStats(workspaceId);
-    return {
-      statusCode: 200,
-      message: 'Member statistics retrieved',
-      data: stats,
-    };
-  }
 
   /**
    * Get all members of a workspace with available roles
@@ -135,26 +124,25 @@ export class MemberController {
    * Join workspace by invite code
    * POST /members/join/:inviteCode
    */
+  
+  // 🔐 ADMIN ONLY
+  @Post('invite')
+  async inviteMember(
+    @Body() dto: InviteMemberDto,
+    @Request() req: any,
+  ) {
+    await this.memberService.sendInvitation(
+      dto.email,
+      dto.role,
+      req.user.userId,
+    );
+    return { message: 'Invitation email sent' };
+  }
+
+  // 🌐 PUBLIC – invite link access
   @Public()
-  @Post('join/:inviteCode')
-  async joinWorkspaceByInvite(@Param('inviteCode') inviteCode: string, @Request() req: any) {
-    console.log('🌐 API Request: POST /members/join/:inviteCode');
-    console.log('📋 inviteCode:', inviteCode);
-    console.log('👤 User ID from request:', req.user?.userId);
-    console.log('👤 Full user object:', req.user);
-
-    const result = await this.memberService.joinWorkspaceByInvite(req.user?.userId, inviteCode);
-
-    const response = {
-      statusCode: 200,
-      message: result.message,
-      data: {
-        workspaceId: result.workspaceId,
-        role: result.role,
-      },
-    };
-
-    console.log('📤 Sending response:', response);
-    return response;
+  @Post('invite/accept')
+  async acceptInvite(@Body() dto: AcceptInviteDto) {
+    return this.memberService.acceptInvitation(dto.token);
   }
 }

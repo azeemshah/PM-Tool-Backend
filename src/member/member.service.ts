@@ -3,11 +3,23 @@ import {
   BadRequestException,
   NotFoundException,
   UnauthorizedException,
+  ConflictException,
+  GoneException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
+import { JwtService } from '@nestjs/jwt';
+import {
+  Invitation,
+  InvitationDocument,
+} from './schemas/invitation.schema';
+import { EmailService } from '../email/email.service';
+import * as crypto from 'crypto';
+import * as bcrypt from 'bcrypt';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class MemberService {
@@ -15,6 +27,10 @@ export class MemberService {
     @InjectModel('Member') private memberModel: Model<any>,
     @InjectModel('Workspace') private workspaceModel: Model<any>,
     @InjectModel('User') private userModel: Model<any>,
+    @InjectModel(Invitation.name) private invitationModel: Model<InvitationDocument>,
+    private jwtService: JwtService,
+    private mailService: EmailService,
+    private configService: ConfigService,
   ) {}
 
   /**
@@ -190,103 +206,120 @@ export class MemberService {
     return { message: 'Member removed successfully' };
   }
 
-  /**
-   * Join workspace by invite code
-   */
-  async joinWorkspaceByInvite(userId: string, inviteCode: string) {
-    console.log('📍 joinWorkspaceByInvite called:', { userId, inviteCode });
-
-    // Check if user is authenticated
-    if (!userId) {
-      console.error('❌ No userId provided');
-      throw new UnauthorizedException('User must be logged in to join a workspace');
-    }
-
-    const workspace = await this.workspaceModel.findOne({ inviteCode });
-    console.log('🔍 Workspace found:', workspace?._id ? 'Yes' : 'No');
-
-    if (!workspace) {
-      console.error('❌ Workspace not found for inviteCode:', inviteCode);
-      throw new NotFoundException('Invalid invite code');
-    }
-
-    // Check if already member
-    const existingMember = await this.memberModel.findOne({
-      userId,
-      workspaceId: workspace._id,
-    });
-
-    if (existingMember) {
-      console.warn('⚠️ User already member of workspace');
-      throw new BadRequestException('Already a member of this workspace');
-    }
-
-    const member = new this.memberModel({
-      userId,
-      workspaceId: workspace._id,
-      role: 'Member',
-    });
-
-    const saved = await member.save();
-    console.log('✅ Member created:', saved._id);
-
-    // Ensure workspace.members array contains this user
+ 
+ // 🔑 Send invitation email
+  async sendInvitation(
+    email: string,
+    role: 'USER' | 'VIEWER',
+    invitedBy: string,
+  ) {
     try {
-      const userObjectId = new Types.ObjectId(userId);
-      if (!workspace.members.find((m: any) => m.toString() === userObjectId.toString())) {
-        workspace.members.push(userObjectId);
-        await workspace.save();
-        console.log('✅ User added to workspace.members array');
+      // Check for existing invitation
+      let existingInvite = await this.invitationModel.findOne({
+        email,
+        status: 'PENDING',
+      });
+      
+      if (existingInvite) {
+        if (existingInvite.expiresAt < new Date()) {
+          // Expired → allow resend
+          existingInvite.status = 'EXPIRED';
+          await existingInvite.save();
+        } else {
+          // // Active invite still exists
+          // throw new ConflictException('Active invitation already exists');
+        }
       }
-    } catch (err) {
-      console.error('❌ Failed to update workspace.members after join:', err);
+
+      // Generate secure token
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+      // Expiration 7 days
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      // Save invitation to DB
+      await this.invitationModel.create({
+        email,
+        role,
+        tokenHash,
+        invitedBy,
+        expiresAt,
+        status: 'PENDING',
+      });
+
+      const inviteLink = `${this.configService.get('FRONTEND_URL')}/invite?token=${rawToken}`;
+
+      // Send invite email
+      await this.mailService.sendInvite(email, role, inviteLink);
+
+      return { message: 'Invitation email sent successfully' };
+    } catch (error) {
+      //console.error('Failed to send invitation:', error);
+      throw new InternalServerErrorException('Failed to send invitation');
     }
-
-    // populate saved member's user fields for response
-    const populated = await this.memberModel
-      .findById(saved._id)
-      .populate('userId', 'firstName lastName email profilePicture');
-
-    const memberObj = populated ? populated.toObject() : saved.toObject();
-    const user = memberObj.userId || {};
-    memberObj.userName = user.firstName
-      ? `${user.firstName} ${user.lastName || ''}`.trim()
-      : user.name || null;
-
-    console.log('🎉 Returning success response:', { workspaceId: workspace._id, role: 'Member' });
-
-    return {
-      workspaceId: workspace._id,
-      role: 'Member',
-      message: 'Successfully joined workspace',
-      member: memberObj,
-    };
   }
 
-  /**
-   * Get member statistics
-   */
-  async getMemberStats(workspaceId: string) {
-    const workspace = await this.workspaceModel.findById(workspaceId);
-    if (!workspace) {
-      throw new NotFoundException('Workspace not found');
-    }
+  // ===============================
+  // Accept invitation
+  // ===============================
+  async acceptInvitation(token: string) {
+    try {
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
-    const totalMembers = await this.memberModel.countDocuments({ workspaceId });
+      const invite = await this.invitationModel.findOne({ tokenHash });
 
-    const membersByRole = await this.memberModel.aggregate([
-      { $match: { workspaceId: new Types.ObjectId(workspaceId) } },
-      {
-        $group: {
-          _id: '$role',
-          count: { $sum: 1 },
+      if (!invite) throw new UnauthorizedException('Invalid invitation');
+      if (invite.status === 'ACCEPTED') throw new ConflictException('Invitation already used');
+
+      if (invite.expiresAt < new Date()) {
+        invite.status = 'EXPIRED';
+        await invite.save();
+        throw new GoneException('Invitation expired');
+      }
+
+      // Check if member already exists
+      let member = await this.memberModel.findOne({ email: invite.email });
+
+      if (!member) {
+        // Create member with temporary password
+        const tempPassword = crypto.randomBytes(8).toString('hex');
+        const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+        member = await this.memberModel.create({
+          email: invite.email,
+          role: invite.role,
+          passwordHash,
+          passwordSet: false,
+          invited: true,
+        });
+
+        // Send temp password via email
+        await this.mailService.sendTempPassword(invite.email, tempPassword);
+      }
+
+      // Mark invite as accepted
+      invite.status = 'ACCEPTED';
+      await invite.save();
+
+      // Generate JWT access token
+      const accessToken = this.jwtService.sign({
+        sub: member._id,
+        role: member.role,
+      });
+
+      return {
+        message: 'Login successful',
+        accessToken,
+        member: {
+          id: member._id,
+          email: member.email,
+          role: member.role,
         },
-      },
-    ]);
-
-    return {
-      totalMembers,
-      membersByRole,
-    };
+      };
+    } catch (error) {
+      console.error('Failed to accept invitation:', error);
+      throw new InternalServerErrorException('Failed to accept invitation');
+    }
   }
 }

@@ -5,6 +5,23 @@ import { Transporter } from 'nodemailer';
 
 @Injectable()
 export class EmailService {
+  sendTempPassword(email: string, tempPassword: string) {
+    throw new Error('Method not implemented.');
+  }
+  async sendInvite(email: string, role: string, inviteLink: string): Promise<void> {
+    try {
+      await this.transporter.sendMail({
+        from: this.configService.get('EMAIL_FROM'),
+        to: email,
+        subject: 'You\'re Invited to Join PM Tool',
+        html: this.getInviteEmailTemplate(role, inviteLink),
+      });
+      this.logger.log(`Invitation email sent to ${email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send invitation email to ${email}`, error.stack);
+      throw error;
+    }
+  }
   private transporter: Transporter;
   private readonly logger = new Logger(EmailService.name);
 
@@ -170,6 +187,45 @@ export class EmailService {
             <p>Your account password was recently changed. If you made this change, you can safely ignore this email.</p>
             <p>If you didn't change your password, please contact our support team immediately.</p>
             <a href="${this.configService.get('FRONTEND_URL')}/login" class="button">Go to Login</a>
+          </div>
+          <div class="footer">
+            <p>© ${new Date().getFullYear()} PM Tool. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  private getInviteEmailTemplate(role: string, inviteLink: string): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #4CAF50; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; background-color: #f9f9f9; }
+          .button { display: inline-block; padding: 12px 24px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+          .role { background-color: #e9ecef; padding: 10px; border-radius: 5px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>You're Invited to Join PM Tool!</h1>
+          </div>
+          <div class="content">
+            <h2>Hello,</h2>
+            <p>You've been invited to join PM Tool as a <strong>${role}</strong>.</p>
+            <div class="role">
+              <strong>Role:</strong> ${role}
+            </div>
+            <p>Click the button below to accept your invitation and get started:</p>
+            <a href="${inviteLink}" class="button">Accept Invitation</a>
+            <p>This invitation will expire in 7 days. If you have any questions, please contact our support team.</p>
           </div>
           <div class="footer">
             <p>© ${new Date().getFullYear()} PM Tool. All rights reserved.</p>
