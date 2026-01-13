@@ -4,6 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Project, Epic, Story, Task, Subtask, Bug } from './schemas/project-management.schema';
 import { Workspace } from '../workspace/schemas/workspace.schema';
+import { Issue } from '../issue/schemas/issue.schema';
 
 @Injectable()
 export class ProjectManagementService {
@@ -15,6 +16,7 @@ export class ProjectManagementService {
     @InjectModel(Subtask.name) private readonly subtaskModel: Model<Subtask>,
     @InjectModel(Bug.name) private readonly bugModel: Model<Bug>,
     @InjectModel(Workspace.name) private readonly workspaceModel: Model<Workspace>,
+    @InjectModel(Issue.name) private readonly issueModel: Model<Issue>,
   ) {}
 
   /* ------------------------- Project CRUD ------------------------- */
@@ -61,7 +63,9 @@ export class ProjectManagementService {
   }
 
   async getProjects(workspaceId?: string): Promise<any[]> {
-    const filter = workspaceId ? { workspace: new Types.ObjectId(workspaceId) } : {};
+    const filter = workspaceId && Types.ObjectId.isValid(workspaceId) 
+      ? { workspace: new Types.ObjectId(workspaceId) } 
+      : {};
     return this.projectModel
       .find(filter)
       .populate('createdBy', 'firstName lastName email avatar name')
@@ -368,50 +372,23 @@ export class ProjectManagementService {
   async getProjectAnalytics(
     projectId: string,
   ): Promise<{ analytics: { totalTasks: number; overdueTasks: number; completedTasks: number } }> {
-    // Count all issue types (Epic, Story, Task, Bug, Subtask)
-    const [totalEpics, totalStories, totalTasks, totalBugs, totalSubtasks] = await Promise.all([
-      this.epicModel.countDocuments({ projectId }).exec(),
-      this.storyModel.countDocuments({ projectId }).exec(),
-      this.taskModel.countDocuments({ projectId }).exec(),
-      this.bugModel.countDocuments({ projectId }).exec(),
-      this.subtaskModel.countDocuments({ projectId }).exec(),
-    ]);
-    const totalIssues = totalEpics + totalStories + totalTasks + totalBugs + totalSubtasks;
+    // Count all issues regardless of type
+    const totalIssues = await this.issueModel.countDocuments({ projectId }).exec();
 
     // Count overdue issues (with dueDate in past and status not 'done')
     const now = new Date();
-    const [overdueEpics, overdueStories, overdueTasks, overdueBugs, overdueSubtasks] =
-      await Promise.all([
-        this.epicModel
-          .countDocuments({ projectId, dueDate: { $lt: now }, status: { $ne: 'done' } })
-          .exec(),
-        this.storyModel
-          .countDocuments({ projectId, dueDate: { $lt: now }, status: { $ne: 'done' } })
-          .exec(),
-        this.taskModel
-          .countDocuments({ projectId, dueDate: { $lt: now }, status: { $ne: 'done' } })
-          .exec(),
-        this.bugModel
-          .countDocuments({ projectId, dueDate: { $lt: now }, status: { $ne: 'done' } })
-          .exec(),
-        this.subtaskModel
-          .countDocuments({ projectId, dueDate: { $lt: now }, status: { $ne: 'done' } })
-          .exec(),
-      ]);
-    const totalOverdueIssues =
-      overdueEpics + overdueStories + overdueTasks + overdueBugs + overdueSubtasks;
+    const totalOverdueIssues = await this.issueModel
+      .countDocuments({
+        projectId,
+        dueDate: { $lt: now },
+        status: { $ne: 'done' },
+      })
+      .exec();
 
     // Count completed issues (status = 'done')
-    const [completedEpics, completedStories, completedTasks, completedBugs, completedSubtasks] =
-      await Promise.all([
-        this.epicModel.countDocuments({ projectId, status: 'done' }).exec(),
-        this.storyModel.countDocuments({ projectId, status: 'done' }).exec(),
-        this.taskModel.countDocuments({ projectId, status: 'done' }).exec(),
-        this.bugModel.countDocuments({ projectId, status: 'done' }).exec(),
-        this.subtaskModel.countDocuments({ projectId, status: 'done' }).exec(),
-      ]);
-    const totalCompletedIssues =
-      completedEpics + completedStories + completedTasks + completedBugs + completedSubtasks;
+    const totalCompletedIssues = await this.issueModel
+      .countDocuments({ projectId, status: 'done' })
+      .exec();
 
     return {
       analytics: {

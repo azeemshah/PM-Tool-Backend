@@ -8,6 +8,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
+import { getPermissionsForRole, getRoleId } from '../common/config/roles.config';
 
 @Injectable()
 export class MemberService {
@@ -16,6 +17,24 @@ export class MemberService {
     @InjectModel('Workspace') private workspaceModel: Model<any>,
     @InjectModel('User') private userModel: Model<any>,
   ) {}
+
+  /**
+   * Enrich member object with role permissions
+   */
+  private enrichMemberWithPermissions(member: any) {
+    const obj = member.toObject ? member.toObject() : member;
+    const permissions = getPermissionsForRole(obj.role);
+    const roleId = getRoleId(obj.role);
+    
+    return {
+      ...obj,
+      role: {
+        _id: roleId,
+        name: obj.role,
+        permissions,
+      },
+    };
+  }
 
   /**
    * Add a member to a workspace
@@ -54,6 +73,13 @@ export class MemberService {
 
     const saved = await member.save();
 
+    // Sync user role if member role is "Owner"
+    if (role === 'Owner' && user) {
+      user.role = 'admin';
+      await user.save();
+      console.log(`✅ Synced user role to admin for ${user.firstName} ${user.lastName}`);
+    }
+
     // Also add userId to workspace.members array for consistency
     try {
       const userObjectId = new Types.ObjectId(userId);
@@ -83,12 +109,12 @@ export class MemberService {
       .sort({ joinedAt: -1 });
 
     return members.map((m: any) => {
-      const obj = m.toObject ? m.toObject() : m;
-      const user = obj.userId || {};
-      obj.userName = user.firstName
+      const enriched = this.enrichMemberWithPermissions(m);
+      const user = enriched.userId || {};
+      enriched.userName = user.firstName
         ? `${user.firstName} ${user.lastName || ''}`.trim()
         : user.name || null;
-      return obj;
+      return enriched;
     });
   }
 
@@ -105,7 +131,7 @@ export class MemberService {
       throw new NotFoundException('Member not found');
     }
 
-    return member;
+    return this.enrichMemberWithPermissions(member);
   }
 
   /**
@@ -159,6 +185,18 @@ export class MemberService {
 
     if (!member) {
       throw new NotFoundException('Member not found');
+    }
+
+    // Sync user role if member role is "Owner"
+    if (finalRole === 'Owner' && member.userId) {
+      const userId = member.userId._id || member.userId;
+      const user = await this.userModel.findById(userId);
+      
+      if (user) {
+        user.role = 'admin'; // Set user role to admin when they become workspace owner
+        await user.save();
+        console.log(`✅ Synced user role to admin for ${user.firstName} ${user.lastName}`);
+      }
     }
 
     return member;
@@ -247,9 +285,9 @@ export class MemberService {
       .findById(saved._id)
       .populate('userId', 'firstName lastName email profilePicture');
 
-    const memberObj = populated ? populated.toObject() : saved.toObject();
-    const user = memberObj.userId || {};
-    memberObj.userName = user.firstName
+    const enriched = this.enrichMemberWithPermissions(populated);
+    const user = enriched.userId || {};
+    enriched.userName = user.firstName
       ? `${user.firstName} ${user.lastName || ''}`.trim()
       : user.name || null;
 
@@ -259,7 +297,7 @@ export class MemberService {
       workspaceId: workspace._id,
       role: 'Member',
       message: 'Successfully joined workspace',
-      member: memberObj,
+      member: enriched,
     };
   }
 

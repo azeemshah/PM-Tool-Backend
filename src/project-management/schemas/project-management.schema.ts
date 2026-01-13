@@ -119,6 +119,12 @@ export class Story extends Document {
   @Prop()
   description?: string;
 
+  @Prop({ enum: ['todo', 'in-progress', 'done'], default: 'todo' })
+  status: string;
+
+  @Prop()
+  dueDate?: Date;
+
   @Prop([TaskSchema])
   tasks?: Task[];
 
@@ -140,6 +146,12 @@ export class Epic extends Document {
 
   @Prop()
   description?: string;
+
+  @Prop({ enum: ['todo', 'in-progress', 'done'], default: 'todo' })
+  status: string;
+
+  @Prop()
+  dueDate?: Date;
 
   @Prop([StorySchema])
   stories?: Story[];

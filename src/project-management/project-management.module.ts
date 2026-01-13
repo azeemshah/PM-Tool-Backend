@@ -18,6 +18,7 @@ import {
   BugSchema,
 } from './schemas/project-management.schema';
 import { Workspace, WorkspaceSchema } from '../workspace/schemas/workspace.schema';
+import { Issue, IssueSchema } from '../issue/schemas/issue.schema';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { Workspace, WorkspaceSchema } from '../workspace/schemas/workspace.schem
       { name: Subtask.name, schema: SubtaskSchema },
       { name: Bug.name, schema: BugSchema },
       { name: Workspace.name, schema: WorkspaceSchema },
+      { name: Issue.name, schema: IssueSchema },
     ]),
   ],
   controllers: [ProjectManagementController],

@@ -63,12 +63,34 @@ export class WorkspaceController {
   }
 
   @Delete(':id')
-  async delete(@Param('id') id: string) {
+  async delete(@Param('id') id: string, @Request() req: any) {
+    if (!req.user || !req.user.userId) {
+      throw new Error('User not authenticated');
+    }
+    
+    const userId = req.user.userId;
     await this.workspaceService.delete(id);
-    return {
-      success: true,
-      message: 'Workspace deleted successfully',
-    };
+    
+    try {
+      // Find another workspace the user is member of
+      const userWorkspaces = await this.workspaceService.findAll(userId);
+      const nextWorkspaceId = userWorkspaces && userWorkspaces.length > 0 
+        ? userWorkspaces[0]._id 
+        : null;
+      
+      return {
+        success: true,
+        message: 'Workspace deleted successfully',
+        currentWorkspace: nextWorkspaceId,
+      };
+    } catch (error) {
+      console.error('Error finding next workspace:', error);
+      return {
+        success: true,
+        message: 'Workspace deleted successfully',
+        currentWorkspace: null,
+      };
+    }
   }
 
   @Post(':id/members/:userId')
