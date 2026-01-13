@@ -11,6 +11,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
+<<<<<<< HEAD
 import { JwtService } from '@nestjs/jwt';
 import {
   Invitation,
@@ -20,6 +21,9 @@ import { EmailService } from '../email/email.service';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
+=======
+import { getPermissionsForRole, getRoleId } from '../common/config/roles.config';
+>>>>>>> 5a1ba7f7caf7d116fb66218cd4b71a32f91f788b
 
 @Injectable()
 export class MemberService {
@@ -32,6 +36,24 @@ export class MemberService {
     private mailService: EmailService,
     private configService: ConfigService,
   ) {}
+
+  /**
+   * Enrich member object with role permissions
+   */
+  private enrichMemberWithPermissions(member: any) {
+    const obj = member.toObject ? member.toObject() : member;
+    const permissions = getPermissionsForRole(obj.role);
+    const roleId = getRoleId(obj.role);
+    
+    return {
+      ...obj,
+      role: {
+        _id: roleId,
+        name: obj.role,
+        permissions,
+      },
+    };
+  }
 
   /**
    * Add a member to a workspace
@@ -70,6 +92,13 @@ export class MemberService {
 
     const saved = await member.save();
 
+    // Sync user role if member role is "Owner"
+    if (role === 'Owner' && user) {
+      user.role = 'admin';
+      await user.save();
+      console.log(`✅ Synced user role to admin for ${user.firstName} ${user.lastName}`);
+    }
+
     // Also add userId to workspace.members array for consistency
     try {
       const userObjectId = new Types.ObjectId(userId);
@@ -99,12 +128,12 @@ export class MemberService {
       .sort({ joinedAt: -1 });
 
     return members.map((m: any) => {
-      const obj = m.toObject ? m.toObject() : m;
-      const user = obj.userId || {};
-      obj.userName = user.firstName
+      const enriched = this.enrichMemberWithPermissions(m);
+      const user = enriched.userId || {};
+      enriched.userName = user.firstName
         ? `${user.firstName} ${user.lastName || ''}`.trim()
         : user.name || null;
-      return obj;
+      return enriched;
     });
   }
 
@@ -121,7 +150,7 @@ export class MemberService {
       throw new NotFoundException('Member not found');
     }
 
-    return member;
+    return this.enrichMemberWithPermissions(member);
   }
 
   /**
@@ -175,6 +204,18 @@ export class MemberService {
 
     if (!member) {
       throw new NotFoundException('Member not found');
+    }
+
+    // Sync user role if member role is "Owner"
+    if (finalRole === 'Owner' && member.userId) {
+      const userId = member.userId._id || member.userId;
+      const user = await this.userModel.findById(userId);
+      
+      if (user) {
+        user.role = 'admin'; // Set user role to admin when they become workspace owner
+        await user.save();
+        console.log(`✅ Synced user role to admin for ${user.firstName} ${user.lastName}`);
+      }
     }
 
     return member;
@@ -258,6 +299,29 @@ export class MemberService {
       //console.error('Failed to send invitation:', error);
       throw new InternalServerErrorException('Failed to send invitation');
     }
+<<<<<<< HEAD
+=======
+
+    // populate saved member's user fields for response
+    const populated = await this.memberModel
+      .findById(saved._id)
+      .populate('userId', 'firstName lastName email profilePicture');
+
+    const enriched = this.enrichMemberWithPermissions(populated);
+    const user = enriched.userId || {};
+    enriched.userName = user.firstName
+      ? `${user.firstName} ${user.lastName || ''}`.trim()
+      : user.name || null;
+
+    console.log('🎉 Returning success response:', { workspaceId: workspace._id, role: 'Member' });
+
+    return {
+      workspaceId: workspace._id,
+      role: 'Member',
+      message: 'Successfully joined workspace',
+      member: enriched,
+    };
+>>>>>>> 5a1ba7f7caf7d116fb66218cd4b71a32f91f788b
   }
 
   // ===============================

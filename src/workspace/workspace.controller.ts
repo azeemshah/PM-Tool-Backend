@@ -63,11 +63,76 @@ export class WorkspaceController {
   }
 
   @Delete(':id')
-  async delete(@Param('id') id: string) {
+  async delete(@Param('id') id: string, @Request() req: any) {
+    if (!req.user || !req.user.userId) {
+      throw new Error('User not authenticated');
+    }
+    
+    const userId = req.user.userId;
     await this.workspaceService.delete(id);
+    
+    try {
+      // Find another workspace the user is member of
+      const userWorkspaces = await this.workspaceService.findAll(userId);
+      const nextWorkspaceId = userWorkspaces && userWorkspaces.length > 0 
+        ? userWorkspaces[0]._id 
+        : null;
+      
+      return {
+        success: true,
+        message: 'Workspace deleted successfully',
+        currentWorkspace: nextWorkspaceId,
+      };
+    } catch (error) {
+      console.error('Error finding next workspace:', error);
+      return {
+        success: true,
+        message: 'Workspace deleted successfully',
+        currentWorkspace: null,
+      };
+    }
+  }
+<<<<<<< HEAD
+=======
+
+  @Post(':id/members/:userId')
+  async addMember(@Param('id') id: string, @Param('userId') userId: string) {
+    const workspace = await this.workspaceService.addMember(id, userId);
     return {
       success: true,
-      message: 'Workspace deleted successfully',
+      message: 'Member added to workspace',
+      workspace,
     };
   }
+
+  @Delete(':id/members/:userId')
+  async removeMember(@Param('id') id: string, @Param('userId') userId: string) {
+    const workspace = await this.workspaceService.removeMember(id, userId);
+    return {
+      success: true,
+      message: 'Member removed from workspace',
+      workspace,
+    };
+  }
+
+  @Get(':id/members')
+  async getMembers(@Param('id') id: string) {
+    const members = await this.workspaceService.getMembers(id);
+    return {
+      success: true,
+      message: 'Members fetched successfully',
+      members,
+    };
+  }
+
+  @Get('analytics/:id')
+  async getAnalytics(@Param('id') id: string) {
+    const analytics = await this.workspaceService.getAnalytics(id);
+    return {
+      statusCode: 200,
+      message: 'Analytics fetched successfully',
+      analytics,
+    };
+  }
+>>>>>>> 5a1ba7f7caf7d116fb66218cd4b71a32f91f788b
 }

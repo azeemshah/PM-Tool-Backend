@@ -14,11 +14,12 @@ async function bootstrap() {
   app.use(helmet());
   app.use(compression());
 
-  // CORS
-  app.enableCors({
+  // CORS for HTTP and WebSocket
+  const corsOptions = {
     origin: configService.get('FRONTEND_URL') || 'http://localhost:5000',
     credentials: true,
-  });
+  };
+  app.enableCors(corsOptions);
 
   // Cookie parser for reading refresh token cookies
   app.use(cookieParser());
@@ -44,6 +45,7 @@ async function bootstrap() {
   await app.listen(port, '0.0.0.0');
 
   console.log(`🚀 Application is running on: http://127.0.0.1:${port}/${apiPrefix}`);
+  console.log(`🔌 WebSocket available at: ws://127.0.0.1:${port}/${apiPrefix}/issues`);
 }
 
 bootstrap();
