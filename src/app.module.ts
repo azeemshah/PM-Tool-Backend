@@ -8,11 +8,8 @@ import { EmailModule } from './email/email.module';
 import { KanbanModule } from './kanban/kanban.module';
 import { WorkspaceModule } from './workspace/workspace.module';
 import { MemberModule } from './member/member.module';
-<<<<<<< HEAD
 import { ItemModule } from './work-items/work-item.module';
-=======
 import { IssueModule } from './issue/issue.module';
->>>>>>> 5a1ba7f7caf7d116fb66218cd4b71a32f91f788b
 
 @Module({
   imports: [
@@ -51,18 +48,8 @@ import { IssueModule } from './issue/issue.module';
     KanbanModule,
     WorkspaceModule,
     MemberModule,
-<<<<<<< HEAD
-    EmailModule,
     ItemModule,
-    // ProjectsModule,
-    // IssueModule,
-    // SprintModule,
-    // TimeLogModule,
-    // UsersModule,
-    AuthModule,
-=======
     IssueModule,
->>>>>>> 5a1ba7f7caf7d116fb66218cd4b71a32f91f788b
   ],
 })
 export class AppModule {}

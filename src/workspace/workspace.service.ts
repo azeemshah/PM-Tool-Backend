@@ -167,7 +167,7 @@ export class WorkspaceService {
           });
           
           if (!existingMember) {
-            const role = userId.toString() === workspace.createdBy.toString() ? 'Owner' : 'Member';
+            const role = userId.toString() === (workspace.createdBy || workspace.OwnedBy).toString() ? 'Owner' : 'Member';
             console.log(`[findById] Creating member record: userId=${userId}, role=${role}`);
             const newMember = new this.memberModel({
               userId: new Types.ObjectId(userId),
@@ -241,8 +241,6 @@ export class WorkspaceService {
       throw new NotFoundException('Workspace not found');
     }
   }
-<<<<<<< HEAD
-=======
 
   async addMember(workspaceId: string, userId: string): Promise<WorkspaceDocument> {
     if (!Types.ObjectId.isValid(workspaceId)) {
@@ -352,5 +350,4 @@ export class WorkspaceService {
       };
     }
   }
->>>>>>> 5a1ba7f7caf7d116fb66218cd4b71a32f91f788b
 }

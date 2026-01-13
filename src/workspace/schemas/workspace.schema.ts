@@ -14,6 +14,9 @@ export class Workspace {
   @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
   OwnedBy: Types.ObjectId;
 
+  @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
+  createdBy: Types.ObjectId;
+
   @Prop({ type: [Types.ObjectId], ref: 'User', default: [] })
   members: Types.ObjectId[];
 

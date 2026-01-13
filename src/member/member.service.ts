@@ -11,7 +11,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
-<<<<<<< HEAD
 import { JwtService } from '@nestjs/jwt';
 import {
   Invitation,
@@ -21,9 +20,7 @@ import { EmailService } from '../email/email.service';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
-=======
 import { getPermissionsForRole, getRoleId } from '../common/config/roles.config';
->>>>>>> 5a1ba7f7caf7d116fb66218cd4b71a32f91f788b
 
 @Injectable()
 export class MemberService {
@@ -299,29 +296,6 @@ export class MemberService {
       //console.error('Failed to send invitation:', error);
       throw new InternalServerErrorException('Failed to send invitation');
     }
-<<<<<<< HEAD
-=======
-
-    // populate saved member's user fields for response
-    const populated = await this.memberModel
-      .findById(saved._id)
-      .populate('userId', 'firstName lastName email profilePicture');
-
-    const enriched = this.enrichMemberWithPermissions(populated);
-    const user = enriched.userId || {};
-    enriched.userName = user.firstName
-      ? `${user.firstName} ${user.lastName || ''}`.trim()
-      : user.name || null;
-
-    console.log('🎉 Returning success response:', { workspaceId: workspace._id, role: 'Member' });
-
-    return {
-      workspaceId: workspace._id,
-      role: 'Member',
-      message: 'Successfully joined workspace',
-      member: enriched,
-    };
->>>>>>> 5a1ba7f7caf7d116fb66218cd4b71a32f91f788b
   }
 
   // ===============================

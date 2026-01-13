@@ -92,8 +92,6 @@ export class WorkspaceController {
       };
     }
   }
-<<<<<<< HEAD
-=======
 
   @Post(':id/members/:userId')
   async addMember(@Param('id') id: string, @Param('userId') userId: string) {
@@ -134,5 +132,4 @@ export class WorkspaceController {
       analytics,
     };
   }
->>>>>>> 5a1ba7f7caf7d116fb66218cd4b71a32f91f788b
 }
