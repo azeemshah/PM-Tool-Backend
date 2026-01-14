@@ -54,7 +54,7 @@ export class ItemService {
     return this.itemModel.findByIdAndUpdate(
       itemId,
       {
-        status: ItemStatus.BOARD,
+        status: ItemStatus.TODO,
         column: new Types.ObjectId(columnId),
       },
       { new: true },

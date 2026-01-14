@@ -2,6 +2,13 @@ import { Subtask } from './../../kanban/work-item/schemas/subtask.schema';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
+export enum ItemPriority {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  CRITICAL = 'critical',
+}
+
 export enum ItemType {
   STORY = 'story',
   BUG = 'bug',
@@ -11,8 +18,11 @@ export enum ItemType {
 }
 
 export enum ItemStatus {
-  BACKLOG = 'backlog',
-  BOARD = 'board',
+  BACKLOG = 'Backlog',
+  TODO = 'Todo',
+  INPROGRESS = 'In Progress',
+  REVIEW = 'Review',
+  DONE = 'Done',
 }
 
 @Schema({ timestamps: true })
@@ -40,6 +50,40 @@ export class Item extends Document {
   // Parent item (epic or task)
   @Prop({ type: Types.ObjectId, ref: 'Item', default: null, index: true })
   parent?: Types.ObjectId;
+
+ @Prop({
+    enum: ItemPriority,
+    default: ItemPriority.MEDIUM,
+    index: true,
+  })
+  priority?: ItemPriority;
+
+  // User assigned to this item
+  // (This likely already existed but needed proper ref + default)
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'User',
+    default: null,
+    index: true,
+  })
+  assignedTo?: Types.ObjectId;
+
+  // User who reported/created the issue
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'User',
+    default: null,
+    index: true,
+  })
+  reporter?: Types.ObjectId;
+
+  // Due date for completion
+  @Prop({
+    type: Date,
+    default: null,
+  })
+  dueDate?: Date;
+
 
   // Materialized path for fast hierarchy queries
   @Prop({ required: true, index: true })
