@@ -86,7 +86,7 @@ export class WorkspaceService {
         const savedBoard = await defaultBoard.save();
 
         // Create default columns
-        const defaultColumns = ['To Do', 'In Progress', 'Done'];
+        const defaultColumns = ['To Do', 'In Progress', 'In Review', 'Done'];
         for (let i = 0; i < defaultColumns.length; i++) {
           const column = new this.columnModel({
             BoardId: savedBoard._id,
