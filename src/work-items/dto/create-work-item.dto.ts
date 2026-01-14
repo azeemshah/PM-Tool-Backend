@@ -1,5 +1,11 @@
-import { IsEnum, IsMongoId, IsOptional, IsString } from 'class-validator';
-import { ItemStatus, ItemType } from '../schemas/work-item.schema';
+import {
+  IsEnum,
+  IsMongoId,
+  IsOptional,
+  IsString,
+  IsDateString,
+} from 'class-validator';
+import { ItemStatus, ItemType, ItemPriority } from '../schemas/work-item.schema';
 
 export class CreateItemDto {
   @IsString()
@@ -15,6 +21,26 @@ export class CreateItemDto {
   @IsOptional()
   @IsEnum(ItemStatus)
   status?: ItemStatus;
+
+  // ---------------- New fields ----------------
+
+  @IsOptional()
+  @IsEnum(ItemPriority)
+  priority?: ItemPriority;
+
+  @IsOptional()
+  @IsMongoId()
+  assignedTo?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  reporter?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dueDate?: string;
+
+  // ---------------- Existing relations ----------------
 
   @IsMongoId()
   workspace: string;
