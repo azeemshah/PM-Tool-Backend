@@ -64,6 +64,7 @@ export class User {
     }
   }
   
+  
   // Virtual field for full name
   get name(): string {
     return `${this.firstName} ${this.lastName}`;
