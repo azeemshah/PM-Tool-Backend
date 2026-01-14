@@ -33,12 +33,39 @@ export class ItemService {
     return item.save();
   }
 
-  async findByWorkspace(workspaceId: string) {
-    return this.itemModel
-      .find({ workspace: workspaceId })
-      .sort({ path: 1 })
-      .lean();
-  }
+async findByWorkspace(workspaceId: string) {
+  const tasks = await this.itemModel
+    .find({ workspace: workspaceId })
+    .sort({ path: 1 })
+    .populate({
+      path: 'assignedTo',
+      select: '_id firstName lastName profilePicture',
+    })
+    .populate({
+      path: 'reporter',
+      select: '_id firstName lastName profilePicture',
+    })
+    .lean();
+
+  return tasks.map((task: any) => ({
+    ...task,
+    assignedTo: task.assignedTo
+      ? {
+          _id: task.assignedTo._id,
+          name: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
+          profilePicture: task.assignedTo.profilePicture,
+        }
+      : null,
+    reporter: task.reporter
+      ? {
+          _id: task.reporter._id,
+          name: `${task.reporter.firstName} ${task.reporter.lastName}`,
+          profilePicture: task.reporter.profilePicture,
+        }
+      : null,
+  }));
+}
+
 
   async findTree(rootId: string) {
     const root = await this.itemModel.findById(rootId);
