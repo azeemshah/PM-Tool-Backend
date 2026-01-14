@@ -25,10 +25,6 @@ export class CreateWorkItemDto {
 
   @IsMongoId()
   @IsOptional()
-  projectId?: string; // Associated project
-
-  @IsMongoId()
-  @IsOptional()
   boardId?: string; // Associated Kanban board
 
   @IsMongoId()

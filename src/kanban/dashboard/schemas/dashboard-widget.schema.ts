@@ -9,9 +9,9 @@ import { Document, Types } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class DashboardWidget extends Document {
-  /* ================= Project ================= */
-  @Prop({ type: Types.ObjectId, ref: 'KanbanProject', required: true })
-  project: Types.ObjectId;
+  /* ================= Workspace ================= */
+  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
+  workspace: Types.ObjectId;
 
   /* ================= Widget Type ================= */
   @Prop({
@@ -50,5 +50,5 @@ export const DashboardWidgetSchema =
   SchemaFactory.createForClass(DashboardWidget);
 
 /* ================= Indexes ================= */
-DashboardWidgetSchema.index({ project: 1, user: 1 });
+DashboardWidgetSchema.index({ workspace: 1, user: 1 });
 DashboardWidgetSchema.index({ widgetType: 1 });

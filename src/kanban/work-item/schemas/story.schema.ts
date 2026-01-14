@@ -26,4 +26,4 @@ export class Story extends WorkItem {
 export const StorySchema = SchemaFactory.createForClass(Story);
 
 /* ================= Indexes ================= */
-StorySchema.index({ project: 1, epic: 1, status: 1 });
+StorySchema.index({ spaceid: 1, epic: 1, status: 1 });

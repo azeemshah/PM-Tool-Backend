@@ -47,6 +47,6 @@ export class WorkItem extends Document {
 export const WorkItemSchema = SchemaFactory.createForClass(WorkItem);
 
 /* ================= Indexes ================= */
-WorkItemSchema.index({ project: 1, board: 1, status: 1 });
+WorkItemSchema.index({ spaceid: 1, board: 1, status: 1 });
 WorkItemSchema.index({ assignee: 1 });
 WorkItemSchema.index({ parent: 1 });

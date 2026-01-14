@@ -23,10 +23,6 @@ export class UpdateWorkItemDto extends PartialType(CreateWorkItemDto) {
 
   @IsMongoId()
   @IsOptional()
-  projectId?: string;
-
-  @IsMongoId()
-  @IsOptional()
   boardId?: string;
 
   @IsMongoId()

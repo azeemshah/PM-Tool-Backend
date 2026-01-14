@@ -25,4 +25,4 @@ export class Epic extends WorkItem {
 export const EpicSchema = SchemaFactory.createForClass(Epic);
 
 /* ================= Indexes ================= */
-EpicSchema.index({ project: 1, status: 1 });
+EpicSchema.index({ spaceid: 1, status: 1 });

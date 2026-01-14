@@ -10,9 +10,9 @@ import { Document, Types } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class CumulativeFlowReport extends Document {
-  /* ================= Project ================= */
-  @Prop({ type: Types.ObjectId, ref: 'KanbanProject', required: true })
-  project: Types.ObjectId;
+  /* ================= Workspace ================= */
+  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
+  workspace: Types.ObjectId;
 
   /* ================= Report Date ================= */
   @Prop({ required: true })
@@ -38,11 +38,7 @@ export class CumulativeFlowReport extends Document {
   totalWorkItems: number;
 }
 
-export const CumulativeFlowReportSchema =
-  SchemaFactory.createForClass(CumulativeFlowReport);
+export const CumulativeFlowReportSchema = SchemaFactory.createForClass(CumulativeFlowReport);
 
 /* ================= Indexes ================= */
-CumulativeFlowReportSchema.index(
-  { project: 1, date: 1 },
-  { unique: true },
-);
+CumulativeFlowReportSchema.index({ workspace: 1, date: 1 }, { unique: true });

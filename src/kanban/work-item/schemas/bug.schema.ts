@@ -28,5 +28,5 @@ type: WorkItemType;
 export const BugSchema = SchemaFactory.createForClass(Bug);
 
 /* ================= Indexes ================= */
-BugSchema.index({ project: 1, status: 1 });
+BugSchema.index({ spaceid: 1, status: 1 });
 BugSchema.index({ assignee: 1 });

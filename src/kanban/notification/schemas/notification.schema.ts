@@ -27,8 +27,8 @@ export class Notification {
   @Prop({ required: true })
   message: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Project' })
-  project?: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Workspace' })
+  workspace?: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'WorkItem' })
   workItem?: Types.ObjectId;

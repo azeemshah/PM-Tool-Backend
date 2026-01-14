@@ -14,13 +14,13 @@ export class AuditController {
   /* ================= Get All Audit Logs ================= */
   @Get()
   getAllLogs(
-    @Query('projectId') projectId?: string,
+    @Query('workspaceId') workspaceId?: string,
     @Query('userId') userId?: string,
     @Query('action') action?: string,
     @Query('targetType') targetType?: string,
   ) {
     return this.auditService.getAllLogs({
-      projectId,
+      workspaceId,
       userId,
       action,
       targetType,
@@ -33,10 +33,10 @@ export class AuditController {
     return this.auditService.getLogsByUser(userId);
   }
 
-  /* ================= Get Logs by Project ================= */
-  @Get('project/:projectId')
-  getLogsByProject(@Param('projectId') projectId: string) {
-    return this.auditService.getLogsByProject(projectId);
+  /* ================= Get Logs by Workspace ================= */
+  @Get('workspace/:workspaceId')
+  getLogsByWorkspace(@Param('workspaceId') workspaceId: string) {
+    return this.auditService.getLogsByWorkspace(workspaceId);
   }
 
   /* ================= Get Logs by Target ================= */
