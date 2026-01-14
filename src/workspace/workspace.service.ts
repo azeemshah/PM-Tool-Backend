@@ -14,6 +14,8 @@ import { WorkspaceResponseDto } from './dto/workspace-response.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { WorkItem } from '../kanban/work-item/schemas/work-item.schema';
 import { getPermissionsForRole, getRoleId } from '../common/config/roles.config';
+import { KanbanBoard } from '../kanban/board/schemas/kanban-board.schema';
+import { KanbanColumn } from '../kanban/column/schemas/column.schema';
 
 @Injectable()
 export class WorkspaceService {
@@ -21,6 +23,8 @@ export class WorkspaceService {
     @InjectModel(Workspace.name) private workspaceModel: Model<WorkspaceDocument>,
     @InjectModel('Member') private memberModel: Model<any>,
     @InjectModel(WorkItem.name) private workItemModel: Model<WorkItem>,
+    @InjectModel(KanbanBoard.name) private boardModel: Model<KanbanBoard>,
+    @InjectModel(KanbanColumn.name) private columnModel: Model<KanbanColumn>,
   ) {}
 
   /**
@@ -69,6 +73,34 @@ export class WorkspaceService {
     } catch (error) {
       console.error('Failed to create owner member record:', error);
       // Don't fail workspace creation if member creation fails
+    }
+
+    // Create default Kanban board if boardType is 'kanban'
+    if (savedWorkspace.boardType === 'kanban') {
+      try {
+        const defaultBoard = new this.boardModel({
+          name: savedWorkspace.name,
+          description: `Default board for ${savedWorkspace.name}`,
+          workspaceId: savedWorkspace._id,
+        });
+        const savedBoard = await defaultBoard.save();
+
+        // Create default columns
+        const defaultColumns = ['To Do', 'In Progress', 'Done'];
+        for (let i = 0; i < defaultColumns.length; i++) {
+          const column = new this.columnModel({
+            BoardId: savedBoard._id,
+            name: defaultColumns[i],
+            position: i,
+          });
+          await column.save();
+        }
+
+        console.log('Default Kanban board created for workspace:', savedWorkspace._id);
+      } catch (error) {
+        console.error('Failed to create default Kanban board:', error);
+        // Don't fail workspace creation if board creation fails
+      }
     }
 
     return savedWorkspace;

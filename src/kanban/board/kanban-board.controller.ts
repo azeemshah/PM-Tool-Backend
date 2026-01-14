@@ -21,7 +21,7 @@ import { MoveWorkItemDto } from './dto/move-work-item.dto';
 //import { CreateWorkItemDto } from './dto/create-work-item.dto';
 import { WorkItem } from '../work-item/schemas/work-item.schema';
 
-@Controller('board')
+@Controller('kanban/board')
 export class KanbanBoardController {
   workItemService: any;
   constructor(private readonly boardService: KanbanBoardService) {}
@@ -31,6 +31,11 @@ export class KanbanBoardController {
   @Post('create')
   async createBoard(@Body() createBoardDto: CreateBoardDto): Promise<KanbanBoard> {
     return this.boardService.createBoard(createBoardDto);
+  }
+
+  @Get('workspaces/:workspaceId/boards')
+  async findBoardsByWorkspace(@Param('workspaceId') workspaceId: string): Promise<KanbanBoard[]> {
+    return this.boardService.findBoardsByWorkspaceId(workspaceId);
   }
 
   @Get(':id')

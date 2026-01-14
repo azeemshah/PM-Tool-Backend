@@ -31,6 +31,9 @@ export class Workspace {
 
   @Prop({ required: true, unique: true, trim: true })
   inviteCode: string;
+
+  @Prop({ required: true, enum: ['kanban', 'scrumboard'], default: 'kanban' })
+  boardType: string;
 }
 
 export const WorkspaceSchema = SchemaFactory.createForClass(Workspace);

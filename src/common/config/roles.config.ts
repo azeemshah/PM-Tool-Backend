@@ -3,26 +3,39 @@ import { Role } from '../enums/role.enum';
 // Define permissions for each role
 const rolePermissions: Record<string, string[]> = {
   [Role.ADMIN]: [
-    'manage_workspace',
-    'manage_members',
-    'manage_boards',
-    'create_work_items',
-    'edit_work_items',
-    'delete_work_items',
-    'manage_roles',
+    'MANAGE_WORKSPACE_SETTINGS',
+    'CHANGE_MEMBER_ROLE',
+    'REMOVE_MEMBER',
+    'CREATE_PROJECT',
+    'EDIT_PROJECT',
+    'DELETE_PROJECT',
+    'CREATE_TASK',
+    'EDIT_TASK',
+    'DELETE_TASK',
   ],
   [Role.MEMBER]: [
-    'create_work_items',
-    'edit_work_items',
-    'edit_own_work_items',
-    'view_workspace',
-    'view_boards',
-    'add_comments',
+    'CREATE_TASK',
+    'EDIT_TASK',
+    'CREATE_PROJECT',
+    'EDIT_PROJECT',
+    'VIEW_ONLY',
   ],
   [Role.VIEWER]: [
-    'view_workspace',
-    'view_boards',
-    'view_work_items',
+    'VIEW_ONLY',
+  ],
+  'Owner': [
+    'EDIT_WORKSPACE',
+    'DELETE_WORKSPACE',
+    'MANAGE_WORKSPACE_SETTINGS',
+    'ADD_MEMBER',
+    'CHANGE_MEMBER_ROLE',
+    'REMOVE_MEMBER',
+    'CREATE_PROJECT',
+    'EDIT_PROJECT',
+    'DELETE_PROJECT',
+    'CREATE_TASK',
+    'EDIT_TASK',
+    'DELETE_TASK',
   ],
 };
 
@@ -31,6 +44,7 @@ const roleIds: Record<string, string> = {
   [Role.ADMIN]: '1',
   [Role.MEMBER]: '2',
   [Role.VIEWER]: '3',
+  'Owner': '0',
 };
 
 export function getPermissionsForRole(role: string): string[] {

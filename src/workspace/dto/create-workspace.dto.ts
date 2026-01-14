@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNotEmpty } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty, IsEnum } from 'class-validator';
 
 export class CreateWorkspaceDto {
   @IsNotEmpty()
@@ -8,4 +8,8 @@ export class CreateWorkspaceDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsNotEmpty()
+  @IsEnum(['kanban', 'scrumboard'])
+  boardType: string;
 }

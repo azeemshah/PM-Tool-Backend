@@ -48,6 +48,15 @@ export class KanbanBoardService {
     };
   }
 
+  async findBoardsByWorkspaceId(workspaceId: string): Promise<KanbanBoard[]> {
+    if (!Types.ObjectId.isValid(workspaceId)) {
+      throw new BadRequestException('Invalid workspace ID');
+    }
+    return this.boardModel
+      .find({ workspaceId: new Types.ObjectId(workspaceId) })
+      .exec();
+  }
+
   async updateBoard(id: string, updateBoardDto: UpdateBoardDto): Promise<KanbanBoard> {
     const updated = await this.boardModel
       .findByIdAndUpdate(id, updateBoardDto, { new: true })
