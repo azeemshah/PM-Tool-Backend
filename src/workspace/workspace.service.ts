@@ -34,7 +34,7 @@ export class WorkspaceService {
     const obj = member.toObject ? member.toObject() : member;
     const permissions = getPermissionsForRole(obj.role);
     const roleId = getRoleId(obj.role);
-    
+
     return {
       ...obj,
       role: {
@@ -131,7 +131,7 @@ export class WorkspaceService {
                 userId: new Types.ObjectId(memberId),
                 workspaceId: workspace._id,
               });
-              
+
               if (!existingMember) {
                 const newMember = new this.memberModel({
                   userId: new Types.ObjectId(memberId),
@@ -144,7 +144,7 @@ export class WorkspaceService {
               console.error(`Failed to create member record for user ${memberId}:`, err);
             }
           }
-          
+
           // Fetch again after creating missing records
           memberDocuments = await this.memberModel
             .find({ workspaceId: workspace._id })
@@ -153,13 +153,13 @@ export class WorkspaceService {
         }
 
         const enrichedMembers = memberDocuments.map((member: any) =>
-          this.enrichMemberWithPermissions(member)
+          this.enrichMemberWithPermissions(member),
         );
 
         const workspaceObj = workspace.toObject ? workspace.toObject() : workspace;
         workspaceObj.members = enrichedMembers;
         return workspaceObj;
-      })
+      }),
     );
   }
 
@@ -178,7 +178,9 @@ export class WorkspaceService {
       throw new NotFoundException('Workspace not found');
     }
 
-    console.log(`[findById] Workspace ${workspaceId}: found, members count=${workspace.members.length}`);
+    console.log(
+      `[findById] Workspace ${workspaceId}: found, members count=${workspace.members.length}`,
+    );
 
     // Fetch member documents with roles and enrich with permissions
     let memberDocuments = await this.memberModel
@@ -197,7 +199,7 @@ export class WorkspaceService {
             userId: new Types.ObjectId(userId),
             workspaceId: new Types.ObjectId(workspaceId),
           });
-          
+
           if (!existingMember) {
             const role = userId.toString() === workspace.OwnedBy.toString() ? 'Owner' : 'Member';
             console.log(`[findById] Creating member record: userId=${userId}, role=${role}`);
@@ -215,20 +217,22 @@ export class WorkspaceService {
           console.error(`[findById] Failed to create member record for user ${userId}:`, err);
         }
       }
-      
+
       // Fetch again after creating missing records
       memberDocuments = await this.memberModel
         .find({ workspaceId: new Types.ObjectId(workspaceId) })
         .populate('userId', 'name email profilePicture firstName lastName')
         .exec();
-      
+
       console.log(`[findById] After migration - Member documents count: ${memberDocuments.length}`);
     }
 
     // Enrich members with permissions
     const enrichedMembers = memberDocuments.map((member: any) => {
       const enriched = this.enrichMemberWithPermissions(member);
-      console.log(`[findById] Enriched member: userId=${enriched.userId._id}, role=${enriched.role.name}, permissions=${enriched.role.permissions.length}`);
+      console.log(
+        `[findById] Enriched member: userId=${enriched.userId._id}, role=${enriched.role.name}, permissions=${enriched.role.permissions.length}`,
+      );
       return enriched;
     });
 

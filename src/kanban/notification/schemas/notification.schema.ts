@@ -37,5 +37,4 @@ export class Notification {
   isRead: boolean;
 }
 
-export const NotificationSchema =
-  SchemaFactory.createForClass(Notification);
+export const NotificationSchema = SchemaFactory.createForClass(Notification);

@@ -1,14 +1,5 @@
 // src/search/search.controller.ts
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
-  Body,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query } from '@nestjs/common';
 import { SearchService } from './search.service';
 import { SavedFilterDto } from './dto/saved-filter.dto';
 
@@ -24,10 +15,7 @@ export class SearchController {
 
   /* ================= Get All Filters for User/Workspace ================= */
   @Get('filters')
-  getFilters(
-    @Query('workspaceId') workspaceId: string,
-    @Query('userId') userId: string,
-  ) {
+  getFilters(@Query('workspaceId') workspaceId: string, @Query('userId') userId: string) {
     return this.searchService.getFilters(workspaceId, userId);
   }
 

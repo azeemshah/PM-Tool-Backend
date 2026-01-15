@@ -26,10 +26,7 @@ export class AuditService {
     if (query.action) filter.action = query.action;
     if (query.targetType) filter.targetType = query.targetType;
 
-    return this.auditModel
-      .find(filter)
-      .sort({ createdAt: -1 })
-      .exec();
+    return this.auditModel.find(filter).sort({ createdAt: -1 }).exec();
   }
 
   /* ================= Get Logs by User ================= */

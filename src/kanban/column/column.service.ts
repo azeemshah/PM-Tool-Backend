@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { WorkItem } from '../work-item/schemas/work-item.schema';
@@ -23,16 +19,12 @@ export class ColumnService {
     private readonly boardModel: Model<KanbanBoard>,
     @InjectModel(WorkItem.name)
     private readonly workItemModel: Model<WorkItem>,
-  ) { }
+  ) {}
 
   // -------------------- Column CRUD --------------------
 
-  async createColumn(
-    createColumnDto: CreateColumnDto,
-  ): Promise<KanbanColumn> {
-    const board = await this.boardModel
-      .findById(createColumnDto.BoardId)
-      .exec();
+  async createColumn(createColumnDto: CreateColumnDto): Promise<KanbanColumn> {
+    const board = await this.boardModel.findById(createColumnDto.BoardId).exec();
 
     if (!board) throw new NotFoundException('Board not found');
 
@@ -59,16 +51,14 @@ export class ColumnService {
       { new: true },
     );
 
-    if (!column)
-      throw new NotFoundException(`Column with ID ${columnId} not found`);
+    if (!column) throw new NotFoundException(`Column with ID ${columnId} not found`);
 
     return column;
   }
 
   async deleteColumn(columnId: string): Promise<void> {
     const column = await this.columnModel.findById(columnId).exec();
-    if (!column)
-      throw new NotFoundException(`Column with ID ${columnId} not found`);
+    if (!column) throw new NotFoundException(`Column with ID ${columnId} not found`);
 
     await this.workItemModel.deleteMany({ status: column._id }).exec();
     await column.deleteOne();

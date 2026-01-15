@@ -13,7 +13,7 @@ export class EmailService {
       await this.transporter.sendMail({
         from: this.configService.get('EMAIL_FROM'),
         to: email,
-        subject: 'You\'re Invited to Join PM Tool',
+        subject: "You're Invited to Join PM Tool",
         html: this.getInviteEmailTemplate(role, inviteLink),
       });
       this.logger.log(`Invitation email sent to ${email}`);

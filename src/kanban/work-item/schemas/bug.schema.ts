@@ -5,12 +5,12 @@ import { WorkItem, WorkItemType } from './work-item.schema';
 
 @Schema({ timestamps: true })
 export class Bug extends WorkItem {
-@Prop({
-  type: String,
-  enum: WorkItemType,
-  default: WorkItemType.BUG,
-})
-type: WorkItemType;
+  @Prop({
+    type: String,
+    enum: WorkItemType,
+    default: WorkItemType.BUG,
+  })
+  type: WorkItemType;
 
   @Prop({ type: Types.ObjectId, ref: 'Story', required: false })
   story?: Types.ObjectId; // Optional parent Story if bug is linked

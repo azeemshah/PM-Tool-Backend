@@ -5,8 +5,8 @@ import { WorkItem, WorkItemType } from './work-item.schema';
 
 @Schema({ timestamps: true })
 export class Epic extends WorkItem {
-    @Prop({
-    type: String,                  
+  @Prop({
+    type: String,
     enum: WorkItemType,
     default: WorkItemType.EPIC,
   })

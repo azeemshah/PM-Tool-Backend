@@ -32,7 +32,11 @@ export class TimeTrackingService {
 
   // -------------------- Get Time Log by ID --------------------
   async getTimeLogById(id: string): Promise<TimeLog> {
-    const timeLog = await this.timeLogModel.findById(id).populate('workItem').populate('userId').exec();
+    const timeLog = await this.timeLogModel
+      .findById(id)
+      .populate('workItem')
+      .populate('userId')
+      .exec();
     if (!timeLog) throw new NotFoundException(`Time log with ID ${id} not found`);
     return timeLog;
   }
@@ -89,11 +93,11 @@ export class TimeTrackingService {
         user: new Types.ObjectId(userId),
         weekStart,
         weekEnd,
-        timeLogs: logs.map(log => log._id),
+        timeLogs: logs.map((log) => log._id),
         totalHours,
       });
     } else {
-      timesheet.timeLogs = logs.map(log => log._id);
+      timesheet.timeLogs = logs.map((log) => log._id);
       timesheet.totalHours = totalHours;
     }
 

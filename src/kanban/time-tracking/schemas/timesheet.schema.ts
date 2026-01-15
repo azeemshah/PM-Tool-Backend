@@ -2,7 +2,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { TimeLog } from './time-log.schema';
-//import { User, UserSchema } from '../..users/schemas/user.schema'; 
+//import { User, UserSchema } from '../..users/schemas/user.schema';
 
 export type TimesheetDocument = Timesheet & Document;
 

@@ -33,10 +33,7 @@ export class KanbanReportService {
       if (query.toDate) filter.date.$lte = new Date(query.toDate);
     }
 
-    return this.cumulativeFlowModel
-      .find(filter)
-      .sort({ date: 1 })
-      .exec();
+    return this.cumulativeFlowModel.find(filter).sort({ date: 1 }).exec();
   }
 
   /* ================= Cycle Time ================= */
@@ -75,7 +72,7 @@ export class KanbanReportService {
   async getWorkload(query: ReportQueryDto) {
     const filter: any = {};
     if (query.userIds?.length) {
-      filter.user = { $in: query.userIds.map(id => new Types.ObjectId(id)) };
+      filter.user = { $in: query.userIds.map((id) => new Types.ObjectId(id)) };
     }
     if (query.fromDate || query.toDate) {
       filter.startDate = {};

@@ -22,10 +22,7 @@ export class ItemController {
   }
 
   @Patch(':id/move/column/:columnId')
-  moveToColumn(
-    @Param('id') id: string,
-    @Param('columnId') columnId: string,
-  ) {
+  moveToColumn(@Param('id') id: string, @Param('columnId') columnId: string) {
     return this.itemService.moveToColumn(id, columnId);
   }
 

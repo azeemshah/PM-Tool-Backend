@@ -6,12 +6,11 @@ import { WorkItem, WorkItemType } from './work-item.schema';
 @Schema({ timestamps: true })
 export class Story extends WorkItem {
   @Prop({
-    type: String,                 
+    type: String,
     enum: WorkItemType,
     default: WorkItemType.STORY,
   })
   type: WorkItemType;
-
 
   @Prop({ type: Types.ObjectId, ref: 'Epic', required: true })
   epic: Types.ObjectId; // Parent Epic

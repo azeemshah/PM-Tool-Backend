@@ -38,9 +38,7 @@ export class KanbanBoardService {
     const board = await this.boardModel.findById(id).exec();
     if (!board) throw new NotFoundException(`Board with ID ${id} not found`);
 
-    const columns = await this.columnModel
-      .find({ BoardId: board._id })
-      .exec();
+    const columns = await this.columnModel.find({ BoardId: board._id }).exec();
 
     return {
       ...board.toObject(),
@@ -52,9 +50,7 @@ export class KanbanBoardService {
     if (!Types.ObjectId.isValid(workspaceId)) {
       throw new BadRequestException('Invalid workspace ID');
     }
-    return this.boardModel
-      .find({ workspaceId: new Types.ObjectId(workspaceId) })
-      .exec();
+    return this.boardModel.find({ workspaceId: new Types.ObjectId(workspaceId) }).exec();
   }
 
   async updateBoard(id: string, updateBoardDto: UpdateBoardDto): Promise<KanbanBoard> {
@@ -71,10 +67,7 @@ export class KanbanBoardService {
     if (!board) throw new NotFoundException(`Board with ID ${id} not found`);
 
     // Remove board reference from all columns
-    await this.columnModel.updateMany(
-      { BoardId: board._id },
-      { $pull: { BoardId: board._id } },
-    );
+    await this.columnModel.updateMany({ BoardId: board._id }, { $pull: { BoardId: board._id } });
 
     await board.deleteOne();
   }
@@ -92,7 +85,6 @@ export class KanbanBoardService {
       .exec();
   }
 
-  
   // -------------------- Move Work Item --------------------
 
   // async moveWorkItem(boardId: string, moveWorkItemDto: MoveWorkItemDto) {
@@ -153,26 +145,26 @@ export class KanbanBoardService {
 
   // -------------------- Reorder Cards in List --------------------
 
-//   async reorderCardsInList(
-//     boardId: string,
-//     columnId: string,
-//     cardIds: string[],
-//   ): Promise<{ message: string }> {
-//     if (!Types.ObjectId.isValid(boardId)) throw new BadRequestException('Invalid board ID');
-//     if (!Types.ObjectId.isValid(columnId)) throw new BadRequestException('Invalid column ID');
+  //   async reorderCardsInList(
+  //     boardId: string,
+  //     columnId: string,
+  //     cardIds: string[],
+  //   ): Promise<{ message: string }> {
+  //     if (!Types.ObjectId.isValid(boardId)) throw new BadRequestException('Invalid board ID');
+  //     if (!Types.ObjectId.isValid(columnId)) throw new BadRequestException('Invalid column ID');
 
-//     const column = await this.columnModel.findOne({
-//       _id: columnId,
-//       BoardId: boardId,
-//     });
+  //     const column = await this.columnModel.findOne({
+  //       _id: columnId,
+  //       BoardId: boardId,
+  //     });
 
-//     if (!column) {
-//       throw new BadRequestException('Column does not belong to this board');
-//     }
+  //     if (!column) {
+  //       throw new BadRequestException('Column does not belong to this board');
+  //     }
 
-//     column.workItems = cardIds.map((id) => new Types.ObjectId(id));
-//     await column.save();
+  //     column.workItems = cardIds.map((id) => new Types.ObjectId(id));
+  //     await column.save();
 
-//     return { message: 'Cards reordered successfully' };
-//   }
+  //     return { message: 'Cards reordered successfully' };
+  //   }
 }

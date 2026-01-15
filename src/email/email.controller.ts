@@ -40,9 +40,7 @@ export class EmailController {
       await this.emailService.sendWelcomeEmail(email, firstName);
       return { message: 'Welcome email sent successfully' };
     } catch (error) {
-      throw new InternalServerErrorException(
-        'Failed to send welcome email',
-      );
+      throw new InternalServerErrorException('Failed to send welcome email');
     }
   }
 
@@ -50,14 +48,16 @@ export class EmailController {
   @HttpCode(HttpStatus.OK)
   async sendPasswordReset(
     @Body()
-    body: { email: string; firstName: string; resetUrl: string },
+    body: {
+      email: string;
+      firstName: string;
+      resetUrl: string;
+    },
   ): Promise<{ message: string }> {
     const { email, firstName, resetUrl } = body;
 
     if (!email || !firstName || !resetUrl) {
-      throw new BadRequestException(
-        'Email, firstName, and resetUrl are required',
-      );
+      throw new BadRequestException('Email, firstName, and resetUrl are required');
     }
 
     if (!this.isValidEmail(email)) {
@@ -69,16 +69,10 @@ export class EmailController {
     }
 
     try {
-      await this.emailService.sendPasswordResetEmail(
-        email,
-        firstName,
-        resetUrl,
-      );
+      await this.emailService.sendPasswordResetEmail(email, firstName, resetUrl);
       return { message: 'Password reset email sent successfully' };
     } catch (error) {
-      throw new InternalServerErrorException(
-        'Failed to send password reset email',
-      );
+      throw new InternalServerErrorException('Failed to send password reset email');
     }
   }
 
@@ -98,15 +92,10 @@ export class EmailController {
     }
 
     try {
-      await this.emailService.sendPasswordChangedEmail(
-        email,
-        firstName,
-      );
+      await this.emailService.sendPasswordChangedEmail(email, firstName);
       return { message: 'Password change confirmation email sent successfully' };
     } catch (error) {
-      throw new InternalServerErrorException(
-        'Failed to send password change confirmation email',
-      );
+      throw new InternalServerErrorException('Failed to send password change confirmation email');
     }
   }
 }

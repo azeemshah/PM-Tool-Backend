@@ -1,10 +1,4 @@
-import {
-  IsEnum,
-  IsMongoId,
-  IsOptional,
-  IsString,
-  IsDateString,
-} from 'class-validator';
+import { IsEnum, IsMongoId, IsOptional, IsString, IsDateString } from 'class-validator';
 import { ItemStatus, ItemType, ItemPriority } from '../schemas/work-item.schema';
 
 export class CreateItemDto {

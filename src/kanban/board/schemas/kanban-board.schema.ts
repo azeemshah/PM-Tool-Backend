@@ -7,7 +7,6 @@ export type KanbanBoardDocument = KanbanBoard & Document;
 
 @Schema({ timestamps: true })
 export class KanbanBoard extends Document {
-
   @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
   workspaceId: Types.ObjectId;
 

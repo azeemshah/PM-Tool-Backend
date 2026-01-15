@@ -14,7 +14,7 @@ export enum ItemType {
   BUG = 'bug',
   TASK = 'task',
   EPIC = 'epic',
-  SUBTASK = 'subtask'
+  SUBTASK = 'subtask',
 }
 
 export enum ItemStatus {
@@ -51,7 +51,7 @@ export class Item extends Document {
   @Prop({ type: Types.ObjectId, ref: 'Item', default: null, index: true })
   parent?: Types.ObjectId;
 
- @Prop({
+  @Prop({
     enum: ItemPriority,
     default: ItemPriority.MEDIUM,
     index: true,
@@ -83,7 +83,6 @@ export class Item extends Document {
     default: null,
   })
   dueDate?: Date;
-
 
   // Materialized path for fast hierarchy queries
   @Prop({ required: true, index: true })

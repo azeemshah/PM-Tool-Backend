@@ -40,7 +40,11 @@ export class TimeTrackingController {
 
   // -------------------- Get Timesheet by User --------------------
   @Get('timesheets/:userId')
-  async getTimesheetByUser(@Param('userId') userId: string, @Query('weekStart') weekStart: string, @Query('weekEnd') weekEnd: string) {
+  async getTimesheetByUser(
+    @Param('userId') userId: string,
+    @Query('weekStart') weekStart: string,
+    @Query('weekEnd') weekEnd: string,
+  ) {
     return this.timeTrackingService.getTimesheet(userId, new Date(weekStart), new Date(weekEnd));
   }
 }

@@ -1,10 +1,5 @@
 // src/audit/audit.controller.ts
-import {
-  Controller,
-  Get,
-  Query,
-  Param,
-} from '@nestjs/common';
+import { Controller, Get, Query, Param } from '@nestjs/common';
 import { AuditService } from './audit.service';
 
 @Controller('kanban/audit')
@@ -41,10 +36,7 @@ export class AuditController {
 
   /* ================= Get Logs by Target ================= */
   @Get('target/:targetType/:targetId')
-  getLogsByTarget(
-    @Param('targetType') targetType: string,
-    @Param('targetId') targetId: string,
-  ) {
+  getLogsByTarget(@Param('targetType') targetType: string, @Param('targetId') targetId: string) {
     return this.auditService.getLogsByTarget(targetType, targetId);
   }
 }

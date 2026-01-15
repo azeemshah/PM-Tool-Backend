@@ -21,9 +21,7 @@ export class ColumnController {
   // -------------------- Columns --------------------
 
   @Post('create')
-  async createColumn(
-    @Body() createColumnDto: CreateColumnDto,
-  ): Promise<KanbanColumn> {
+  async createColumn(@Body() createColumnDto: CreateColumnDto): Promise<KanbanColumn> {
     return this.columnService.createColumn(createColumnDto);
   }
 
@@ -43,9 +41,7 @@ export class ColumnController {
   }
 
   @Get(':boardId/columns')
-  async getColumns(
-    @Param('boardId') boardId: string,
-  ): Promise<KanbanColumn[]> {
+  async getColumns(@Param('boardId') boardId: string): Promise<KanbanColumn[]> {
     return this.columnService.getBoardColumns(boardId);
   }
 }

@@ -65,12 +65,12 @@ export class KanbanBoardController {
 
   // -------------------- Reorder Cards in List --------------------
 
-//   @Put(':boardId/columns/:columnId/reorder-cards')
-//   async reorderCardsInList(
-//     @Param('boardId') boardId: string,
-//     @Param('columnId') columnId: string,
-//     @Body() body: { cardIds: string[] },
-//   ) {
-//     return this.boardService.reorderCardsInList(boardId, columnId, body.cardIds);
-//   }
+  //   @Put(':boardId/columns/:columnId/reorder-cards')
+  //   async reorderCardsInList(
+  //     @Param('boardId') boardId: string,
+  //     @Param('columnId') columnId: string,
+  //     @Body() body: { cardIds: string[] },
+  //   ) {
+  //     return this.boardService.reorderCardsInList(boardId, columnId, body.cardIds);
+  //   }
 }

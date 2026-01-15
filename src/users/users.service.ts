@@ -83,7 +83,10 @@ export class UsersService {
   }
 
   async setRefreshToken(id: string, token: string, expires: Date): Promise<void> {
-    await this.userModel.updateOne({ _id: id }, { refreshToken: token, refreshTokenExpires: expires });
+    await this.userModel.updateOne(
+      { _id: id },
+      { refreshToken: token, refreshTokenExpires: expires },
+    );
   }
 
   async clearRefreshToken(id: string): Promise<void> {

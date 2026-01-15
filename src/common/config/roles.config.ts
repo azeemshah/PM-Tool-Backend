@@ -13,17 +13,9 @@ const rolePermissions: Record<string, string[]> = {
     'EDIT_TASK',
     'DELETE_TASK',
   ],
-  [Role.MEMBER]: [
-    'CREATE_TASK',
-    'EDIT_TASK',
-    'CREATE_PROJECT',
-    'EDIT_PROJECT',
-    'VIEW_ONLY',
-  ],
-  [Role.VIEWER]: [
-    'VIEW_ONLY',
-  ],
-  'Owner': [
+  [Role.MEMBER]: ['CREATE_TASK', 'EDIT_TASK', 'CREATE_PROJECT', 'EDIT_PROJECT', 'VIEW_ONLY'],
+  [Role.VIEWER]: ['VIEW_ONLY'],
+  Owner: [
     'EDIT_WORKSPACE',
     'DELETE_WORKSPACE',
     'MANAGE_WORKSPACE_SETTINGS',
@@ -44,7 +36,7 @@ const roleIds: Record<string, string> = {
   [Role.ADMIN]: '1',
   [Role.MEMBER]: '2',
   [Role.VIEWER]: '3',
-  'Owner': '0',
+  Owner: '0',
 };
 
 export function getPermissionsForRole(role: string): string[] {

@@ -21,7 +21,6 @@ import { Subtask, SubtaskSchema } from './work-item/schemas/subtask.schema';
 import { Bug, BugSchema } from './work-item/schemas/bug.schema';
 import { Improvement, ImprovementSchema } from './work-item/schemas/improvement.schema';
 
-
 // Estimation
 import { EstimationController } from './estimation/estimation.controller';
 import { EstimationService } from './estimation/estimation.service';
@@ -32,7 +31,6 @@ import { TimeTrackingController } from './time-tracking/time-tracking.controller
 import { TimeTrackingService } from './time-tracking/time-tracking.service';
 import { TimeLog, TimeLogSchema } from './time-tracking/schemas/time-log.schema';
 import { Timesheet, TimesheetSchema } from './time-tracking/schemas/timesheet.schema';
-
 
 // Comment
 import { CommentController } from './comment/comment.controller';
@@ -52,7 +50,10 @@ import { Notification, NotificationSchema } from './notification/schemas/notific
 // Report
 import { KanbanReportController } from './report/kanban-report.controller';
 import { KanbanReportService } from './report/kanban-report.service';
-import { CumulativeFlowReport, CumulativeFlowReportSchema } from './report/schemas/cumulative-flow-report.schema';
+import {
+  CumulativeFlowReport,
+  CumulativeFlowReportSchema,
+} from './report/schemas/cumulative-flow-report.schema';
 import { CycleTimeReport, CycleTimeReportSchema } from './report/schemas/cycle-time-report.schema';
 import { LeadTimeReport, LeadTimeReportSchema } from './report/schemas/lead-time-report.schema';
 import { WorkloadReport, WorkloadReportSchema } from './report/schemas/workload-report.schema';
@@ -60,7 +61,10 @@ import { WorkloadReport, WorkloadReportSchema } from './report/schemas/workload-
 // Dashboard
 import { DashboardController } from './dashboard/dashboard.controller';
 import { DashboardService } from './dashboard/dashboard.service';
-import { DashboardWidget, DashboardWidgetSchema } from './dashboard/schemas/dashboard-widget.schema';
+import {
+  DashboardWidget,
+  DashboardWidgetSchema,
+} from './dashboard/schemas/dashboard-widget.schema';
 
 // Audit
 import { AuditController } from './audit/audit.controller';
@@ -77,11 +81,9 @@ import { KanbanColumn } from './column/schemas/column.schema';
 import { ColumnService } from './column/column.service';
 import { ColumnController } from './column/column.controller';
 
-
 @Module({
   imports: [
     MongooseModule.forFeature([
-
       // Board
       { name: KanbanBoard.name, schema: KanbanBoardSchema },
       { name: WipRule.name, schema: WipRuleSchema },

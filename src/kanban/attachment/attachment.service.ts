@@ -27,11 +27,7 @@ export class AttachmentService {
 
   // -------------------- Get All Attachments --------------------
   async getAllAttachments(): Promise<Attachment[]> {
-    return this.attachmentModel
-      .find()
-      .populate('workItem')
-      .populate('userId')
-      .exec();
+    return this.attachmentModel.find().populate('workItem').populate('userId').exec();
   }
 
   // -------------------- Get Attachment by ID --------------------

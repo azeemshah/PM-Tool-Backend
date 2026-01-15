@@ -1,14 +1,5 @@
 // src/dashboard/dashboard.controller.ts
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
-  Body,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { DashboardWidget } from './schemas/dashboard-widget.schema';
 
@@ -24,10 +15,7 @@ export class DashboardController {
 
   /* ================= Get All Widgets ================= */
   @Get('widgets')
-  getWidgets(
-    @Query('workspaceId') workspaceId: string,
-    @Query('userId') userId: string,
-  ) {
+  getWidgets(@Query('workspaceId') workspaceId: string, @Query('userId') userId: string) {
     return this.dashboardService.getWidgets(workspaceId, userId);
   }
 
@@ -39,10 +27,7 @@ export class DashboardController {
 
   /* ================= Update Widget ================= */
   @Put('widget/:id')
-  updateWidget(
-    @Param('id') id: string,
-    @Body() widgetData: Partial<DashboardWidget>,
-  ) {
+  updateWidget(@Param('id') id: string, @Body() widgetData: Partial<DashboardWidget>) {
     return this.dashboardService.updateWidget(id, widgetData);
   }
 

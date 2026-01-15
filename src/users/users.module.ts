@@ -6,9 +6,7 @@ import { User, UserSchema } from './schemas/user.schema';
 import { UserCurrentController } from './user.current.controller';
 
 @Module({
-  imports: [
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
-  ],
+  imports: [MongooseModule.forFeature([{ name: User.name, schema: UserSchema }])],
   controllers: [UsersController, UserCurrentController],
   providers: [UsersService],
   exports: [UsersService],

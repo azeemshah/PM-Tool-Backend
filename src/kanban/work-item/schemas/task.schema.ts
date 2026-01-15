@@ -5,7 +5,7 @@ import { WorkItem, WorkItemType } from './work-item.schema';
 
 @Schema({ timestamps: true })
 export class Task extends WorkItem {
-    @Prop({
+  @Prop({
     type: String,
     enum: WorkItemType,
     default: WorkItemType.TASK,

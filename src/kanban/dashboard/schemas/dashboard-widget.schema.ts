@@ -46,8 +46,7 @@ export class DashboardWidget extends Document {
   isVisible: boolean;
 }
 
-export const DashboardWidgetSchema =
-  SchemaFactory.createForClass(DashboardWidget);
+export const DashboardWidgetSchema = SchemaFactory.createForClass(DashboardWidget);
 
 /* ================= Indexes ================= */
 DashboardWidgetSchema.index({ workspace: 1, user: 1 });

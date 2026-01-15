@@ -63,8 +63,7 @@ export class User {
       this.password = await bcrypt.hash(this.password, 12);
     }
   }
-  
-  
+
   // Virtual field for full name
   get name(): string {
     return `${this.firstName} ${this.lastName}`;
@@ -74,7 +73,7 @@ export class User {
 export const UserSchema = SchemaFactory.createForClass(User);
 
 // Add virtual for name
-UserSchema.virtual('name').get(function() {
+UserSchema.virtual('name').get(function () {
   return `${this.firstName} ${this.lastName}`;
 });
 
@@ -85,7 +84,7 @@ UserSchema.set('toObject', { virtuals: true });
 // Hash password before saving
 UserSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  
+
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });

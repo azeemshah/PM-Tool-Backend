@@ -23,7 +23,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private emailService: EmailService,
-  ) { }
+  ) {}
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
     // Create user
@@ -37,9 +37,15 @@ export class AuthService {
 
     // Persist refresh token for future refresh flow
     try {
-      const refreshExpirationMs = Number(this.configService.get('JWT_REFRESH_EXPIRATION_MS', `${30 * 24 * 60 * 60 * 1000}`));
+      const refreshExpirationMs = Number(
+        this.configService.get('JWT_REFRESH_EXPIRATION_MS', `${30 * 24 * 60 * 60 * 1000}`),
+      );
       const refreshExpiresAt = new Date(Date.now() + refreshExpirationMs);
-      await this.usersService.setRefreshToken(user._id.toString(), tokens.refreshToken, refreshExpiresAt);
+      await this.usersService.setRefreshToken(
+        user._id.toString(),
+        tokens.refreshToken,
+        refreshExpiresAt,
+      );
     } catch (err) {
       // swallow - non-fatal
     }
@@ -84,9 +90,15 @@ export class AuthService {
 
     // Persist refresh token
     try {
-      const refreshExpirationMs = Number(this.configService.get('JWT_REFRESH_EXPIRATION_MS', `${30 * 24 * 60 * 60 * 1000}`));
+      const refreshExpirationMs = Number(
+        this.configService.get('JWT_REFRESH_EXPIRATION_MS', `${30 * 24 * 60 * 60 * 1000}`),
+      );
       const refreshExpiresAt = new Date(Date.now() + refreshExpirationMs);
-      await this.usersService.setRefreshToken(user._id.toString(), tokens.refreshToken, refreshExpiresAt);
+      await this.usersService.setRefreshToken(
+        user._id.toString(),
+        tokens.refreshToken,
+        refreshExpiresAt,
+      );
     } catch (err) {
       // swallow
     }
@@ -118,9 +130,7 @@ export class AuthService {
     const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
 
     // Set token and expiration (1 hour)
-    const expirationMs = Number(
-      this.configService.get('PASSWORD_RESET_EXPIRATION', '3600000'),
-    );
+    const expirationMs = Number(this.configService.get('PASSWORD_RESET_EXPIRATION', '3600000'));
 
     const expiresAt = new Date(Date.now() + expirationMs);
 

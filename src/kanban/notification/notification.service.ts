@@ -22,10 +22,7 @@ export class NotificationService {
 
   /* ================= Get Notifications by User ================= */
   async findByUser(userId: Types.ObjectId) {
-    return this.notificationModel
-      .find({ user: userId })
-      .sort({ createdAt: -1 })
-      .exec();
+    return this.notificationModel.find({ user: userId }).sort({ createdAt: -1 }).exec();
   }
 
   /* ================= Mark Single Notification as Read ================= */
@@ -45,17 +42,12 @@ export class NotificationService {
 
   /* ================= Mark All Notifications as Read ================= */
   async markAllAsRead(userId: Types.ObjectId) {
-    return this.notificationModel.updateMany(
-      { user: userId, isRead: false },
-      { isRead: true },
-    );
+    return this.notificationModel.updateMany({ user: userId, isRead: false }, { isRead: true });
   }
 
   /* ================= Delete Notification ================= */
   async delete(notificationId: Types.ObjectId) {
-    const notification = await this.notificationModel.findByIdAndDelete(
-      notificationId,
-    );
+    const notification = await this.notificationModel.findByIdAndDelete(notificationId);
 
     if (!notification) {
       throw new NotFoundException('Notification not found');
