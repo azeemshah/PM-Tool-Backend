@@ -8,8 +8,8 @@ export class Invitation {
   @Prop({ required: true })
   email: string;
 
-  @Prop({ enum: ['USER', 'VIEWER'], required: true })
-  role: 'USER' | 'VIEWER';
+  @Prop({ enum: ['ADMIN', 'MEMBER', 'VIEWER'], required: true })
+  role: 'ADMIN' | 'MEMBER' | 'VIEWER';
 
   @Prop({ unique: true, required: true })
   tokenHash: string;
@@ -25,7 +25,9 @@ export class Invitation {
 
   @Prop({ required: true })
   invitedBy: string;
+
+  @Prop({ required: true })
+  workspaceId: string;
 }
 
-export const InvitationSchema =
-  SchemaFactory.createForClass(Invitation);
+export const InvitationSchema = SchemaFactory.createForClass(Invitation);

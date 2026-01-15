@@ -23,6 +23,31 @@ export class MemberController {
   constructor(private memberService: MemberService) {}
 
   /**
+   * Join workspace by invite code
+   * POST /members/join/:inviteCode
+   * 🌐 PUBLIC – allow unauthenticated users to join via invite link
+   */
+  @Public()
+  @Post('join/:inviteCode')
+  async joinWorkspace(@Param('inviteCode') inviteCode: string, @Request() req: any) {
+    return this.memberService.joinWorkspaceByInviteCode(inviteCode, req.user?.userId);
+  }
+
+  // 🔐 ADMIN ONLY
+  @Post('invite')
+  async inviteMember(@Body() dto: InviteMemberDto, @Request() req: any) {
+    await this.memberService.sendInvitation(dto.email, dto.role, req.user.userId, dto.workspaceId);
+    return { message: 'Invitation email sent' };
+  }
+
+  // 🌐 PUBLIC – invite link access
+  @Public()
+  @Post('invite/accept')
+  async acceptInvite(@Body() dto: AcceptInviteDto) {
+    return this.memberService.acceptInvitation(dto.token);
+  }
+
+  /**
    * Add a new member to a workspace
    * POST /members
    */
@@ -49,7 +74,6 @@ export class MemberController {
       data: userRole,
     };
   }
-
 
   /**
    * Get all members of a workspace with available roles
@@ -118,31 +142,5 @@ export class MemberController {
       statusCode: 200,
       message: result.message,
     };
-  }
-
-  /**
-   * Join workspace by invite code
-   * POST /members/join/:inviteCode
-   */
-  
-  // 🔐 ADMIN ONLY
-  @Post('invite')
-  async inviteMember(
-    @Body() dto: InviteMemberDto,
-    @Request() req: any,
-  ) {
-    await this.memberService.sendInvitation(
-      dto.email,
-      dto.role,
-      req.user.userId,
-    );
-    return { message: 'Invitation email sent' };
-  }
-
-  // 🌐 PUBLIC – invite link access
-  @Public()
-  @Post('invite/accept')
-  async acceptInvite(@Body() dto: AcceptInviteDto) {
-    return this.memberService.acceptInvitation(dto.token);
   }
 }
