@@ -2,4 +2,4 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateItemDto } from './create-work-item.dto';
 
-export class UpdateWorkItemDto extends PartialType(CreateItemDto) {}
+export class UpdateItemDto extends PartialType(CreateItemDto) {}

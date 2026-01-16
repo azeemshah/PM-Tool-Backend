@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Item, ItemStatus, ItemType } from './schemas/work-item.schema';
 import { CreateItemDto } from './dto/create-work-item.dto';
+import { UpdateItemDto } from './dto/update-work-item.dto';
 import { KanbanColumn } from '../kanban/column/schemas/column.schema';
 import { KanbanBoard } from '../kanban/board/schemas/kanban-board.schema';
 
@@ -15,7 +16,7 @@ export class ItemService {
     private readonly columnModel: Model<KanbanColumn>,
     @InjectModel(KanbanBoard.name)
     private readonly boardModel: Model<KanbanBoard>,
-  ) {}
+  ) { }
 
   async create(dto: CreateItemDto): Promise<Item> {
     let path = '';
@@ -142,17 +143,17 @@ export class ItemService {
       ...task,
       assignedTo: task.assignedTo
         ? {
-            _id: task.assignedTo._id,
-            name: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
-            profilePicture: task.assignedTo.profilePicture,
-          }
+          _id: task.assignedTo._id,
+          name: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
+          profilePicture: task.assignedTo.profilePicture,
+        }
         : null,
       reporter: task.reporter
         ? {
-            _id: task.reporter._id,
-            name: `${task.reporter.firstName} ${task.reporter.lastName}`,
-            profilePicture: task.reporter.profilePicture,
-          }
+          _id: task.reporter._id,
+          name: `${task.reporter.firstName} ${task.reporter.lastName}`,
+          profilePicture: task.reporter.profilePicture,
+        }
         : null,
     }));
   }
@@ -188,4 +189,50 @@ export class ItemService {
       { new: true },
     );
   }
+
+  async update(itemId: string, dto: UpdateItemDto): Promise<Item> {
+    const item = await this.itemModel.findById(itemId);
+    if (!item) throw new NotFoundException('Item not found');
+
+    // Prevent path corruption
+    if ('path' in dto) {
+      throw new BadRequestException('Path cannot be updated directly');
+    }
+
+    // Optional: validate type change
+    if (dto.type && dto.type !== item.type) {
+      throw new BadRequestException('Changing item type is not allowed');
+    }
+
+    Object.assign(item, dto);
+    return item.save();
+  }
+
+async delete(itemId: string) {
+  const item = await this.itemModel.findById(itemId);
+  if (!item) throw new NotFoundException('Item not found');
+
+  // 1. Detach direct children
+  await this.itemModel.updateMany(
+    { parent: item._id },
+    {
+      $set: {
+        parent: null,
+        path: 'root',
+        status: ItemStatus.BACKLOG,
+        column: null,
+      },
+    },
+  );
+
+  // 2. Delete only the item itself
+  await this.itemModel.deleteOne({ _id: item._id });
+
+  return {
+    message: 'Item deleted. Children detached and moved to root.',
+  };
+}
+
+
+
 }
