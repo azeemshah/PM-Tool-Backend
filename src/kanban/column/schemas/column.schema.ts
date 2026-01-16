@@ -16,6 +16,9 @@ export class KanbanColumn extends Document {
 
   @Prop({ type: Number, default: 0 })
   position: number;
+
+  @Prop({ type: [Types.ObjectId], ref: 'WorkItem', default: [] })
+  workItems: Types.ObjectId[];
 }
 
 export const ColumnSchema = SchemaFactory.createForClass(KanbanColumn);
