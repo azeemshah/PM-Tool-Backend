@@ -8,13 +8,13 @@ export class EmailService {
   sendTempPassword(email: string, tempPassword: string) {
     throw new Error('Method not implemented.');
   }
-  async sendInvite(email: string, role: string, inviteLink: string): Promise<void> {
+  async sendInvite(email: string, role: string, inviteLink: string, workspaceInviteCode?: string): Promise<void> {
     try {
       await this.transporter.sendMail({
         from: this.configService.get('EMAIL_FROM'),
         to: email,
         subject: "You're Invited to Join PM Tool",
-        html: this.getInviteEmailTemplate(role, inviteLink),
+        html: this.getInviteEmailTemplate(role, inviteLink, workspaceInviteCode),
       });
       this.logger.log(`Invitation email sent to ${email}`);
     } catch (error) {
@@ -197,7 +197,12 @@ export class EmailService {
     `;
   }
 
-  private getInviteEmailTemplate(role: string, inviteLink: string): string {
+  private getInviteEmailTemplate(role: string, inviteLink: string, workspaceInviteCode?: string): string {
+    // Use workspace inviteCode if available, otherwise fall back to token link
+    const acceptLink = workspaceInviteCode
+      ? `${this.configService.get('FRONTEND_URL')}/invite/workspace/${workspaceInviteCode}/join`
+      : inviteLink;
+
     return `
       <!DOCTYPE html>
       <html>
@@ -210,6 +215,8 @@ export class EmailService {
           .button { display: inline-block; padding: 12px 24px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
           .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
           .role { background-color: #e9ecef; padding: 10px; border-radius: 5px; margin: 20px 0; }
+          .link-section { background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #4CAF50; }
+          .link-section p { margin: 5px 0; }
         </style>
       </head>
       <body>
@@ -224,7 +231,11 @@ export class EmailService {
               <strong>Role:</strong> ${role}
             </div>
             <p>Click the button below to accept your invitation and get started:</p>
-            <a href="${inviteLink}" class="button">Accept Invitation</a>
+            <a href="${acceptLink}" class="button">Accept Invitation</a>
+            <div class="link-section">
+              <p><strong>Or copy this link:</strong></p>
+              <p style="word-break: break-all; color: #1976d2;">${acceptLink}</p>
+            </div>
             <p>This invitation will expire in 7 days. If you have any questions, please contact our support team.</p>
           </div>
           <div class="footer">

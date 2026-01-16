@@ -90,6 +90,7 @@ export class Item extends Document {
 }
 
 export const ItemSchema = SchemaFactory.createForClass(Item);
+export type ItemDocument = Item & Document;
 
 // Helpful compound indexes
 ItemSchema.index({ workspace: 1, path: 1 });
