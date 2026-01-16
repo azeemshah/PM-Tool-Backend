@@ -303,10 +303,21 @@ export class MemberService {
         status: 'PENDING',
       });
 
+      // Fetch workspace to get inviteCode
+      const workspace = await this.workspaceModel.findById(workspaceId);
+      if (!workspace) {
+        throw new NotFoundException('Workspace not found');
+      }
+
       const inviteLink = `${this.configService.get('FRONTEND_URL')}/invite?token=${rawToken}`;
 
-      // Send invite email
-      await this.mailService.sendInvite(email, role, inviteLink);
+      // Send invite email with workspace inviteCode
+      await this.mailService.sendInvite(
+        email,
+        role,
+        inviteLink,
+        workspace.inviteCode,
+      );
 
       return { message: 'Invitation email sent successfully' };
     } catch (error) {
