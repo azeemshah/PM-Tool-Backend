@@ -12,20 +12,20 @@ import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { plainToClass } from 'class-transformer';
 import { WorkspaceResponseDto } from './dto/workspace-response.dto';
 import { v4 as uuidv4 } from 'uuid';
-import { WorkItem } from '../kanban/work-item/schemas/work-item.schema';
 import { getPermissionsForRole, getRoleId } from '../common/config/roles.config';
 import { KanbanBoard } from '../kanban/board/schemas/kanban-board.schema';
 import { KanbanColumn } from '../kanban/column/schemas/column.schema';
+import { Item } from '@/work-items/schemas/work-item.schema';
 
 @Injectable()
 export class WorkspaceService {
   constructor(
     @InjectModel(Workspace.name) private workspaceModel: Model<WorkspaceDocument>,
     @InjectModel('Member') private memberModel: Model<any>,
-    @InjectModel(WorkItem.name) private workItemModel: Model<WorkItem>,
+    @InjectModel(Item.name) private workItemModel: Model<Item>,
     @InjectModel(KanbanBoard.name) private boardModel: Model<KanbanBoard>,
     @InjectModel(KanbanColumn.name) private columnModel: Model<KanbanColumn>,
-  ) {}
+  ) { }
 
   /**
    * Enrich member object with role permissions
@@ -337,53 +337,62 @@ export class WorkspaceService {
     return members.map((member: any) => this.enrichMemberWithPermissions(member));
   }
 
-  async getAnalytics(
-    workspaceId: string,
-  ): Promise<{ totalTasks: number; overdueTasks: number; completedTasks: number }> {
-    if (!Types.ObjectId.isValid(workspaceId)) {
-      throw new BadRequestException('Invalid workspace ID');
-    }
-
-    const workspace = await this.workspaceModel.findById(workspaceId).exec();
-    if (!workspace) {
-      throw new NotFoundException('Workspace not found');
-    }
-
-    // Get all projects for this workspace
-    // For now, we'll fetch all issues and count them
-    // In a more advanced implementation, we could fetch projects first then issues per project
-
-    try {
-      // Count all tasks (type: 'task') in work items - simplified approach
-      // Get all work items and filter by workspace
-      const totalIssues = await this.workItemModel.countDocuments({}).exec();
-
-      // Count completed work items (status: 'done')
-      const completedIssues = await this.workItemModel.countDocuments({ status: 'done' }).exec();
-
-      // Count overdue work items (dueDate < today and status !== 'done')
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-
-      const overdueIssues = await this.workItemModel
-        .countDocuments({
-          dueDate: { $lt: now },
-          status: { $ne: 'done' },
-        })
-        .exec();
-
-      return {
-        totalTasks: totalIssues,
-        overdueTasks: overdueIssues,
-        completedTasks: completedIssues,
-      };
-    } catch (error) {
-      console.error('Error calculating analytics:', error);
-      return {
-        totalTasks: 0,
-        overdueTasks: 0,
-        completedTasks: 0,
-      };
-    }
+async getAnalytics(
+  workspaceId: string,
+): Promise<{ totalTasks: number; overdueTasks: number; completedTasks: number }> {
+  if (!Types.ObjectId.isValid(workspaceId)) {
+    throw new BadRequestException('Invalid workspace ID');
   }
+
+  const workspace = await this.workspaceModel.findById(workspaceId).exec();
+  if (!workspace) {
+    throw new NotFoundException('Workspace not found');
+  }
+
+  const workspaceObjectId = new Types.ObjectId(workspaceId);
+
+  try {
+    const baseFilter = {
+      workspace: workspaceId,
+      type: { $ne: 'epic' },
+    };
+
+    const totalTasks = await this.workItemModel
+      .countDocuments(baseFilter)
+      .exec();
+
+    const completedTasks = await this.workItemModel
+      .countDocuments({
+        ...baseFilter,
+        status: 'Done', // ItemStatus.DONE
+      })
+      .exec();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const overdueTasks = await this.workItemModel
+      .countDocuments({
+        ...baseFilter,
+        dueDate: { $lt: today },
+        status: { $ne: 'Done' },
+      })
+      .exec();
+
+    return {
+      totalTasks,
+      completedTasks,
+      overdueTasks,
+    };
+  } catch (error) {
+    console.error('Error calculating analytics:', error);
+    return {
+      totalTasks: 0,
+      completedTasks: 0,
+      overdueTasks: 0,
+    };
+  }
+}
+
+
 }
