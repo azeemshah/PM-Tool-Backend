@@ -168,10 +168,32 @@ export class ItemService {
   }
 
   async moveToColumn(itemId: string, columnId: string) {
+    const column = await this.columnModel.findById(columnId);
+    if (!column) {
+      throw new NotFoundException('Target column not found');
+    }
+
+    const normalize = (value: string) => value.toLowerCase().replace(/\s/g, '');
+    const columnName = normalize(column.name || '');
+
+    let nextStatus: ItemStatus = ItemStatus.TODO;
+
+    if (columnName === 'todo' || columnName === 'todo') {
+      nextStatus = ItemStatus.TODO;
+    } else if (columnName === 'inprogress') {
+      nextStatus = ItemStatus.INPROGRESS;
+    } else if (columnName === 'inreview' || columnName === 'review') {
+      nextStatus = ItemStatus.REVIEW;
+    } else if (columnName === 'done') {
+      nextStatus = ItemStatus.DONE;
+    } else if (columnName === 'backlog') {
+      nextStatus = ItemStatus.BACKLOG;
+    }
+
     return this.itemModel.findByIdAndUpdate(
       itemId,
       {
-        status: ItemStatus.TODO,
+        status: nextStatus,
         column: new Types.ObjectId(columnId),
       },
       { new: true },
