@@ -70,4 +70,9 @@ export class WorkspaceController {
       message: 'Workspace deleted successfully',
     };
   }
+
+  @Get('analytics/:id')
+  getWorkspaceAnalytics(@Param('id') workspaceId: string) {
+    return this.workspaceService.getAnalytics(workspaceId);
+  }
 }

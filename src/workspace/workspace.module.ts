@@ -7,13 +7,14 @@ import { MemberSchema } from '../member/schemas/member.schema';
 import { WorkItem, WorkItemSchema } from '../kanban/work-item/schemas/work-item.schema';
 import { KanbanBoard, KanbanBoardSchema } from '../kanban/board/schemas/kanban-board.schema';
 import { KanbanColumn, ColumnSchema } from '../kanban/column/schemas/column.schema';
+import { Item, ItemSchema } from '@/work-items/schemas/work-item.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Workspace.name, schema: WorkspaceSchema },
       { name: 'Member', schema: MemberSchema },
-      { name: WorkItem.name, schema: WorkItemSchema },
+      { name: Item.name, schema: ItemSchema },
       { name: KanbanBoard.name, schema: KanbanBoardSchema },
       { name: KanbanColumn.name, schema: ColumnSchema },
     ]),
