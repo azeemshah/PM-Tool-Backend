@@ -35,7 +35,7 @@ async createColumn(createColumnDto: CreateColumnDto): Promise<KanbanColumn> {
   const column = new this.columnModel({
     ...createColumnDto,
     BoardId: board._id,
-    position: columnCount + 1, // sets position as next available slot
+    position: columnCount , // sets position as next available slot
   });
 
   return column.save();

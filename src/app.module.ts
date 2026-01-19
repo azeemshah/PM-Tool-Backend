@@ -14,17 +14,18 @@ import { SprintModule } from './sprint/sprint.module';
 @Module({
   imports: [
     // Configuration
-    MongooseModule.forRoot('mongodb://localhost:27017/pm_tools'),
-    ConfigModule.forRoot({
+     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
     }),
 
-    // Database
+    // Database (MongoDB)
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         uri: configService.get<string>('MONGODB_URI'),
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
       }),
       inject: [ConfigService],
     }),
@@ -59,4 +60,4 @@ import { SprintModule } from './sprint/sprint.module';
     SprintModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }
