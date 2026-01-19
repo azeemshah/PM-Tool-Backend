@@ -1,7 +1,10 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+// dto/create-sprint.dto.ts
+import { IsArray, IsDateString, IsMongoId, IsOptional, IsString } from 'class-validator';
 
 export class CreateSprintDto {
-  @IsNotEmpty()
+  @IsMongoId()
+  workspaceId: string;
+
   @IsString()
   name: string;
 
@@ -9,7 +12,13 @@ export class CreateSprintDto {
   @IsString()
   goal?: string;
 
-  @IsNotEmpty()
-  @IsString()
-  workspaceId: string;
+  @IsDateString()
+  startDate: string;
+
+  @IsDateString()
+  endDate: string;
+
+  @IsOptional()
+  @IsArray()
+  workItems?: string[];
 }

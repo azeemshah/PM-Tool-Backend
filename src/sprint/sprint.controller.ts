@@ -1,32 +1,45 @@
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { SprintService } from './sprint.service';
 import { CreateSprintDto } from './dto/create-sprint.dto';
-import { StartSprintDto } from './dto/start-sprint.dto';
+import { AddWorkItemsToSprintDto } from './dto/add-workitems-to-sprint.dto';
 
 @Controller('sprints')
 export class SprintController {
   constructor(private readonly sprintService: SprintService) {}
 
   @Post()
-  create(@Body() dto: CreateSprintDto) {
+  createSprint(@Body() dto: CreateSprintDto) {
     return this.sprintService.createSprint(dto);
   }
 
   @Get('workspace/:workspaceId')
-  getByWorkspace(@Param('workspaceId') workspaceId: string) {
-    return this.sprintService.getSprintsByWorkspace(workspaceId);
+  getWorkspaceSprints(@Param('workspaceId') workspaceId: string) {
+    return this.sprintService.getWorkspaceSprints(workspaceId);
   }
 
   @Patch(':id/start')
-  start(
-    @Param('id') sprintId: string,
-    @Body() dto: StartSprintDto,
-  ) {
-    return this.sprintService.startSprint(sprintId, dto);
+  startSprint(@Param('id') id: string) {
+    return this.sprintService.startSprint(id);
   }
 
   @Patch(':id/complete')
-  complete(@Param('id') sprintId: string) {
-    return this.sprintService.completeSprint(sprintId);
+  complete(@Param('id') id: string) {
+    return this.sprintService.completeSprint(id);
   }
+
+  @Patch(':id/reopen')
+reopenSprint(@Param('id') id: string) {
+  return this.sprintService.reopenSprint(id);
+}
+
+  @Patch(':id/add-work-items')
+    addWorkItemsToSprint(
+    @Param('id') sprintId: string,
+    @Body() dto: AddWorkItemsToSprintDto,
+) {
+    return this.sprintService.addWorkItemsToSprintAndUpdateStatus(
+    sprintId,
+    dto,
+  );
+}
 }
