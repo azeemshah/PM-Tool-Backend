@@ -16,7 +16,7 @@ export class ItemService {
     private readonly columnModel: Model<KanbanColumn>,
     @InjectModel(KanbanBoard.name)
     private readonly boardModel: Model<KanbanBoard>,
-  ) { }
+  ) {}
 
   async create(dto: CreateItemDto): Promise<Item> {
     let path = '';
@@ -74,14 +74,27 @@ export class ItemService {
     const initialStatus = dto.status ?? ItemStatus.BACKLOG;
 
     if (!columnId) {
-      let board = await this.boardModel.findOne({ workspaceId: dto.workspace });
+      let board = await this.boardModel.findOne({
+        workspaceId: dto.workspace,
+        name: 'Default Board',
+      });
 
       if (!board) {
-        board = await this.boardModel.create({
-          workspaceId: new Types.ObjectId(dto.workspace),
-          name: 'Default Board',
-          description: 'Auto-created board for workspace items',
-        });
+        board = await this.boardModel.findOneAndUpdate(
+          {
+            workspaceId: new Types.ObjectId(dto.workspace),
+            name: 'Default Board',
+          },
+          {
+            workspaceId: new Types.ObjectId(dto.workspace),
+            name: 'Default Board',
+            description: 'Auto-created board for workspace items',
+          },
+          {
+            upsert: true,
+            new: true,
+          },
+        );
       }
 
       let columns = await this.columnModel.find({ BoardId: board._id }).sort({ position: 1 });
@@ -143,17 +156,17 @@ export class ItemService {
       ...task,
       assignedTo: task.assignedTo
         ? {
-          _id: task.assignedTo._id,
-          name: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
-          profilePicture: task.assignedTo.profilePicture,
-        }
+            _id: task.assignedTo._id,
+            name: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
+            profilePicture: task.assignedTo.profilePicture,
+          }
         : null,
       reporter: task.reporter
         ? {
-          _id: task.reporter._id,
-          name: `${task.reporter.firstName} ${task.reporter.lastName}`,
-          profilePicture: task.reporter.profilePicture,
-        }
+            _id: task.reporter._id,
+            name: `${task.reporter.firstName} ${task.reporter.lastName}`,
+            profilePicture: task.reporter.profilePicture,
+          }
         : null,
     }));
   }
@@ -230,31 +243,28 @@ export class ItemService {
     return item.save();
   }
 
-async delete(itemId: string) {
-  const item = await this.itemModel.findById(itemId);
-  if (!item) throw new NotFoundException('Item not found');
+  async delete(itemId: string) {
+    const item = await this.itemModel.findById(itemId);
+    if (!item) throw new NotFoundException('Item not found');
 
-  // 1. Detach direct children
-  await this.itemModel.updateMany(
-    { parent: item._id },
-    {
-      $set: {
-        parent: null,
-        path: 'root',
-        status: ItemStatus.BACKLOG,
-        column: null,
+    // 1. Detach direct children
+    await this.itemModel.updateMany(
+      { parent: item._id },
+      {
+        $set: {
+          parent: null,
+          path: 'root',
+          status: ItemStatus.BACKLOG,
+          column: null,
+        },
       },
-    },
-  );
+    );
 
-  // 2. Delete only the item itself
-  await this.itemModel.deleteOne({ _id: item._id });
+    // 2. Delete only the item itself
+    await this.itemModel.deleteOne({ _id: item._id });
 
-  return {
-    message: 'Item deleted. Children detached and moved to root.',
-  };
-}
-
-
-
+    return {
+      message: 'Item deleted. Children detached and moved to root.',
+    };
+  }
 }
