@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Item, ItemStatus, ItemType } from './schemas/work-item.schema';
@@ -95,6 +100,10 @@ export class ItemService {
             new: true,
           },
         );
+      }
+
+      if (!board) {
+        throw new InternalServerErrorException('Failed to create or find default board');
       }
 
       let columns = await this.columnModel.find({ BoardId: board._id }).sort({ position: 1 });

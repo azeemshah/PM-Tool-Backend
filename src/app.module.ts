@@ -14,7 +14,7 @@ import { SprintModule } from './sprint/sprint.module';
 @Module({
   imports: [
     // Configuration
-    MongooseModule.forRoot('mongodb://localhost:27017/pm_tool2'),
+    MongooseModule.forRoot('mongodb://localhost:27017/pm_tools'),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
