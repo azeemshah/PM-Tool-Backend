@@ -24,7 +24,7 @@ export class ColumnService {
   // -------------------- Column CRUD --------------------
 
   async createColumn(createColumnDto: CreateColumnDto): Promise<KanbanColumn> {
-    const board = await this.boardModel.findById(createColumnDto.BoardId).exec();
+    const board = await this.boardModel.findById(createColumnDto.board).exec();
 
     if (!board) throw new NotFoundException('Board not found');
 

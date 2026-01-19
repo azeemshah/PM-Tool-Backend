@@ -9,8 +9,8 @@ export class CreateColumnDto {
   @IsString()
   readonly description?: string; // Optional description
 
-  @IsMongoId()
-  readonly BoardId: string;
+  @IsString()
+  readonly board: string;
 
   @IsOptional()
   @IsNumber()
