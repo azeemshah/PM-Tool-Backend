@@ -23,18 +23,24 @@ export class ColumnService {
 
   // -------------------- Column CRUD --------------------
 
-  async createColumn(createColumnDto: CreateColumnDto): Promise<KanbanColumn> {
-    const board = await this.boardModel.findById(createColumnDto.board).exec();
+async createColumn(createColumnDto: CreateColumnDto): Promise<KanbanColumn> {
+  // Find the board
+  const board = await this.boardModel.findById(createColumnDto.board).exec();
+  if (!board) throw new NotFoundException('Board not found');
 
-    if (!board) throw new NotFoundException('Board not found');
+  // Count existing columns for this board
+  const columnCount = await this.columnModel.countDocuments({ BoardId: board._id });
 
-    const column = new this.columnModel({
-      ...createColumnDto,
-      BoardId: board._id,
-    });
+  // Create new column with position set after existing columns
+  const column = new this.columnModel({
+    ...createColumnDto,
+    BoardId: board._id,
+    position: columnCount + 1, // sets position as next available slot
+  });
 
-    return column.save();
-  }
+  return column.save();
+}
+
 
   async updateColumn(
     boardId: string,
