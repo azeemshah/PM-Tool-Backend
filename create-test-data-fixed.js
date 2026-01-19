@@ -2,8 +2,8 @@ const mongoose = require('mongoose');
 
 async function createTestData() {
   try {
-    await mongoose.connect('mongodb://localhost:27017/pm-tool2');
-    console.log('Connected to MongoDB pm-tool2');
+    await mongoose.connect('mongodb://localhost:27017/pm-tool');
+    console.log('Connected to MongoDB pm-tool');
 
     // Create a test user first
     const user = {
@@ -11,7 +11,7 @@ async function createTestData() {
       firstName: 'Test',
       lastName: 'User',
       email: 'test@example.com',
-      password: '$2b$10$hashedpassword', // dummy hash
+      password: 'password123', // plain text, will be hashed by pre-save hook
       profilePicture: null,
       createdAt: new Date(),
       updatedAt: new Date(),
