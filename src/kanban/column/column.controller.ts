@@ -28,11 +28,10 @@ export class ColumnController {
 
   @Put('columns/:columnId')
   async updateColumn(
-    @Param('boardId') boardId: string,
     @Param('columnId') columnId: string,
     @Body() updateColumnDto: UpdateColumnDto,
   ): Promise<KanbanColumn> {
-    return this.columnService.updateColumn(boardId, columnId, updateColumnDto);
+    return this.columnService.updateColumn(columnId, updateColumnDto);
   }
 
   @Delete('columns/:columnId')
@@ -54,4 +53,11 @@ export class ColumnController {
     return this.columnService.moveColumn(columnId, position);
   }
 
+  @Put('columns/reorder/:boardId')
+  async reorderColumns(
+    @Param('boardId') boardId: string,
+    @Body() body: { columnIds: string[] },
+  ) {
+    return this.columnService.reorderColumns(boardId, body.columnIds);
+  }
 }

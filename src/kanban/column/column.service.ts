@@ -9,9 +9,6 @@ import { KanbanBoard } from '../board/schemas/kanban-board.schema';
 
 @Injectable()
 export class ColumnService {
-  getBoardColumns(boardId: string): KanbanColumn[] | PromiseLike<KanbanColumn[]> {
-    throw new Error('Method not implemented.');
-  }
   constructor(
     @InjectModel(KanbanColumn.name)
     private readonly columnModel: Model<KanbanColumn>,
@@ -43,16 +40,11 @@ export class ColumnService {
 
 
   async updateColumn(
-    boardId: string,
     columnId: string,
     updateColumnDto: UpdateColumnDto,
   ): Promise<KanbanColumn> {
-    if (!Types.ObjectId.isValid(boardId)) {
-      throw new BadRequestException('Invalid board ID');
-    }
-
-    const column = await this.columnModel.findOneAndUpdate(
-      { _id: columnId, BoardId: boardId },
+    const column = await this.columnModel.findByIdAndUpdate(
+      columnId,
       updateColumnDto,
       { new: true },
     );
@@ -68,6 +60,40 @@ export class ColumnService {
 
     await this.workItemModel.deleteMany({ status: column._id }).exec();
     await column.deleteOne();
+  }
+
+  async getBoardColumns(boardId: string): Promise<KanbanColumn[]> {
+    if (!Types.ObjectId.isValid(boardId)) {
+      throw new BadRequestException('Invalid board ID');
+    }
+
+    const columns = await this.columnModel
+      .find({ BoardId: new Types.ObjectId(boardId) })
+      .sort({ position: 1 })
+      .exec();
+
+    return columns;
+  }
+
+  async reorderColumns(boardId: string, columnIds: string[]): Promise<{ message: string }> {
+    if (!Types.ObjectId.isValid(boardId)) {
+      throw new BadRequestException('Invalid board ID');
+    }
+
+    // Update positions for all columns
+    for (let i = 0; i < columnIds.length; i++) {
+      if (!Types.ObjectId.isValid(columnIds[i])) {
+        throw new BadRequestException(`Invalid column ID at index ${i}`);
+      }
+
+      await this.columnModel.findByIdAndUpdate(
+        columnIds[i],
+        { position: i },
+        { new: true }
+      );
+    }
+
+    return { message: 'Columns reordered successfully' };
   }
 
   async moveColumn(
