@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Param,
   Body,
@@ -16,7 +17,7 @@ import { KanbanColumn } from './schemas/column.schema';
 
 @Controller('column')
 export class ColumnController {
-  constructor(private readonly columnService: ColumnService) {}
+  constructor(private readonly columnService: ColumnService) { }
 
   // -------------------- Columns --------------------
 
@@ -44,4 +45,13 @@ export class ColumnController {
   async getColumns(@Param('boardId') boardId: string): Promise<KanbanColumn[]> {
     return this.columnService.getBoardColumns(boardId);
   }
+
+  @Patch('move/:id')
+  async moveColumn(
+    @Param('id') columnId: string,
+    @Body('position') position: number,
+  ) {
+    return this.columnService.moveColumn(columnId, position);
+  }
+
 }
