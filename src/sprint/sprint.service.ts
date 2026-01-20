@@ -131,7 +131,7 @@ export class SprintService {
     const newStatus =
       sprint.status === SprintStatus.ACTIVE
         ? ItemStatus.INPROGRESS
-        : ItemStatus.BACKLOG;
+        : ItemStatus.TODO;
 
     // 🔁 Update status of added work-items
     await this.workItemModel.updateMany(
@@ -147,5 +147,15 @@ export class SprintService {
       workItemStatusUpdatedTo: newStatus,
       addedWorkItemCount: newWorkItemIds.length,
     };
+  }
+
+  async updateSprintColumns(sprintId: string, columns: string[]) {
+    const sprint = await this.sprintModel.findByIdAndUpdate(
+      sprintId,
+      { columns },
+      { new: true }
+    );
+    if (!sprint) throw new NotFoundException('Sprint not found');
+    return sprint;
   }
 }

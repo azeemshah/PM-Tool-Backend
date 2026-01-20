@@ -32,6 +32,12 @@ export class Sprint extends Document {
     default: [],
   })
   workItems: Types.ObjectId[];
+
+  @Prop({
+    type: [String],
+    default: ['todo', 'in-progress', 'done'],
+  })
+  columns: string[];
 }
 
 export const SprintSchema = SchemaFactory.createForClass(Sprint);

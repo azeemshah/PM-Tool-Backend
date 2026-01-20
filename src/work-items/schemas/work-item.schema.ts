@@ -19,7 +19,7 @@ export enum ItemType {
 
 export enum ItemStatus {
   BACKLOG = 'Backlog',
-  TODO = 'Todo',
+  TODO = 'To Do',
   INPROGRESS = 'In Progress',
   REVIEW = 'In Review',
   DONE = 'Done',

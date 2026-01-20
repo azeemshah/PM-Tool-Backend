@@ -42,4 +42,12 @@ reopenSprint(@Param('id') id: string) {
     dto,
   );
 }
+
+  @Patch(':id/columns')
+  updateSprintColumns(
+    @Param('id') sprintId: string,
+    @Body() body: { columns: string[] }
+  ) {
+    return this.sprintService.updateSprintColumns(sprintId, body.columns);
+  }
 }
