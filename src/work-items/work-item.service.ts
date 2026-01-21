@@ -190,7 +190,7 @@ export class ItemService {
       .lean();
   }
 
-  async moveToColumn(itemId: string, columnId: string) {
+  async moveToColumn(itemId: string, columnId: string): Promise<Item> {
     const column = await this.columnModel.findById(columnId);
     if (!column) {
       throw new NotFoundException('Target column not found');
@@ -225,7 +225,7 @@ export class ItemService {
       // else: defaults to TODO
     }
 
-    return this.itemModel.findByIdAndUpdate(
+    const updatedItem = await this.itemModel.findByIdAndUpdate(
       itemId,
       {
         status: nextStatus,
@@ -233,6 +233,12 @@ export class ItemService {
       },
       { new: true },
     );
+
+    if (!updatedItem) {
+      throw new NotFoundException('Item not found');
+    }
+
+    return updatedItem;
   }
 
   async moveToBacklog(itemId: string) {
@@ -248,7 +254,9 @@ export class ItemService {
 
   async update(itemId: string, dto: UpdateItemDto): Promise<Item> {
     const item = await this.itemModel.findById(itemId);
-    if (!item) throw new NotFoundException('Item not found');
+    if (!item) {
+      throw new NotFoundException('Item not found');
+    }
 
     // Prevent path corruption
     if ('path' in dto) {
@@ -262,10 +270,12 @@ export class ItemService {
 
     // If columnId is provided, use the moveToColumn logic to properly normalize status
     if ('columnId' in dto && dto.columnId) {
-      return this.moveToColumn(itemId, dto.columnId);
+      return this.moveToColumn(itemId, dto.columnId as string);
     }
 
-    Object.assign(item, dto);
+    // For all other updates, exclude columnId from assignment
+    const { columnId, ...updateData } = dto as any;
+    Object.assign(item, updateData);
     return item.save();
   }
 
