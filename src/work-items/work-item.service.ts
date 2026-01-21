@@ -196,21 +196,33 @@ export class ItemService {
       throw new NotFoundException('Target column not found');
     }
 
-    const normalize = (value: string) => value.toLowerCase().replace(/\s/g, '');
+    const normalize = (value: string) => value.toLowerCase().replace(/[\s-_]/g, '');
     const columnName = normalize(column.name || '');
 
     let nextStatus: ItemStatus = ItemStatus.TODO;
 
-    if (columnName === 'todo' || columnName === 'todo') {
+    if (columnName === 'todo' || columnName === 'open' || columnName === 'new') {
       nextStatus = ItemStatus.TODO;
     } else if (columnName === 'inprogress') {
       nextStatus = ItemStatus.INPROGRESS;
     } else if (columnName === 'inreview' || columnName === 'review') {
       nextStatus = ItemStatus.REVIEW;
-    } else if (columnName === 'done') {
+    } else if (columnName === 'done' || columnName === 'completed') {
       nextStatus = ItemStatus.DONE;
     } else if (columnName === 'backlog') {
       nextStatus = ItemStatus.BACKLOG;
+    } else {
+      // For custom column names, try to infer status from keywords
+      if (columnName.includes('done') || columnName.includes('completed')) {
+        nextStatus = ItemStatus.DONE;
+      } else if (columnName.includes('review') || columnName.includes('reviewed')) {
+        nextStatus = ItemStatus.REVIEW;
+      } else if (columnName.includes('progress')) {
+        nextStatus = ItemStatus.INPROGRESS;
+      } else if (columnName.includes('backlog')) {
+        nextStatus = ItemStatus.BACKLOG;
+      }
+      // else: defaults to TODO
     }
 
     return this.itemModel.findByIdAndUpdate(
@@ -246,6 +258,11 @@ export class ItemService {
     // Optional: validate type change
     if (dto.type && dto.type !== item.type) {
       throw new BadRequestException('Changing item type is not allowed');
+    }
+
+    // If columnId is provided, use the moveToColumn logic to properly normalize status
+    if ('columnId' in dto && dto.columnId) {
+      return this.moveToColumn(itemId, dto.columnId);
     }
 
     Object.assign(item, dto);

@@ -46,4 +46,9 @@ export class CreateItemDto {
   @IsOptional()
   @IsMongoId()
   parent?: string;
+
+  // Optional column ID for drag-and-drop updates
+  @IsOptional()
+  @IsMongoId()
+  columnId?: string;
 }
