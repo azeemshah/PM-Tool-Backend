@@ -25,6 +25,12 @@ export class WorkspaceService {
     @InjectModel(Item.name) private workItemModel: Model<Item>,
     @InjectModel(KanbanBoard.name) private boardModel: Model<KanbanBoard>,
     @InjectModel(KanbanColumn.name) private columnModel: Model<KanbanColumn>,
+    @InjectModel('Comment') private commentModel: Model<any>,
+    @InjectModel('Attachment') private attachmentModel: Model<any>,
+    @InjectModel('TimeLog') private timeLogModel: Model<any>,
+    @InjectModel('Notification') private notificationModel: Model<any>,
+    @InjectModel('SavedFilter') private savedFilterModel: Model<any>,
+    @InjectModel('Sprint') private sprintModel: Model<any>,
   ) { }
 
   /**
@@ -271,11 +277,51 @@ export class WorkspaceService {
       throw new BadRequestException('Invalid workspace ID');
     }
 
-    const result = await this.workspaceModel.deleteOne({ _id: workspaceId }).exec();
-
-    if (result.deletedCount === 0) {
+    const workspace = await this.workspaceModel.findById(workspaceId);
+    if (!workspace) {
       throw new NotFoundException('Workspace not found');
     }
+
+    // 1. Delete all WorkItems in the workspace
+    // We first find them to delete their related data (Comments, Attachments, etc.)
+    const workItems = await this.workItemModel.find({ workspace: workspaceId });
+    const workItemIds = workItems.map((item) => item._id);
+
+    if (workItemIds.length > 0) {
+      // Delete related data for these work items
+      await this.commentModel.deleteMany({ workItem: { $in: workItemIds } });
+      await this.attachmentModel.deleteMany({ workItem: { $in: workItemIds } });
+      await this.timeLogModel.deleteMany({ workItem: { $in: workItemIds } });
+
+      // Delete the work items themselves
+      await this.workItemModel.deleteMany({ workspace: workspaceId });
+    }
+
+    // 2. Delete all Members of the workspace
+    await this.memberModel.deleteMany({ workspaceId: workspaceId });
+
+    // 3. Delete Saved Filters
+    await this.savedFilterModel.deleteMany({ workspace: workspaceId });
+
+    // 4. Delete Notifications related to the workspace
+    await this.notificationModel.deleteMany({ workspace: workspaceId });
+
+    // 5. Delete Sprints
+    await this.sprintModel.deleteMany({ workspaceId: workspaceId });
+
+    // 6. Delete Kanban Boards and their Columns
+    const boards = await this.boardModel.find({ workspaceId: workspaceId });
+    const boardIds = boards.map((b) => b._id);
+
+    if (boardIds.length > 0) {
+      // Delete Columns associated with these boards
+      await this.columnModel.deleteMany({ BoardId: { $in: boardIds } });
+      // Delete the Boards
+      await this.boardModel.deleteMany({ workspaceId: workspaceId });
+    }
+
+    // 7. Finally, delete the Workspace
+    await this.workspaceModel.deleteOne({ _id: workspaceId });
   }
 
   async addMember(workspaceId: string, userId: string): Promise<WorkspaceDocument> {
@@ -337,62 +383,62 @@ export class WorkspaceService {
     return members.map((member: any) => this.enrichMemberWithPermissions(member));
   }
 
-async getAnalytics(
-  workspaceId: string,
-): Promise<{ totalTasks: number; overdueTasks: number; completedTasks: number }> {
-  if (!Types.ObjectId.isValid(workspaceId)) {
-    throw new BadRequestException('Invalid workspace ID');
+  async getAnalytics(
+    workspaceId: string,
+  ): Promise<{ totalTasks: number; overdueTasks: number; completedTasks: number }> {
+    if (!Types.ObjectId.isValid(workspaceId)) {
+      throw new BadRequestException('Invalid workspace ID');
+    }
+
+    const workspace = await this.workspaceModel.findById(workspaceId).exec();
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const workspaceObjectId = new Types.ObjectId(workspaceId);
+
+    try {
+      const baseFilter = {
+        workspace: workspaceId,
+        type: { $ne: 'epic' },
+      };
+
+      const totalTasks = await this.workItemModel
+        .countDocuments(baseFilter)
+        .exec();
+
+      const completedTasks = await this.workItemModel
+        .countDocuments({
+          ...baseFilter,
+          status: 'Done', // ItemStatus.DONE
+        })
+        .exec();
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const overdueTasks = await this.workItemModel
+        .countDocuments({
+          ...baseFilter,
+          dueDate: { $lt: today },
+          status: { $ne: 'Done' },
+        })
+        .exec();
+
+      return {
+        totalTasks,
+        completedTasks,
+        overdueTasks,
+      };
+    } catch (error) {
+      console.error('Error calculating analytics:', error);
+      return {
+        totalTasks: 0,
+        completedTasks: 0,
+        overdueTasks: 0,
+      };
+    }
   }
-
-  const workspace = await this.workspaceModel.findById(workspaceId).exec();
-  if (!workspace) {
-    throw new NotFoundException('Workspace not found');
-  }
-
-  const workspaceObjectId = new Types.ObjectId(workspaceId);
-
-  try {
-    const baseFilter = {
-      workspace: workspaceId,
-      type: { $ne: 'epic' },
-    };
-
-    const totalTasks = await this.workItemModel
-      .countDocuments(baseFilter)
-      .exec();
-
-    const completedTasks = await this.workItemModel
-      .countDocuments({
-        ...baseFilter,
-        status: 'Done', // ItemStatus.DONE
-      })
-      .exec();
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const overdueTasks = await this.workItemModel
-      .countDocuments({
-        ...baseFilter,
-        dueDate: { $lt: today },
-        status: { $ne: 'Done' },
-      })
-      .exec();
-
-    return {
-      totalTasks,
-      completedTasks,
-      overdueTasks,
-    };
-  } catch (error) {
-    console.error('Error calculating analytics:', error);
-    return {
-      totalTasks: 0,
-      completedTasks: 0,
-      overdueTasks: 0,
-    };
-  }
-}
 
 
 }
