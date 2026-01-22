@@ -21,7 +21,7 @@ export class ItemService {
     private readonly columnModel: Model<KanbanColumn>,
     @InjectModel(KanbanBoard.name)
     private readonly boardModel: Model<KanbanBoard>,
-  ) {}
+  ) { }
 
   async create(dto: CreateItemDto): Promise<Item> {
     let path = '';
@@ -165,17 +165,17 @@ export class ItemService {
       ...task,
       assignedTo: task.assignedTo
         ? {
-            _id: task.assignedTo._id,
-            name: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
-            profilePicture: task.assignedTo.profilePicture,
-          }
+          _id: task.assignedTo._id,
+          name: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
+          profilePicture: task.assignedTo.profilePicture,
+        }
         : null,
       reporter: task.reporter
         ? {
-            _id: task.reporter._id,
-            name: `${task.reporter.firstName} ${task.reporter.lastName}`,
-            profilePicture: task.reporter.profilePicture,
-          }
+          _id: task.reporter._id,
+          name: `${task.reporter.firstName} ${task.reporter.lastName}`,
+          profilePicture: task.reporter.profilePicture,
+        }
         : null,
     }));
   }
@@ -199,7 +199,7 @@ export class ItemService {
     const normalize = (value: string) => value.toLowerCase().replace(/\s/g, '');
     const columnName = normalize(column.name || '');
 
-    let nextStatus: ItemStatus = ItemStatus.TODO;
+    let nextStatus: string = column.name || 'To Do';
 
     if (columnName === 'todo' || columnName === 'todo') {
       nextStatus = ItemStatus.TODO;

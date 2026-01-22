@@ -13,8 +13,8 @@ export class CreateItemDto {
   type: ItemType;
 
   @IsOptional()
-  @IsEnum(ItemStatus)
-  status?: ItemStatus;
+  @IsString()
+  status?: string;
 
   // ---------------- New fields ----------------
 
