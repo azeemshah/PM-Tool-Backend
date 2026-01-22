@@ -16,4 +16,4 @@ import { Item, ItemSchema } from '../work-items/schemas/work-item.schema';
   controllers: [SprintController],
   providers: [SprintService],
 })
-export class SprintModule {}
+export class SprintModule { }
