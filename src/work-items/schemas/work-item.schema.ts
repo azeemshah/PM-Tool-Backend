@@ -36,8 +36,8 @@ export class Item extends Document {
   @Prop({ enum: ItemType, required: true })
   type: ItemType;
 
-  @Prop({ enum: ItemStatus, required: true, default: ItemStatus.BACKLOG })
-  status: ItemStatus;
+  @Prop({ required: true, default: ItemStatus.BACKLOG })
+  status: string;
 
   // Workspace isolation
   @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true, index: true })

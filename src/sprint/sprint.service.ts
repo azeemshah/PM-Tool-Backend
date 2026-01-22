@@ -35,10 +35,10 @@ export class SprintService {
 
     sprint.status = SprintStatus.ACTIVE;
 
-    // Move work-items from BACKLOG → IN_PROGRESS
+    // Move work-items to TODO (ensure they start in To Do column)
     await this.workItemModel.updateMany(
       { _id: { $in: sprint.workItems } },
-      { status: ItemStatus.INPROGRESS },
+      { status: ItemStatus.TODO },
     );
 
     return sprint.save();
@@ -128,15 +128,29 @@ export class SprintService {
     sprint.workItems.push(...newWorkItemIds);
 
     // 🎯 Decide new status
-    const newStatus =
-      sprint.status === SprintStatus.ACTIVE
-        ? ItemStatus.INPROGRESS
-        : ItemStatus.TODO;
+    // Always move to TODO when adding to a sprint (whether Planned or Active)
+    const newStatus = ItemStatus.TODO;
 
-    // 🔁 Update status of added work-items
+    // 🔁 Update status of ALL added work-items (even if they were already in the sprint list)
+    // This fixes the issue where items moved to backlog from a completed sprint couldn't be re-added to the same sprint after reopening
+    const allWorkItemIds = workItems.map(wi => wi._id);
     await this.workItemModel.updateMany(
-      { _id: { $in: newWorkItemIds } },
+      { _id: { $in: allWorkItemIds } },
       { status: newStatus },
+    );
+
+    // 🧹 Remove these items from OTHER active/planned sprints to prevent duplicates
+    // This fixes the issue where moving an item to a new sprint didn't remove it from the old reopened sprint
+    await this.sprintModel.updateMany(
+      {
+        _id: { $ne: sprint._id },
+        workspaceId: sprint.workspaceId,
+        status: { $in: [SprintStatus.ACTIVE, SprintStatus.PLANNED] },
+        workItems: { $in: allWorkItemIds },
+      },
+      {
+        $pull: { workItems: { $in: allWorkItemIds } },
+      }
     );
 
     await sprint.save();
