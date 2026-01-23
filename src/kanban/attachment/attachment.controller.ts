@@ -18,6 +18,12 @@ export class AttachmentController {
     return this.attachmentService.uploadAttachment(dto);
   }
 
+  // -------------------- Get Attachments by WorkItem ID --------------------
+  @Get('work-item/:workItemId')
+  async getAttachmentsByWorkItemId(@Param('workItemId') workItemId: string) {
+    return this.attachmentService.getAttachmentsByWorkItemId(workItemId);
+  }
+
   // -------------------- Get All Attachments --------------------
   @Get()
   async getAllAttachments() {

@@ -27,6 +27,14 @@ export class AttachmentService {
     return attachment.save();
   }
 
+  // -------------------- Get Attachments by WorkItem ID --------------------
+  async getAttachmentsByWorkItemId(workItemId: string): Promise<Attachment[]> {
+    return this.attachmentModel
+      .find({ workItem: new Types.ObjectId(workItemId) })
+      .populate('userId')
+      .exec();
+  }
+
   // -------------------- Get All Attachments --------------------
   async getAllAttachments(): Promise<Attachment[]> {
     return this.attachmentModel.find().populate('workItem').populate('userId').exec();
