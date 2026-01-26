@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, Patch, Request, Put, Delete } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Patch, Request, Put, Delete, Query } from '@nestjs/common';
 import { ItemService } from './work-item.service';
 import { CreateItemDto } from './dto/create-work-item.dto';
 import { UpdateItemDto } from './dto/update-work-item.dto';
@@ -12,10 +12,29 @@ export class ItemController {
     return this.itemService.create(dto);
   }
 
-  @Get('workspace/:workspaceId')
-  findByWorkspace(@Param('workspaceId') workspaceId: string) {
-    return this.itemService.findByWorkspace(workspaceId);
-  }
+ @Get('workspace/:workspaceId')
+findByWorkspace(
+  @Param('workspaceId') workspaceId: string,
+  @Query('page') page = 1,
+  @Query('limit') limit = 10,
+  @Query('status') status?: string,
+  @Query('priority') priority?: string,
+  @Query('type') type?: string,
+  @Query('reporter') reporter?: string,
+) {
+  return this.itemService.findByWorkspace(
+    workspaceId,
+    {
+      page: Number(page),
+      limit: Number(limit),
+      status,
+      priority,
+      type,
+      reporter,
+    }
+  );
+}
+
 
   @Get(':id/tree')
   getTree(@Param('id') id: string) {
