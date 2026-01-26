@@ -11,6 +11,8 @@ import { CreateItemDto } from './dto/create-work-item.dto';
 import { UpdateItemDto } from './dto/update-work-item.dto';
 import { KanbanColumn } from '../kanban/column/schemas/column.schema';
 import { KanbanBoard } from '../kanban/board/schemas/kanban-board.schema';
+import { EmailService } from '../email/email.service';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class ItemService {
@@ -21,7 +23,9 @@ export class ItemService {
     private readonly columnModel: Model<KanbanColumn>,
     @InjectModel(KanbanBoard.name)
     private readonly boardModel: Model<KanbanBoard>,
-  ) { }
+    private readonly emailService: EmailService,
+    private readonly usersService: UsersService,
+  ) {}
 
   async create(dto: CreateItemDto): Promise<Item> {
     let path = '';
@@ -144,7 +148,10 @@ export class ItemService {
       path,
     });
 
-    return item.save();
+    const saved = await item.save();
+
+    await this.notifyUsers(saved, 'created');
+    return saved;
   }
 
   async findByWorkspace(workspaceId: string) {
@@ -165,17 +172,17 @@ export class ItemService {
       ...task,
       assignedTo: task.assignedTo
         ? {
-          _id: task.assignedTo._id,
-          name: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
-          profilePicture: task.assignedTo.profilePicture,
-        }
+            _id: task.assignedTo._id,
+            name: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
+            profilePicture: task.assignedTo.profilePicture,
+          }
         : null,
       reporter: task.reporter
         ? {
-          _id: task.reporter._id,
-          name: `${task.reporter.firstName} ${task.reporter.lastName}`,
-          profilePicture: task.reporter.profilePicture,
-        }
+            _id: task.reporter._id,
+            name: `${task.reporter.firstName} ${task.reporter.lastName}`,
+            profilePicture: task.reporter.profilePicture,
+          }
         : null,
     }));
   }
@@ -249,7 +256,9 @@ export class ItemService {
     }
 
     Object.assign(item, dto);
-    return item.save();
+    const saved = await item.save();
+    await this.notifyUsers(saved, 'updated');
+    return saved;
   }
 
   async delete(itemId: string) {
@@ -275,5 +284,34 @@ export class ItemService {
     return {
       message: 'Item deleted. Children detached and moved to root.',
     };
+  }
+
+  private async notifyUsers(item: Item, action: 'created' | 'updated'): Promise<void> {
+    const recipients: Array<{ email: string; firstName: string }> = [];
+
+    const ids: string[] = [];
+    if (item.assignedTo) ids.push((item.assignedTo as unknown as Types.ObjectId).toString());
+    if (item.reporter) ids.push((item.reporter as unknown as Types.ObjectId).toString());
+
+    const uniqueIds = Array.from(new Set(ids));
+    for (const id of uniqueIds) {
+      try {
+        const user = await this.usersService.findOne(id);
+        if (user?.email) {
+          recipients.push({ email: user.email, firstName: user.firstName || 'User' });
+        }
+      } catch {}
+    }
+
+    const payload = {
+      title: item.title,
+      type: item.type,
+      status: item.status,
+    };
+
+    const tasks: Promise<void>[] = recipients.map((r) =>
+      this.emailService.sendWorkItemNotification(r.email, r.firstName, action, payload),
+    );
+    await Promise.allSettled(tasks);
   }
 }

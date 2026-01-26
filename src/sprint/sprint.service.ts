@@ -13,13 +13,13 @@ export class SprintService {
   constructor(
     @InjectModel(Sprint.name) private sprintModel: Model<Sprint>,
     @InjectModel(Item.name) private workItemModel: Model<ItemDocument>,
-  ) { }
+  ) {}
 
   async createSprint(dto: CreateSprintDto) {
     return this.sprintModel.create({
       ...dto,
       workspaceId: new Types.ObjectId(dto.workspaceId),
-      workItems: dto.workItems?.map(id => new Types.ObjectId(id)) || [],
+      workItems: dto.workItems?.map((id) => new Types.ObjectId(id)) || [],
     });
   }
 
@@ -71,16 +71,12 @@ export class SprintService {
       throw new BadRequestException('Only completed sprints can be reopened');
     }
 
-    sprint.status = SprintStatus.ACTIVE;  // ✅ Enum-safe
+    sprint.status = SprintStatus.ACTIVE; // ✅ Enum-safe
     return sprint.save();
   }
 
-
   // sprint.service.ts
-  async addWorkItemsToSprintAndUpdateStatus(
-    sprintId: string,
-    dto: AddWorkItemsToSprintDto,
-  ) {
+  async addWorkItemsToSprintAndUpdateStatus(sprintId: string, dto: AddWorkItemsToSprintDto) {
     const sprint = await this.sprintModel.findById(sprintId);
     if (!sprint) throw new NotFoundException('Sprint not found');
 
@@ -96,13 +92,13 @@ export class SprintService {
 
     // 1. Fetch by IDs first (ignoring workspace for now to debug)
     const candidates = await this.workItemModel.find({
-      _id: { $in: dto.workItemIds.map(id => new Types.ObjectId(id)) },
+      _id: { $in: dto.workItemIds.map((id) => new Types.ObjectId(id)) },
     });
 
     console.log(`✅ Found ${candidates.length} candidate items`);
 
     // 2. Filter by workspace in memory (safest)
-    const workItems = candidates.filter(item => {
+    const workItems = candidates.filter((item) => {
       const itemWs = item.workspace?.toString();
       const sprintWs = sprint.workspaceId?.toString();
       const match = itemWs === sprintWs;
@@ -119,10 +115,8 @@ export class SprintService {
 
     // Remove duplicates
     const newWorkItemIds = workItems
-      .map(wi => wi._id)
-      .filter(
-        id => !sprint.workItems.some(existing => existing.equals(id)),
-      );
+      .map((wi) => wi._id)
+      .filter((id) => !sprint.workItems.some((existing) => existing.equals(id)));
 
     // Add to sprint
     sprint.workItems.push(...newWorkItemIds);
@@ -133,11 +127,8 @@ export class SprintService {
 
     // 🔁 Update status of ALL added work-items (even if they were already in the sprint list)
     // This fixes the issue where items moved to backlog from a completed sprint couldn't be re-added to the same sprint after reopening
-    const allWorkItemIds = workItems.map(wi => wi._id);
-    await this.workItemModel.updateMany(
-      { _id: { $in: allWorkItemIds } },
-      { status: newStatus },
-    );
+    const allWorkItemIds = workItems.map((wi) => wi._id);
+    await this.workItemModel.updateMany({ _id: { $in: allWorkItemIds } }, { status: newStatus });
 
     // 🧹 Remove these items from OTHER active/planned sprints to prevent duplicates
     // This fixes the issue where moving an item to a new sprint didn't remove it from the old reopened sprint
@@ -150,7 +141,7 @@ export class SprintService {
       },
       {
         $pull: { workItems: { $in: allWorkItemIds } },
-      }
+      },
     );
 
     await sprint.save();
@@ -164,11 +155,7 @@ export class SprintService {
   }
 
   async updateSprintColumns(sprintId: string, columns: string[]) {
-    const sprint = await this.sprintModel.findByIdAndUpdate(
-      sprintId,
-      { columns },
-      { new: true }
-    );
+    const sprint = await this.sprintModel.findByIdAndUpdate(sprintId, { columns }, { new: true });
     if (!sprint) throw new NotFoundException('Sprint not found');
     return sprint;
   }

@@ -29,8 +29,13 @@ export class AuthService {
     // Create user
     const user = await this.usersService.create(registerDto);
 
-    // Send welcome email
-    await this.emailService.sendWelcomeEmail(user.email, user.firstName);
+    // Generate verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    await this.usersService.setEmailVerificationToken(user._id.toString(), verificationToken);
+
+    // Send verification email
+    const verificationUrl = `${this.configService.get('FRONTEND_URL')}/verify-email?token=${verificationToken}`;
+    await this.emailService.sendVerificationEmail(user.email, user.firstName, verificationUrl);
 
     // Generate tokens
     const tokens = this.generateTokens(user._id.toString(), user.email, user.role);
@@ -62,7 +67,21 @@ export class AuthService {
     };
   }
 
-  async login(loginDto: LoginDto): Promise<AuthResponseDto> {
+  async verifyEmail(token: string): Promise<{ message: string }> {
+    const user = await this.usersService.findByVerificationToken(token);
+    if (!user) {
+      throw new BadRequestException('Invalid or expired verification token');
+    }
+
+    await this.usersService.markEmailAsVerified(user._id.toString());
+
+    // Optionally send welcome email after verification
+    await this.emailService.sendWelcomeEmail(user.email, user.firstName);
+
+    return { message: 'Email verified successfully' };
+  }
+
+  async login(loginDto: LoginDto): Promise<{ message: string; email: string }> {
     const { email, password } = loginDto;
 
     // Find user with password
@@ -81,6 +100,37 @@ export class AuthService {
     if (user.status !== 'active') {
       throw new UnauthorizedException('Account is not active');
     }
+
+    // Check if email is verified
+    if (!user.isEmailVerified) {
+      throw new UnauthorizedException('Please verify your email address');
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await this.usersService.setOtp(user._id.toString(), otp, otpExpires);
+    await this.emailService.sendLoginOtp(user.email, user.firstName, otp);
+
+    return { message: 'OTP sent to your email', email: user.email };
+  }
+
+  async verifyLoginOtp(email: string, otp: string): Promise<AuthResponseDto> {
+    const user = await this.usersService.findByEmailWithoutPassword(email);
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid email');
+    }
+
+    // Check OTP (ensure we access the field directly, might need to cast or ensure it's selected)
+    // Since it's not select: false, it should be returned.
+    if (!user.otp || user.otp !== otp || new Date() > user.otpExpires) {
+      throw new UnauthorizedException('Invalid or expired OTP');
+    }
+
+    // Clear OTP
+    await this.usersService.clearOtp(user._id.toString());
 
     // Update last login
     await this.usersService.updateLastLogin(user._id.toString());

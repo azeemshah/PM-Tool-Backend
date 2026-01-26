@@ -17,7 +17,7 @@ import { KanbanColumn } from './schemas/column.schema';
 
 @Controller('column')
 export class ColumnController {
-  constructor(private readonly columnService: ColumnService) { }
+  constructor(private readonly columnService: ColumnService) {}
 
   // -------------------- Columns --------------------
 
@@ -46,18 +46,12 @@ export class ColumnController {
   }
 
   @Patch('move/:id')
-  async moveColumn(
-    @Param('id') columnId: string,
-    @Body('position') position: number,
-  ) {
+  async moveColumn(@Param('id') columnId: string, @Body('position') position: number) {
     return this.columnService.moveColumn(columnId, position);
   }
 
   @Put('columns/reorder/:boardId')
-  async reorderColumns(
-    @Param('boardId') boardId: string,
-    @Body() body: { columnIds: string[] },
-  ) {
+  async reorderColumns(@Param('boardId') boardId: string, @Body() body: { columnIds: string[] }) {
     return this.columnService.reorderColumns(boardId, body.columnIds);
   }
 }

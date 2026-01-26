@@ -35,4 +35,4 @@ import { SprintSchema } from '../sprint/schemas/sprint.schema';
   providers: [WorkspaceService],
   exports: [WorkspaceService],
 })
-export class WorkspaceModule { }
+export class WorkspaceModule {}

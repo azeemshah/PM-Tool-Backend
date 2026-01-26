@@ -1,6 +1,9 @@
 // src/kanban/kanban.module.ts
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { EmailModule } from '../email/email.module';
+import { Workspace, WorkspaceSchema } from '../workspace/schemas/workspace.schema';
+import { User, UserSchema } from '../users/schemas/user.schema';
 
 // Board
 import { KanbanBoardController } from './board/kanban-board.controller';
@@ -83,6 +86,7 @@ import { ColumnController } from './column/column.controller';
 
 @Module({
   imports: [
+    EmailModule,
     MongooseModule.forFeature([
       // Board
       { name: KanbanBoard.name, schema: KanbanBoardSchema },
@@ -131,6 +135,10 @@ import { ColumnController } from './column/column.controller';
 
       // Search
       { name: SavedFilter.name, schema: SavedFilterSchema },
+
+      // Workspace & User
+      { name: Workspace.name, schema: WorkspaceSchema },
+      { name: User.name, schema: UserSchema },
     ]),
   ],
   controllers: [

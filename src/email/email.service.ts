@@ -8,7 +8,12 @@ export class EmailService {
   sendTempPassword(email: string, tempPassword: string) {
     throw new Error('Method not implemented.');
   }
-  async sendInvite(email: string, role: string, inviteLink: string, workspaceInviteCode?: string): Promise<void> {
+  async sendInvite(
+    email: string,
+    role: string,
+    inviteLink: string,
+    workspaceInviteCode?: string,
+  ): Promise<void> {
     try {
       await this.transporter.sendMail({
         from: this.configService.get('EMAIL_FROM'),
@@ -51,6 +56,24 @@ export class EmailService {
     }
   }
 
+  async sendVerificationEmail(
+    email: string,
+    firstName: string,
+    verificationUrl: string,
+  ): Promise<void> {
+    try {
+      await this.transporter.sendMail({
+        from: this.configService.get('EMAIL_FROM'),
+        to: email,
+        subject: 'Verify Your Email Address',
+        html: this.getVerificationEmailTemplate(firstName, verificationUrl),
+      });
+      this.logger.log(`Verification email sent to ${email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send verification email to ${email}`, error.stack);
+    }
+  }
+
   async sendPasswordResetEmail(email: string, firstName: string, resetUrl: string): Promise<void> {
     try {
       await this.transporter.sendMail({
@@ -77,6 +100,109 @@ export class EmailService {
     } catch (error) {
       this.logger.error(`Failed to send password changed email to ${email}`, error.stack);
     }
+  }
+
+  async sendLoginOtp(email: string, firstName: string, otp: string): Promise<void> {
+    try {
+      await this.transporter.sendMail({
+        from: this.configService.get('EMAIL_FROM'),
+        to: email,
+        subject: 'Your Login OTP',
+        html: this.getLoginOtpTemplate(firstName, otp),
+      });
+      this.logger.log(`Login OTP sent to ${email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send login OTP to ${email}`, error.stack);
+      throw error;
+    }
+  }
+
+  async sendActivityEmail(
+    recipients: Array<{ email: string; name?: string }>,
+    subject: string,
+    html: string,
+  ): Promise<void> {
+    for (const r of recipients) {
+      try {
+        await this.transporter.sendMail({
+          from: this.configService.get('EMAIL_FROM'),
+          to: r.email,
+          subject,
+          html,
+        });
+        this.logger.log(`Activity email sent to ${r.email}`);
+      } catch (error) {
+        this.logger.error(`Failed to send activity email to ${r.email}`, error.stack);
+      }
+    }
+  }
+
+  buildActivityTemplate(params: {
+    action: string;
+    title: string;
+    actorName?: string;
+    workspaceName?: string;
+    boardName?: string;
+    details?: string;
+    url?: string;
+  }): string {
+    const actor = params.actorName || 'Someone';
+    const details = params.details || '';
+    const workspace = params.workspaceName
+      ? `<p><strong>Workspace:</strong> ${params.workspaceName}</p>`
+      : '';
+    const board = params.boardName ? `<p><strong>Board:</strong> ${params.boardName}</p>` : '';
+    const link = params.url
+      ? `<div style="margin-top:16px;"><a href="${params.url}" style="display:inline-block;padding:10px 16px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;">Open</a></div>`
+      : '';
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>PM Tool Activity</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height:1.6; color:#111; max-width:640px; margin:0 auto; padding:24px;">
+          <h2 style="margin:0 0 8px 0;">${params.action}</h2>
+          <p style="margin:0 0 12px 0;"><strong>Item:</strong> ${params.title}</p>
+          <p style="margin:0 0 12px 0;"><strong>By:</strong> ${actor}</p>
+          ${workspace}
+          ${board}
+          ${details ? `<div style="margin-top:12px;padding:12px;background:#f3f4f6;border-radius:8px;">${details}</div>` : ''}
+          ${link}
+          <div style="margin-top:24px;color:#6b7280;font-size:12px;">© ${new Date().getFullYear()} PM Tool</div>
+        </body>
+      </html>
+    `;
+  }
+
+  private getLoginOtpTemplate(firstName: string, otp: string): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Login OTP</title>
+      </head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h1 style="color: #2563eb;">PM Tool</h1>
+        </div>
+        <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px;">
+          <h2 style="margin-top: 0;">Hello ${firstName},</h2>
+          <p>You requested a login OTP. Please use the following code to complete your login:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <span style="background-color: #2563eb; color: white; padding: 15px 30px; font-size: 24px; font-weight: bold; letter-spacing: 5px; border-radius: 5px;">${otp}</span>
+          </div>
+          <p>This code will expire in 10 minutes.</p>
+          <p>If you did not request this, please ignore this email or contact support if you have concerns.</p>
+        </div>
+        <div style="text-align: center; margin-top: 30px; color: #6b7280; font-size: 12px;">
+          <p>&copy; ${new Date().getFullYear()} PM Tool. All rights reserved.</p>
+        </div>
+      </body>
+      </html>
+    `;
   }
 
   private getWelcomeEmailTemplate(firstName: string): string {
@@ -110,6 +236,41 @@ export class EmailService {
             </ul>
             <p>Get started by logging into your account and exploring the features.</p>
             <a href="${this.configService.get('FRONTEND_URL')}/login" class="button">Go to Dashboard</a>
+          </div>
+          <div class="footer">
+            <p>© ${new Date().getFullYear()} PM Tool. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  private getVerificationEmailTemplate(firstName: string, verificationUrl: string): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #4CAF50; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; background-color: #f9f9f9; }
+          .button { display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Verify Your Email</h1>
+          </div>
+          <div class="content">
+            <h2>Hi ${firstName},</h2>
+            <p>Thank you for signing up! Please verify your email address to activate your account.</p>
+            <a href="${verificationUrl}" class="button">Verify Email</a>
+            <p>If the button above doesn't work, copy and paste the following link into your browser:</p>
+            <p>${verificationUrl}</p>
           </div>
           <div class="footer">
             <p>© ${new Date().getFullYear()} PM Tool. All rights reserved.</p>
@@ -197,7 +358,11 @@ export class EmailService {
     `;
   }
 
-  private getInviteEmailTemplate(role: string, inviteLink: string, workspaceInviteCode?: string): string {
+  private getInviteEmailTemplate(
+    role: string,
+    inviteLink: string,
+    workspaceInviteCode?: string,
+  ): string {
     // Use workspace inviteCode if available, otherwise fall back to token link
     const acceptLink = workspaceInviteCode
       ? `${this.configService.get('FRONTEND_URL')}/invite/workspace/${workspaceInviteCode}/join`
@@ -245,5 +410,148 @@ export class EmailService {
       </body>
       </html>
     `;
+  }
+
+  async sendWorkItemNotification(
+    email: string,
+    firstName: string,
+    action: 'created' | 'updated' | 'deleted' | 'status_changed' | 'assigned',
+    payload: { title: string; type: string; status?: string; priority?: string },
+  ): Promise<void> {
+    const subjectMap = {
+      created: 'New Work Item Assigned',
+      updated: 'Work Item Updated',
+      deleted: 'Work Item Deleted',
+      status_changed: 'Work Item Status Changed',
+      assigned: 'You have been assigned a Work Item',
+    };
+    const subject = subjectMap[action] || 'Work Item Notification';
+    const html = this.getWorkItemTemplate(firstName, action, payload);
+    try {
+      await this.transporter.sendMail({
+        from: this.configService.get('EMAIL_FROM'),
+        to: email,
+        subject,
+        html,
+      });
+      this.logger.log(`Work item ${action} email sent to ${email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send work item ${action} email to ${email}`, error.stack);
+    }
+  }
+
+  private getWorkItemTemplate(
+    firstName: string,
+    action: string,
+    payload: { title: string; type: string; status?: string; priority?: string },
+  ): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Work Item Notification</title>
+      </head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h1 style="color: #2563eb;">PM Tool</h1>
+        </div>
+        <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px;">
+          <h2 style="margin-top: 0;">Hello ${firstName},</h2>
+          <p>A work item has been ${action}.</p>
+          <ul style="list-style: none; padding: 0;">
+            <li><strong>Title:</strong> ${payload.title}</li>
+            <li><strong>Type:</strong> ${payload.type}</li>
+            ${payload.status ? `<li><strong>Status:</strong> ${payload.status}</li>` : ''}
+            ${payload.priority ? `<li><strong>Priority:</strong> ${payload.priority}</li>` : ''}
+          </ul>
+        </div>
+        <div style="text-align: center; margin-top: 30px; color: #6b7280; font-size: 12px;">
+          <p>&copy; ${new Date().getFullYear()} PM Tool. All rights reserved.</p>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  async sendAttachmentNotification(
+    email: string,
+    firstName: string,
+    action: 'uploaded' | 'deleted',
+    payload: { fileName: string; workItemTitle?: string },
+  ): Promise<void> {
+    const subject = action === 'uploaded' ? 'New Attachment Added' : 'Attachment Removed';
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"><title>Attachment Notification</title></head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h1 style="color: #2563eb;">PM Tool</h1>
+        </div>
+        <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px;">
+          <h2 style="margin-top: 0;">Hello ${firstName},</h2>
+          <p>An attachment has been ${action}.</p>
+          <ul style="list-style: none; padding: 0;">
+            <li><strong>File:</strong> ${payload.fileName}</li>
+            ${payload.workItemTitle ? `<li><strong>Work Item:</strong> ${payload.workItemTitle}</li>` : ''}
+          </ul>
+        </div>
+        <div style="text-align: center; margin-top: 30px; color: #6b7280; font-size: 12px;">
+          <p>&copy; ${new Date().getFullYear()} PM Tool. All rights reserved.</p>
+        </div>
+      </body>
+      </html>
+    `;
+    try {
+      await this.transporter.sendMail({
+        from: this.configService.get('EMAIL_FROM'),
+        to: email,
+        subject,
+        html,
+      });
+      this.logger.log(`Attachment ${action} email sent to ${email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send attachment ${action} email to ${email}`, error.stack);
+    }
+  }
+
+  async sendCommentNotification(
+    email: string,
+    firstName: string,
+    payload: { workItemTitle?: string; preview: string },
+  ): Promise<void> {
+    const subject = 'New Comment Added';
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"><title>Comment Notification</title></head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h1 style="color: #2563eb;">PM Tool</h1>
+        </div>
+        <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px;">
+          <h2 style="margin-top: 0;">Hello ${firstName},</h2>
+          <p>A new comment has been added.</p>
+          ${payload.workItemTitle ? `<p><strong>Work Item:</strong> ${payload.workItemTitle}</p>` : ''}
+          <blockquote style="background:#fff; border-left:4px solid #2563eb; margin:20px 0; padding:10px 15px;">${payload.preview}</blockquote>
+        </div>
+        <div style="text-align: center; margin-top: 30px; color: #6b7280; font-size: 12px;">
+          <p>&copy; ${new Date().getFullYear()} PM Tool. All rights reserved.</p>
+        </div>
+      </body>
+      </html>
+    `;
+    try {
+      await this.transporter.sendMail({
+        from: this.configService.get('EMAIL_FROM'),
+        to: email,
+        subject,
+        html,
+      });
+      this.logger.log(`Comment notification email sent to ${email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send comment notification email to ${email}`, error.stack);
+    }
   }
 }

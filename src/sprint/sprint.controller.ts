@@ -28,26 +28,17 @@ export class SprintController {
   }
 
   @Patch(':id/reopen')
-reopenSprint(@Param('id') id: string) {
-  return this.sprintService.reopenSprint(id);
-}
+  reopenSprint(@Param('id') id: string) {
+    return this.sprintService.reopenSprint(id);
+  }
 
   @Patch(':id/add-work-items')
-    addWorkItemsToSprint(
-    @Param('id') sprintId: string,
-    @Body() dto: AddWorkItemsToSprintDto,
-) {
-    return this.sprintService.addWorkItemsToSprintAndUpdateStatus(
-    sprintId,
-    dto,
-  );
-}
+  addWorkItemsToSprint(@Param('id') sprintId: string, @Body() dto: AddWorkItemsToSprintDto) {
+    return this.sprintService.addWorkItemsToSprintAndUpdateStatus(sprintId, dto);
+  }
 
   @Patch(':id/columns')
-  updateSprintColumns(
-    @Param('id') sprintId: string,
-    @Body() body: { columns: string[] }
-  ) {
+  updateSprintColumns(@Param('id') sprintId: string, @Body() body: { columns: string[] }) {
     return this.sprintService.updateSprintColumns(sprintId, body.columns);
   }
 }

@@ -5,7 +5,7 @@ import { UpdateItemDto } from './dto/update-work-item.dto';
 
 @Controller('items')
 export class ItemController {
-  constructor(private readonly itemService: ItemService) { }
+  constructor(private readonly itemService: ItemService) {}
 
   @Post('create')
   create(@Request() req: any, @Body() dto: CreateItemDto) {
@@ -46,5 +46,4 @@ export class ItemController {
   delete(@Param('id') id: string) {
     return this.itemService.delete(id);
   }
-
 }
