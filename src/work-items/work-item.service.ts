@@ -25,7 +25,7 @@ export class ItemService {
     private readonly boardModel: Model<KanbanBoard>,
     private readonly emailService: EmailService,
     private readonly usersService: UsersService,
-  ) {}
+  ) { }
 
   async create(dto: CreateItemDto): Promise<Item> {
     let path = '';
@@ -155,68 +155,81 @@ export class ItemService {
   }
 
   async findByWorkspace(
-  workspaceId: string,
-  query: {
-    page?: number;
-    limit?: number;
-    status?: string;
-    priority?: string;
-    type?: string;
-    reporter?: string;
-  },
-) {
-  const {
-    page = 1,
-    limit = 10,
-    status,
-    priority,
-    type,
-    reporter,
-  } = query;
+    workspaceId: string,
+    query: {
+      page?: number;
+      limit?: number;
+      status?: string;
+      priority?: string;
+      type?: string;
+      reporter?: string;
+    },
+  ) {
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      priority,
+      type,
+      reporter,
+    } = query;
 
-  const filter: any = { workspace: workspaceId };
+    const filter: any = { workspace: workspaceId };
 
-  // Apply filters only if present
-  if (status) filter.status = status;
-  if (priority) filter.priority = priority;
-  if (type) filter.type = type;
-  if (reporter) filter.reporter = reporter;
+    // Apply filters only if present
+    if (status) filter.status = status;
+    if (priority) filter.priority = priority;
+    if (type) filter.type = type;
+    if (reporter) filter.reporter = reporter;
 
-  const skip = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
-  const [tasks, total] = await Promise.all([
-    this.itemModel
-      .find(filter)
-      .sort({ path: 1 })
-      .skip(skip)
-      .limit(limit)
-      .populate({
-        path: 'assignedTo',
-        select: '_id firstName lastName profilePicture',
-      })
-      .populate({
-        path: 'reporter',
-        select: '_id firstName lastName profilePicture',
-      })
-      .lean(),
+    const [tasks, total] = await Promise.all([
+      this.itemModel
+        .find(filter)
+        .sort({ path: 1 })
+        .skip(skip)
+        .limit(limit)
+        .populate({
+          path: 'assignedTo',
+          select: '_id firstName lastName profilePicture',
+        })
+        .populate({
+          path: 'reporter',
+          select: '_id firstName lastName profilePicture',
+        })
+        .lean(),
 
-    return tasks.map((task: any) => ({
+      this.itemModel.countDocuments(filter),
+    ]);
+
+    const formattedTasks = tasks.map((task: any) => ({
       ...task,
       assignedTo: task.assignedTo
         ? {
-            _id: task.assignedTo._id,
-            name: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
-            profilePicture: task.assignedTo.profilePicture,
-          }
+          _id: task.assignedTo._id,
+          name: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
+          profilePicture: task.assignedTo.profilePicture,
+        }
         : null,
       reporter: task.reporter
         ? {
-            _id: task.reporter._id,
-            name: `${task.reporter.firstName} ${task.reporter.lastName}`,
-            profilePicture: task.reporter.profilePicture,
-          }
+          _id: task.reporter._id,
+          name: `${task.reporter.firstName} ${task.reporter.lastName}`,
+          profilePicture: task.reporter.profilePicture,
+        }
         : null,
     }));
+
+    return {
+      data: formattedTasks,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findTree(rootId: string) {
@@ -332,7 +345,7 @@ export class ItemService {
         if (user?.email) {
           recipients.push({ email: user.email, firstName: user.firstName || 'User' });
         }
-      } catch {}
+      } catch { }
     }
 
     const payload = {
