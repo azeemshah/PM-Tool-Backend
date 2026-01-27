@@ -312,12 +312,7 @@ export class MemberService {
       const inviteLink = `${this.configService.get('FRONTEND_URL')}/invite?token=${rawToken}`;
 
       // Send invite email with workspace inviteCode
-      await this.mailService.sendInvite(
-        email,
-        role,
-        inviteLink,
-        workspace.inviteCode,
-      );
+      await this.mailService.sendInvite(email, role, inviteLink, workspace.inviteCode);
 
       return { message: 'Invitation email sent successfully' };
     } catch (error) {

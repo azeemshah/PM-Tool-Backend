@@ -13,6 +13,9 @@ import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
 import { MoveWorkItemDto } from './dto/move-work-item.dto';
 import { WorkItem } from '../work-item/schemas/work-item.schema';
+import { Workspace } from '../../workspace/schemas/workspace.schema';
+import { User } from '../../users/schemas/user.schema';
+import { EmailService } from '../../email/email.service';
 
 @Injectable()
 export class KanbanBoardService {
@@ -23,6 +26,11 @@ export class KanbanBoardService {
     private readonly columnModel: Model<KanbanColumn>,
     @InjectModel(WorkItem.name)
     private readonly workItemModel: Model<WorkItem>,
+    @InjectModel(Workspace.name)
+    private readonly workspaceModel: Model<Workspace>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<User>,
+    private readonly emailService: EmailService,
   ) {}
 
   // -------------------- Board CRUD --------------------
@@ -85,7 +93,7 @@ export class KanbanBoardService {
 
   // -------------------- Move Work Item --------------------
 
-  async moveWorkItem(boardId: string, moveWorkItemDto: MoveWorkItemDto) {
+  async moveWorkItem(boardId: string, moveWorkItemDto: MoveWorkItemDto, userId: string | undefined) {
     const { workItemId, fromColumnId, toColumnId, position } = moveWorkItemDto;
 
     if (!Types.ObjectId.isValid(boardId)) {
@@ -133,6 +141,36 @@ export class KanbanBoardService {
       await this.workItemModel.findByIdAndUpdate(workItemId, {
         status: targetColumn._id,
       });
+
+      try {
+        const board = await this.boardModel.findById(boardId).exec();
+        const workspace = board ? await this.workspaceModel.findById(board.workspaceId).exec() : null;
+        const ids = workspace
+          ? [workspace.OwnedBy?.toString(), ...((workspace.members || []).map((m) => m.toString()))].filter(Boolean)
+          : [];
+        const unique = Array.from(new Set(ids));
+        const users = await this.userModel
+          .find({ _id: { $in: unique } })
+          .select('email firstName lastName')
+          .exec();
+        const recipients = users.map((u: any) => ({
+          email: u.email,
+          name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || undefined,
+        }));
+        const actor =
+          userId ? await this.userModel.findById(userId).select('firstName lastName email').exec() : null;
+        const actorName = actor ? (`${actor.firstName || ''} ${actor.lastName || ''}`.trim() || actor.email) : undefined;
+        const subject = `Status changed: ${workItem.title}`;
+        const html = this.emailService.buildActivityTemplate({
+          action: 'Status Changed',
+          title: workItem.title,
+          actorName,
+          workspaceName: workspace?.name,
+          boardName: board?.name,
+          details: `From <strong>${fromColumn.name}</strong> to <strong>${targetColumn.name}</strong>`,
+        });
+        await this.emailService.sendActivityEmail(recipients, subject, html);
+      } catch (_) {}
 
       return { message: 'Work item moved successfully' };
     } catch (err) {

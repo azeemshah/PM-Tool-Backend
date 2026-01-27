@@ -16,7 +16,7 @@ export class ColumnService {
     private readonly boardModel: Model<KanbanBoard>,
     @InjectModel(WorkItem.name)
     private readonly workItemModel: Model<WorkItem>,
-  ) { }
+  ) {}
 
   // -------------------- Column CRUD --------------------
 
@@ -38,16 +38,10 @@ export class ColumnService {
     return column.save();
   }
 
-
-  async updateColumn(
-    columnId: string,
-    updateColumnDto: UpdateColumnDto,
-  ): Promise<KanbanColumn> {
-    const column = await this.columnModel.findByIdAndUpdate(
-      columnId,
-      updateColumnDto,
-      { new: true },
-    );
+  async updateColumn(columnId: string, updateColumnDto: UpdateColumnDto): Promise<KanbanColumn> {
+    const column = await this.columnModel.findByIdAndUpdate(columnId, updateColumnDto, {
+      new: true,
+    });
 
     if (!column) throw new NotFoundException(`Column with ID ${columnId} not found`);
 
@@ -86,20 +80,13 @@ export class ColumnService {
         throw new BadRequestException(`Invalid column ID at index ${i}`);
       }
 
-      await this.columnModel.findByIdAndUpdate(
-        columnIds[i],
-        { position: i },
-        { new: true }
-      );
+      await this.columnModel.findByIdAndUpdate(columnIds[i], { position: i }, { new: true });
     }
 
     return { message: 'Columns reordered successfully' };
   }
 
-  async moveColumn(
-    columnId: string,
-    newPosition: number,
-  ): Promise<KanbanColumn> {
+  async moveColumn(columnId: string, newPosition: number): Promise<KanbanColumn> {
     const column = await this.columnModel.findById(columnId).exec();
     if (!column) {
       throw new NotFoundException('Column not found');
@@ -137,5 +124,4 @@ export class ColumnService {
     column.position = newPosition;
     return column.save();
   }
-
 }

@@ -9,6 +9,7 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { KanbanBoardService } from './kanban-board.service';
 import { KanbanBoard } from './schemas/kanban-board.schema';
@@ -16,6 +17,8 @@ import { KanbanColumn } from '../column/schemas/column.schema';
 import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
 import { MoveWorkItemDto } from './dto/move-work-item.dto';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @Controller('kanban')
 export class KanbanBoardController {
@@ -62,8 +65,13 @@ export class KanbanBoardController {
   // -------------------- Move Work Item --------------------
 
   @Post('boards/:boardId/move-work-item')
-  async moveWorkItem(@Param('boardId') boardId: string, @Body() moveWorkItemDto: MoveWorkItemDto) {
-    return this.boardService.moveWorkItem(boardId, moveWorkItemDto);
+  @UseGuards(JwtAuthGuard)
+  async moveWorkItem(
+    @Param('boardId') boardId: string,
+    @Body() moveWorkItemDto: MoveWorkItemDto,
+    @CurrentUser('userId') userId?: string,
+  ) {
+    return this.boardService.moveWorkItem(boardId, moveWorkItemDto, userId);
   }
 
   // -------------------- Reorder Cards in List --------------------

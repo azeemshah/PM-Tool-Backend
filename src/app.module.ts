@@ -14,7 +14,7 @@ import { SprintModule } from './sprint/sprint.module';
 @Module({
   imports: [
     // Configuration
-     ConfigModule.forRoot({
+    ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
     }),
@@ -60,4 +60,4 @@ import { SprintModule } from './sprint/sprint.module';
     SprintModule,
   ],
 })
-export class AppModule { }
+export class AppModule {}

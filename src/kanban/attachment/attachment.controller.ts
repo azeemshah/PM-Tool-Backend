@@ -1,5 +1,17 @@
 // src/kanban/attachment/attachment.controller.ts
-import { Controller, Get, Post, Delete, Param, Body, UseInterceptors, UploadedFile, Res, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Param,
+  Body,
+  UseInterceptors,
+  UploadedFile,
+  Res,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { AttachmentService } from './attachment.service';
 import { UploadAttachmentDto } from './dto/upload-attachment.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -7,15 +19,19 @@ import { diskStorage } from 'multer';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Response } from 'express';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @Controller('kanban/files')
+@UseGuards(JwtAuthGuard)
 export class AttachmentController {
   constructor(private readonly attachmentService: AttachmentService) {}
 
   // -------------------- Upload Attachment --------------------
   @Post()
-  async uploadAttachment(@Body() dto: UploadAttachmentDto) {
-    return this.attachmentService.uploadAttachment(dto);
+  async uploadAttachment(@Body() dto: UploadAttachmentDto, @CurrentUser('userId') userId?: string) {
+    const payload = { ...dto, userId: dto.userId || userId } as any;
+    return this.attachmentService.uploadAttachment(payload);
   }
 
   // -------------------- Get Attachments by WorkItem ID --------------------
@@ -72,6 +88,7 @@ export class AttachmentController {
   async uploadBinary(
     @Param('workItemId') workItemId: string,
     @UploadedFile() file: Express.Multer.File,
+    @CurrentUser('userId') userId?: string,
   ) {
     if (!file) {
       return { success: false, message: 'No file provided' };
@@ -86,7 +103,7 @@ export class AttachmentController {
       fileName: file.originalname,
       fileUrl,
       description: undefined,
-      userId: undefined,
+      userId,
     } as any);
 
     return { success: true, url: fileUrl, fileName: file.originalname };

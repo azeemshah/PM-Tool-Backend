@@ -10,6 +10,7 @@ import {
   Res,
   Req,
   UnauthorizedException,
+  Query,
 } from '@nestjs/common';
 import { Response, Request as ExRequest } from 'express';
 import { AuthService } from './auth.service';
@@ -55,13 +56,25 @@ export class AuthController {
     return body;
   }
 
+  @Get('verify-email')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Query('token') token: string): Promise<{ message: string }> {
+    return this.authService.verifyEmail(token);
+  }
+
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(
-    @Body() loginDto: LoginDto,
+  async login(@Body() loginDto: LoginDto): Promise<{ message: string; email: string }> {
+    return this.authService.login(loginDto);
+  }
+
+  @Post('verify-otp')
+  @HttpCode(HttpStatus.OK)
+  async verifyOtp(
+    @Body() body: { email: string; otp: string },
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
-    const result = await this.authService.login(loginDto);
+    const result = await this.authService.verifyLoginOtp(body.email, body.otp);
 
     if (result.refreshToken) {
       const refreshExpirationMs = Number(
@@ -75,8 +88,8 @@ export class AuthController {
       });
     }
 
-    const { refreshToken, ...body } = result as any;
-    return body;
+    const { refreshToken, ...responseBody } = result as any;
+    return responseBody;
   }
 
   @Post('forgot-password')

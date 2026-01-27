@@ -31,7 +31,7 @@ export class WorkspaceService {
     @InjectModel('Notification') private notificationModel: Model<any>,
     @InjectModel('SavedFilter') private savedFilterModel: Model<any>,
     @InjectModel('Sprint') private sprintModel: Model<any>,
-  ) { }
+  ) {}
 
   /**
    * Enrich member object with role permissions
@@ -403,9 +403,7 @@ export class WorkspaceService {
         type: { $ne: 'epic' },
       };
 
-      const totalTasks = await this.workItemModel
-        .countDocuments(baseFilter)
-        .exec();
+      const totalTasks = await this.workItemModel.countDocuments(baseFilter).exec();
 
       const completedTasks = await this.workItemModel
         .countDocuments({
@@ -439,6 +437,4 @@ export class WorkspaceService {
       };
     }
   }
-
-
 }

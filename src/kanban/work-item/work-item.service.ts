@@ -8,16 +8,53 @@ import { UpdateWorkItemDto } from './dto/update-work-item.dto';
 import { MoveStatusDto } from './dto/move-status.dto';
 import { AssignUserDto } from './dto/assign-user.dto';
 import { KanbanColumn } from '../column/schemas/column.schema';
+import { KanbanBoard } from '../board/schemas/kanban-board.schema';
+import { Workspace } from '../../workspace/schemas/workspace.schema';
+import { User } from '../../users/schemas/user.schema';
+import { EmailService } from '../../email/email.service';
 
 @Injectable()
 export class WorkItemService {
   constructor(
     @InjectModel(WorkItem.name) private workItemModel: Model<WorkItem>,
     @InjectModel(KanbanColumn.name) private columnModel: Model<KanbanColumn>,
+    @InjectModel(KanbanBoard.name) private boardModel: Model<KanbanBoard>,
+    @InjectModel(Workspace.name) private workspaceModel: Model<Workspace>,
+    @InjectModel(User.name) private userModel: Model<User>,
+    private readonly emailService: EmailService,
   ) {}
 
+  private async getRecipientsByBoard(boardId?: Types.ObjectId | string, actorId?: string) {
+    if (!boardId) return [];
+    const board = await this.boardModel.findById(boardId).exec();
+    if (!board) return [];
+    const workspace = await this.workspaceModel.findById(board.workspaceId).exec();
+    if (!workspace) return [];
+    const ids = [
+      workspace.OwnedBy?.toString(),
+      ...(workspace.members || []).map((m) => m.toString()),
+    ].filter(Boolean) as string[];
+    const unique = Array.from(new Set(ids));
+    const users = await this.userModel
+      .find({ _id: { $in: unique } })
+      .select('email firstName lastName')
+      .exec();
+    return users.map((u: any) => ({
+      email: u.email,
+      name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || undefined,
+    }));
+  }
+
+  private async getActorName(actorId?: string) {
+    if (!actorId) return undefined;
+    const user = await this.userModel.findById(actorId).select('firstName lastName email').exec();
+    if (!user) return undefined;
+    const name = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+    return name || user.email;
+  }
+
   /* ================= Create Work Item ================= */
-  async create(createDto: CreateWorkItemDto): Promise<WorkItem> {
+  async create(createDto: CreateWorkItemDto, actorId?: string): Promise<WorkItem> {
     // Map incoming DTO fields to schema fields (boardId -> board, etc.)
     const payload: any = { ...createDto };
     if ((createDto as any).boardId) {
@@ -53,6 +90,18 @@ export class WorkItemService {
         .exec();
     }
 
+    try {
+      const recipients = await this.getRecipientsByBoard(payload.board, actorId);
+      const actorName = await this.getActorName(actorId);
+      const subject = `New ${savedItem.type} created: ${savedItem.title}`;
+      const html = this.emailService.buildActivityTemplate({
+        action: 'Item Created',
+        title: savedItem.title,
+        actorName,
+        details: '',
+      });
+      await this.emailService.sendActivityEmail(recipients, subject, html);
+    } catch (_) {}
     return savedItem;
   }
 
@@ -69,7 +118,7 @@ export class WorkItemService {
   }
 
   /* ================= Update Work Item ================= */
-  async update(id: string, updateDto: UpdateWorkItemDto): Promise<WorkItem> {
+  async update(id: string, updateDto: UpdateWorkItemDto, actorId?: string): Promise<WorkItem> {
     // Map DTO fields to schema fields before updating
     const updatePayload: any = { ...updateDto };
     if ((updateDto as any).boardId) {
@@ -94,33 +143,88 @@ export class WorkItemService {
       .findByIdAndUpdate(id, updatePayload, { new: true })
       .exec();
     if (!updatedItem) throw new NotFoundException('Work item not found');
+    try {
+      const recipients = await this.getRecipientsByBoard(
+        updatePayload.board || updatedItem.board,
+        actorId,
+      );
+      const actorName = await this.getActorName(actorId);
+      const subject = `Item updated: ${updatedItem.title}`;
+      const html = this.emailService.buildActivityTemplate({
+        action: 'Item Updated',
+        title: updatedItem.title,
+        actorName,
+        details: '',
+      });
+      await this.emailService.sendActivityEmail(recipients, subject, html);
+    } catch (_) {}
     return updatedItem;
   }
 
   /* ================= Delete Work Item ================= */
-  async delete(id: string): Promise<{ message: string }> {
+  async delete(id: string, actorId?: string): Promise<{ message: string }> {
+    const existing = await this.workItemModel.findById(id).exec();
     const deleted = await this.workItemModel.findByIdAndDelete(id).exec();
     if (!deleted) throw new NotFoundException('Work item not found');
+    try {
+      const recipients = await this.getRecipientsByBoard((existing as any)?.board, actorId);
+      const actorName = await this.getActorName(actorId);
+      const subject = `Item deleted: ${existing?.title || id}`;
+      const html = this.emailService.buildActivityTemplate({
+        action: 'Item Deleted',
+        title: existing?.title || id,
+        actorName,
+        details: '',
+      });
+      await this.emailService.sendActivityEmail(recipients, subject, html);
+    } catch (_) {}
     return { message: 'Work item deleted successfully' };
   }
 
   /* ================= Move Status ================= */
-  async moveStatus(moveDto: MoveStatusDto): Promise<WorkItem> {
+  async moveStatus(moveDto: MoveStatusDto, actorId?: string): Promise<WorkItem> {
     const { workItemId, toStatus } = moveDto;
     const item = await this.workItemModel.findById(workItemId).exec();
     if (!item) throw new NotFoundException('Work item not found');
 
+    const fromStatus = item.status;
     item.status = toStatus;
-    return item.save();
+    const saved = await item.save();
+    try {
+      const recipients = await this.getRecipientsByBoard(saved.board, actorId);
+      const actorName = await this.getActorName(actorId);
+      const subject = `Status changed: ${saved.title}`;
+      const html = this.emailService.buildActivityTemplate({
+        action: 'Status Changed',
+        title: saved.title,
+        actorName,
+        details: `From <strong>${fromStatus}</strong> to <strong>${toStatus}</strong>`,
+      });
+      await this.emailService.sendActivityEmail(recipients, subject, html);
+    } catch (_) {}
+    return saved;
   }
 
   /* ================= Assign User ================= */
-  async assignUser(assignDto: AssignUserDto): Promise<WorkItem> {
+  async assignUser(assignDto: AssignUserDto, actorId?: string): Promise<WorkItem> {
     const { workItemId, userId } = assignDto;
     const item = await this.workItemModel.findById(workItemId).exec();
     if (!item) throw new NotFoundException('Work item not found');
 
     item.assignee = new Types.ObjectId(userId);
-    return item.save();
+    const saved = await item.save();
+    try {
+      const recipients = await this.getRecipientsByBoard(saved.board, actorId);
+      const actorName = await this.getActorName(actorId);
+      const subject = `Assignee changed: ${saved.title}`;
+      const html = this.emailService.buildActivityTemplate({
+        action: 'Assignee Updated',
+        title: saved.title,
+        actorName,
+        details: `Assigned to user ID ${userId}`,
+      });
+      await this.emailService.sendActivityEmail(recipients, subject, html);
+    } catch (_) {}
+    return saved;
   }
 }

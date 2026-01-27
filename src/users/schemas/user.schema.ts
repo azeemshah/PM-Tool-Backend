@@ -43,6 +43,12 @@ export class User {
   passwordResetExpires: Date;
 
   @Prop({ default: null })
+  otp: string;
+
+  @Prop({ default: null })
+  otpExpires: Date;
+
+  @Prop({ default: null })
   refreshToken: string;
 
   @Prop({ default: null })

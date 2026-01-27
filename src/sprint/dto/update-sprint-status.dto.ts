@@ -5,5 +5,4 @@ import { SprintStatus } from '../enums/sprint-status.enum';
 export class UpdateSprintStatusDto {
   @IsEnum(SprintStatus)
   status: SprintStatus;
-
 }
