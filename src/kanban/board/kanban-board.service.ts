@@ -93,11 +93,7 @@ export class KanbanBoardService {
 
   // -------------------- Move Work Item --------------------
 
-  async moveWorkItem(
-    boardId: string,
-    moveWorkItemDto: MoveWorkItemDto,
-    userId: string | undefined,
-  ) {
+  async moveWorkItem(boardId: string, moveWorkItemDto: MoveWorkItemDto, userId: string | undefined) {
     const { workItemId, fromColumnId, toColumnId, position } = moveWorkItemDto;
 
     if (!Types.ObjectId.isValid(boardId)) {
@@ -148,14 +144,9 @@ export class KanbanBoardService {
 
       try {
         const board = await this.boardModel.findById(boardId).exec();
-        const workspace = board
-          ? await this.workspaceModel.findById(board.workspaceId).exec()
-          : null;
+        const workspace = board ? await this.workspaceModel.findById(board.workspaceId).exec() : null;
         const ids = workspace
-          ? [
-              workspace.OwnedBy?.toString(),
-              ...(workspace.members || []).map((m) => m.toString()),
-            ].filter(Boolean)
+          ? [workspace.OwnedBy?.toString(), ...((workspace.members || []).map((m) => m.toString()))].filter(Boolean)
           : [];
         const unique = Array.from(new Set(ids));
         const users = await this.userModel
@@ -166,12 +157,9 @@ export class KanbanBoardService {
           email: u.email,
           name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || undefined,
         }));
-        const actor = userId
-          ? await this.userModel.findById(userId).select('firstName lastName email').exec()
-          : null;
-        const actorName = actor
-          ? `${actor.firstName || ''} ${actor.lastName || ''}`.trim() || actor.email
-          : undefined;
+        const actor =
+          userId ? await this.userModel.findById(userId).select('firstName lastName email').exec() : null;
+        const actorName = actor ? (`${actor.firstName || ''} ${actor.lastName || ''}`.trim() || actor.email) : undefined;
         const subject = `Status changed: ${workItem.title}`;
         const html = this.emailService.buildActivityTemplate({
           action: 'Status Changed',
@@ -179,10 +167,7 @@ export class KanbanBoardService {
           actorName,
           workspaceName: workspace?.name,
           boardName: board?.name,
-          details: `From <strong>${fromColumn.name}</strong> to <strong>${targetColumn.name}</strong>
-            <div style="margin-top:8px;">
-              <strong>Type:</strong> ${(workItem as any).type || ''}
-            </div>`,
+          details: `From <strong>${fromColumn.name}</strong> to <strong>${targetColumn.name}</strong>`,
         });
         await this.emailService.sendActivityEmail(recipients, subject, html);
       } catch (_) {}
@@ -219,46 +204,6 @@ export class KanbanBoardService {
 
     column.workItems = cardIds.map((id) => new Types.ObjectId(id));
     await column.save();
-
-    try {
-      const board = await this.boardModel.findById(boardId).exec();
-      const workspace = board ? await this.workspaceModel.findById(board.workspaceId).exec() : null;
-      const ids = workspace
-        ? [
-            workspace.OwnedBy?.toString(),
-            ...(workspace.members || []).map((m) => m.toString()),
-          ].filter(Boolean)
-        : [];
-      const unique = Array.from(new Set(ids));
-      const users = await this.userModel
-        .find({ _id: { $in: unique } })
-        .select('email firstName lastName')
-        .exec();
-      const recipients = users.map((u: any) => ({
-        email: u.email,
-        name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || undefined,
-      }));
-      const titles = await this.workItemModel
-        .find({ _id: { $in: cardIds.map((id) => new Types.ObjectId(id)) } })
-        .select('title')
-        .exec();
-      const titleMap = new Map<string, string>();
-      for (const t of titles) {
-        titleMap.set(t._id.toString(), (t as any).title);
-      }
-      const orderedListHtml = `<ol>${cardIds
-        .map((id) => `<li>${titleMap.get(id) || id}</li>`)
-        .join('')}</ol>`;
-      const subject = `Cards reordered in ${column.name}`;
-      const html = this.emailService.buildActivityTemplate({
-        action: 'Cards Reordered',
-        title: column.name,
-        workspaceName: workspace?.name,
-        boardName: board?.name,
-        details: orderedListHtml,
-      });
-      await this.emailService.sendActivityEmail(recipients, subject, html);
-    } catch (_) {}
 
     return { message: 'Cards reordered successfully' };
   }

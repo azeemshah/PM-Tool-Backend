@@ -24,13 +24,6 @@ export class WorkItemService {
     private readonly emailService: EmailService,
   ) {}
 
-  private async getWorkspaceBoardNames(boardId?: Types.ObjectId | string) {
-    if (!boardId) return { workspaceName: undefined, boardName: undefined };
-    const board = await this.boardModel.findById(boardId).exec();
-    const workspace = board ? await this.workspaceModel.findById(board.workspaceId).exec() : null;
-    return { workspaceName: workspace?.name, boardName: board?.name };
-  }
-
   private async getRecipientsByBoard(boardId?: Types.ObjectId | string, actorId?: string) {
     if (!boardId) return [];
     const board = await this.boardModel.findById(boardId).exec();
@@ -58,62 +51,6 @@ export class WorkItemService {
     if (!user) return undefined;
     const name = `${user.firstName || ''} ${user.lastName || ''}`.trim();
     return name || user.email;
-  }
-
-  private async resolveStatusName(status: any): Promise<string | undefined> {
-    if (!status) return undefined;
-    try {
-      const id = status?.toString?.() ?? status;
-      if (Types.ObjectId.isValid(id)) {
-        const col = await this.columnModel.findById(status).select('name').exec();
-        return col?.name;
-      }
-      return String(status);
-    } catch {
-      return undefined;
-    }
-  }
-
-  private async getUserDisplay(userId?: Types.ObjectId | string): Promise<string | undefined> {
-    if (!userId) return undefined;
-    const u = await this.userModel.findById(userId).select('firstName lastName email').exec();
-    if (!u) return undefined;
-    const name = `${u.firstName || ''} ${u.lastName || ''}`.trim();
-    return name ? `${name} (${u.email})` : u.email;
-  }
-
-  private async getParentTitle(parentId?: Types.ObjectId | string): Promise<string | undefined> {
-    if (!parentId) return undefined;
-    const p = await this.workItemModel.findById(parentId).select('title type').exec();
-    return p ? `${(p as any).title} (${(p as any).type || ''})` : undefined;
-  }
-
-  private buildDetailsHtml(params: {
-    type?: string;
-    statusName?: string;
-    priority?: string;
-    assignee?: string;
-    parent?: string;
-    description?: string;
-    dueDate?: string | Date;
-  }): string {
-    const lines: string[] = [];
-    if (params.type) lines.push(`<li><strong>Type:</strong> ${params.type}</li>`);
-    if (params.statusName) lines.push(`<li><strong>Status:</strong> ${params.statusName}</li>`);
-    if (params.priority) lines.push(`<li><strong>Priority:</strong> ${params.priority}</li>`);
-    if (params.assignee) lines.push(`<li><strong>Assignee:</strong> ${params.assignee}</li>`);
-    if (params.parent) lines.push(`<li><strong>Parent:</strong> ${params.parent}</li>`);
-    if (params.dueDate) lines.push(`<li><strong>Due Date:</strong> ${params.dueDate}</li>`);
-    const desc =
-      params.description && String(params.description).trim().length > 0
-        ? `<div style="margin-top:8px;"><strong>Description:</strong> ${String(params.description).slice(0, 300)}</div>`
-        : '';
-    return `
-      <ul style="margin:0;padding-left:18px;">
-        ${lines.join('\n')}
-      </ul>
-      ${desc}
-    `;
   }
 
   /* ================= Create Work Item ================= */
@@ -156,27 +93,12 @@ export class WorkItemService {
     try {
       const recipients = await this.getRecipientsByBoard(payload.board, actorId);
       const actorName = await this.getActorName(actorId);
-      const { workspaceName, boardName } = await this.getWorkspaceBoardNames(payload.board);
-      const statusName = await this.resolveStatusName((createDto as any).columnId || savedItem.status);
-      const assignee = await this.getUserDisplay(savedItem.assignee);
-      const parent = await this.getParentTitle(savedItem.parent);
-      const details = this.buildDetailsHtml({
-        type: savedItem.type,
-        statusName,
-        priority: (savedItem as any).priority,
-        assignee,
-        parent,
-        description: (savedItem as any).description,
-        dueDate: savedItem?.metadata?.dueDate,
-      });
       const subject = `New ${savedItem.type} created: ${savedItem.title}`;
       const html = this.emailService.buildActivityTemplate({
         action: 'Item Created',
         title: savedItem.title,
         actorName,
-        workspaceName,
-        boardName,
-        details,
+        details: '',
       });
       await this.emailService.sendActivityEmail(recipients, subject, html);
     } catch (_) {}
@@ -227,29 +149,12 @@ export class WorkItemService {
         actorId,
       );
       const actorName = await this.getActorName(actorId);
-      const { workspaceName, boardName } = await this.getWorkspaceBoardNames(
-        updatePayload.board || updatedItem.board,
-      );
-      const statusName = await this.resolveStatusName(updatedItem.status);
-      const assignee = await this.getUserDisplay(updatedItem.assignee);
-      const parent = await this.getParentTitle(updatedItem.parent);
-      const details = this.buildDetailsHtml({
-        type: updatedItem.type,
-        statusName,
-        priority: (updatedItem as any).priority,
-        assignee,
-        parent,
-        description: (updatedItem as any).description,
-        dueDate: updatedItem?.metadata?.dueDate,
-      });
       const subject = `Item updated: ${updatedItem.title}`;
       const html = this.emailService.buildActivityTemplate({
         action: 'Item Updated',
         title: updatedItem.title,
         actorName,
-        workspaceName,
-        boardName,
-        details,
+        details: '',
       });
       await this.emailService.sendActivityEmail(recipients, subject, html);
     } catch (_) {}
@@ -288,27 +193,12 @@ export class WorkItemService {
     try {
       const recipients = await this.getRecipientsByBoard(saved.board, actorId);
       const actorName = await this.getActorName(actorId);
-      const { workspaceName, boardName } = await this.getWorkspaceBoardNames(saved.board);
-      const fromCol = await this.resolveStatusName(fromStatus);
-      const toCol = await this.resolveStatusName(toStatus);
-      const assignee = await this.getUserDisplay(saved.assignee);
-      const info = this.buildDetailsHtml({
-        type: saved.type,
-        statusName: toCol || undefined,
-        priority: (saved as any).priority,
-        assignee,
-        parent: await this.getParentTitle(saved.parent),
-        description: (saved as any).description,
-        dueDate: saved?.metadata?.dueDate,
-      });
       const subject = `Status changed: ${saved.title}`;
       const html = this.emailService.buildActivityTemplate({
         action: 'Status Changed',
         title: saved.title,
         actorName,
-        workspaceName,
-        boardName,
-        details: `From <strong>${fromCol || fromStatus}</strong> to <strong>${toCol || toStatus}</strong>${info}`,
+        details: `From <strong>${fromStatus}</strong> to <strong>${toStatus}</strong>`,
       });
       await this.emailService.sendActivityEmail(recipients, subject, html);
     } catch (_) {}
@@ -326,16 +216,12 @@ export class WorkItemService {
     try {
       const recipients = await this.getRecipientsByBoard(saved.board, actorId);
       const actorName = await this.getActorName(actorId);
-      const { workspaceName, boardName } = await this.getWorkspaceBoardNames(saved.board);
-      const assignedTo = await this.getUserDisplay(userId);
       const subject = `Assignee changed: ${saved.title}`;
       const html = this.emailService.buildActivityTemplate({
         action: 'Assignee Updated',
         title: saved.title,
         actorName,
-        workspaceName,
-        boardName,
-        details: `Assigned to ${assignedTo || userId}`,
+        details: `Assigned to user ID ${userId}`,
       });
       await this.emailService.sendActivityEmail(recipients, subject, html);
     } catch (_) {}

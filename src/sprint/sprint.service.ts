@@ -159,4 +159,23 @@ export class SprintService {
     if (!sprint) throw new NotFoundException('Sprint not found');
     return sprint;
   }
+
+  async updateSprintDetails(
+    sprintId: string,
+    body: Partial<{ name: string; goal?: string; startDate: string; endDate: string }>,
+  ) {
+    const sprint = await this.sprintModel.findById(sprintId);
+    if (!sprint) throw new NotFoundException('Sprint not found');
+    if (typeof body.name === 'string') sprint.name = body.name;
+    if (typeof body.goal !== 'undefined') sprint.goal = body.goal || '';
+    if (typeof body.startDate === 'string') sprint.startDate = new Date(body.startDate) as any;
+    if (typeof body.endDate === 'string') sprint.endDate = new Date(body.endDate) as any;
+    return sprint.save();
+  }
+
+  async deleteSprint(sprintId: string) {
+    const sprint = await this.sprintModel.findByIdAndDelete(sprintId);
+    if (!sprint) throw new NotFoundException('Sprint not found');
+    return { message: 'Sprint deleted successfully', sprintId };
+  }
 }

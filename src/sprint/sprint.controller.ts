@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Delete } from '@nestjs/common';
 import { SprintService } from './sprint.service';
 import { CreateSprintDto } from './dto/create-sprint.dto';
 import { AddWorkItemsToSprintDto } from './dto/add-workitems-to-sprint.dto';
@@ -40,5 +41,18 @@ export class SprintController {
   @Patch(':id/columns')
   updateSprintColumns(@Param('id') sprintId: string, @Body() body: { columns: string[] }) {
     return this.sprintService.updateSprintColumns(sprintId, body.columns);
+  }
+
+  @Patch(':id')
+  updateSprintDetails(
+    @Param('id') sprintId: string,
+    @Body() body: Partial<{ name: string; goal?: string; startDate: string; endDate: string }>,
+  ) {
+    return this.sprintService.updateSprintDetails(sprintId, body);
+  }
+
+  @Delete(':id')
+  deleteSprint(@Param('id') sprintId: string) {
+    return this.sprintService.deleteSprint(sprintId);
   }
 }
