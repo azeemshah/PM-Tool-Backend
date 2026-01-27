@@ -163,6 +163,7 @@ async findByWorkspace(
     priority?: string;
     type?: string;
     reporter?: string;
+    keyword?: string; // <-- add keyword
   },
 ) {
   const {
@@ -172,6 +173,7 @@ async findByWorkspace(
     priority,
     type,
     reporter,
+    keyword, // <-- grab it
   } = query;
 
   const filter: any = { workspace: workspaceId };
@@ -181,6 +183,14 @@ async findByWorkspace(
   if (priority) filter.priority = priority;
   if (type) filter.type = type;
   if (reporter) filter.reporter = reporter;
+
+  // Keyword search: search in title and description
+  if (keyword) {
+    filter.$or = [
+      { title: { $regex: keyword, $options: "i" } },        // case-insensitive
+      { description: { $regex: keyword, $options: "i" } },  // case-insensitive
+    ];
+  }
 
   const skip = (page - 1) * limit;
 
@@ -231,6 +241,7 @@ async findByWorkspace(
     },
   };
 }
+
 
  
   async findTree(rootId: string) {

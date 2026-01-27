@@ -5,35 +5,38 @@ import { UpdateItemDto } from './dto/update-work-item.dto';
 
 @Controller('items')
 export class ItemController {
-  constructor(private readonly itemService: ItemService) {}
+  constructor(private readonly itemService: ItemService) { }
 
   @Post('create')
   create(@Request() req: any, @Body() dto: CreateItemDto) {
     return this.itemService.create(dto);
   }
 
- @Get('workspace/:workspaceId')
-findByWorkspace(
-  @Param('workspaceId') workspaceId: string,
-  @Query('page') page = 1,
-  @Query('limit') limit = 10,
-  @Query('status') status?: string,
-  @Query('priority') priority?: string,
-  @Query('type') type?: string,
-  @Query('reporter') reporter?: string,
-) {
-  return this.itemService.findByWorkspace(
-    workspaceId,
-    {
-      page: Number(page),
-      limit: Number(limit),
-      status,
-      priority,
-      type,
-      reporter,
-    }
-  );
-}
+  @Get('workspace/:workspaceId')
+  findByWorkspace(
+    @Param('workspaceId') workspaceId: string,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('status') status?: string,
+    @Query('priority') priority?: string,
+    @Query('type') type?: string,
+    @Query('reporter') reporter?: string,
+    @Query('keyword') keyword?: string, // <-- add this
+
+  ) {
+    return this.itemService.findByWorkspace(
+      workspaceId,
+      {
+        page: Number(page),
+        limit: Number(limit),
+        status,
+        priority,
+        type,
+        reporter,
+        keyword, // <-- pass to service
+      }
+    );
+  }
 
 
   @Get(':id/tree')
