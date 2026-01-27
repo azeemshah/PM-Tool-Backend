@@ -13,7 +13,7 @@ import { KanbanColumn } from '../kanban/column/schemas/column.schema';
 import { KanbanBoard } from '../kanban/board/schemas/kanban-board.schema';
 import { EmailService } from '../email/email.service';
 import { UsersService } from '../users/users.service';
-
+ 
 @Injectable()
 export class ItemService {
   constructor(
@@ -25,19 +25,19 @@ export class ItemService {
     private readonly boardModel: Model<KanbanBoard>,
     private readonly emailService: EmailService,
     private readonly usersService: UsersService,
-  ) {}
-
+  ) { }
+ 
   async create(dto: CreateItemDto): Promise<Item> {
     let path = '';
     console.log('DTO Received in Service:', dto);
-
+ 
     let parent: Item | null = null;
-
+ 
     if (dto.parent) {
       parent = await this.itemModel.findById(dto.parent);
       if (!parent) throw new NotFoundException('Parent item not found');
     }
-
+ 
     switch (dto.type) {
       case ItemType.SUBTASK: {
         if (!parent) {
@@ -45,7 +45,7 @@ export class ItemService {
             'Subtask must be assigned to a parent issue (Story/Task/Bug)',
           );
         }
-
+ 
         if (
           parent.type !== ItemType.STORY &&
           parent.type !== ItemType.TASK &&
@@ -72,22 +72,22 @@ export class ItemService {
       default:
         break;
     }
-
+ 
     if (parent) {
       path = `${parent.path}.${parent._id}`;
     } else {
       path = 'root';
     }
-
+ 
     let columnId = dto.column;
     const initialStatus = dto.status ?? ItemStatus.BACKLOG;
-
+ 
     if (!columnId) {
       let board = await this.boardModel.findOne({
         workspaceId: dto.workspace,
         name: 'Default Board',
       });
-
+ 
       if (!board) {
         board = await this.boardModel.findOneAndUpdate(
           {
@@ -105,16 +105,16 @@ export class ItemService {
           },
         );
       }
-
+ 
       if (!board) {
         throw new InternalServerErrorException('Failed to create or find default board');
       }
-
+ 
       let columns = await this.columnModel.find({ BoardId: board._id }).sort({ position: 1 });
-
+ 
       if (columns.length === 0) {
         const defaultColumns = ['To Do', 'In Progress', 'In Review', 'Done'];
-
+ 
         const createdColumns = await Promise.all(
           defaultColumns.map((name, index) =>
             this.columnModel.create({
@@ -124,37 +124,37 @@ export class ItemService {
             }),
           ),
         );
-
+ 
         columns = createdColumns;
       }
-
+ 
       if (columns.length > 0) {
         const statusString = initialStatus.toString().toLowerCase().replace(/\s/g, '');
-
+ 
         const matchedColumn = columns.find(
           (col) => col.name.toLowerCase().replace(/\s/g, '') === statusString,
         );
-
+ 
         const targetColumn = matchedColumn ?? columns[0];
-
+ 
         columnId = targetColumn._id.toString();
       }
     }
-
+ 
     const item = new this.itemModel({
       ...dto,
       status: initialStatus,
       column: columnId,
       path,
     });
-
+ 
     const saved = await item.save();
-
+ 
     await this.notifyUsers(saved, 'created');
     return saved;
   }
-
-  async findByWorkspace(
+ 
+async findByWorkspace(
   workspaceId: string,
   query: {
     page?: number;
@@ -200,46 +200,60 @@ export class ItemService {
       })
       .lean(),
 
-    return tasks.map((task: any) => ({
-      ...task,
-      assignedTo: task.assignedTo
-        ? {
-            _id: task.assignedTo._id,
-            name: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
-            profilePicture: task.assignedTo.profilePicture,
-          }
-        : null,
-      reporter: task.reporter
-        ? {
-            _id: task.reporter._id,
-            name: `${task.reporter.firstName} ${task.reporter.lastName}`,
-            profilePicture: task.reporter.profilePicture,
-          }
-        : null,
-    }));
-  }
+    this.itemModel.countDocuments(filter),
+  ]);
 
+  const formattedTasks = tasks.map((task: any) => ({
+    ...task,
+    assignedTo: task.assignedTo
+      ? {
+          _id: task.assignedTo._id,
+          name: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
+          profilePicture: task.assignedTo.profilePicture,
+        }
+      : null,
+    reporter: task.reporter
+      ? {
+          _id: task.reporter._id,
+          name: `${task.reporter.firstName} ${task.reporter.lastName}`,
+          profilePicture: task.reporter.profilePicture,
+        }
+      : null,
+  }));
+
+  return {
+    data: formattedTasks,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
+ 
   async findTree(rootId: string) {
     const root = await this.itemModel.findById(rootId);
     if (!root) throw new NotFoundException('Item not found');
-
+ 
     return this.itemModel
       .find({ path: { $regex: `^${root.path}` } })
       .sort({ path: 1 })
       .lean();
   }
-
+ 
   async moveToColumn(itemId: string, columnId: string) {
     const column = await this.columnModel.findById(columnId);
     if (!column) {
       throw new NotFoundException('Target column not found');
     }
-
+ 
     const normalize = (value: string) => value.toLowerCase().replace(/\s/g, '');
     const columnName = normalize(column.name || '');
-
+ 
     let nextStatus: string = column.name || 'To Do';
-
+ 
     if (columnName === 'todo' || columnName === 'todo') {
       nextStatus = ItemStatus.TODO;
     } else if (columnName === 'inprogress') {
@@ -251,7 +265,7 @@ export class ItemService {
     } else if (columnName === 'backlog') {
       nextStatus = ItemStatus.BACKLOG;
     }
-
+ 
     return this.itemModel.findByIdAndUpdate(
       itemId,
       {
@@ -261,7 +275,7 @@ export class ItemService {
       { new: true },
     );
   }
-
+ 
   async moveToBacklog(itemId: string) {
     return this.itemModel.findByIdAndUpdate(
       itemId,
@@ -272,31 +286,31 @@ export class ItemService {
       { new: true },
     );
   }
-
+ 
   async update(itemId: string, dto: UpdateItemDto): Promise<Item> {
     const item = await this.itemModel.findById(itemId);
     if (!item) throw new NotFoundException('Item not found');
-
+ 
     // Prevent path corruption
     if ('path' in dto) {
       throw new BadRequestException('Path cannot be updated directly');
     }
-
+ 
     // Optional: validate type change
     if (dto.type && dto.type !== item.type) {
       throw new BadRequestException('Changing item type is not allowed');
     }
-
+ 
     Object.assign(item, dto);
     const saved = await item.save();
     await this.notifyUsers(saved, 'updated');
     return saved;
   }
-
+ 
   async delete(itemId: string) {
     const item = await this.itemModel.findById(itemId);
     if (!item) throw new NotFoundException('Item not found');
-
+ 
     // 1. Detach direct children
     await this.itemModel.updateMany(
       { parent: item._id },
@@ -309,22 +323,22 @@ export class ItemService {
         },
       },
     );
-
+ 
     // 2. Delete only the item itself
     await this.itemModel.deleteOne({ _id: item._id });
-
+ 
     return {
       message: 'Item deleted. Children detached and moved to root.',
     };
   }
-
+ 
   private async notifyUsers(item: Item, action: 'created' | 'updated'): Promise<void> {
     const recipients: Array<{ email: string; firstName: string }> = [];
-
+ 
     const ids: string[] = [];
     if (item.assignedTo) ids.push((item.assignedTo as unknown as Types.ObjectId).toString());
     if (item.reporter) ids.push((item.reporter as unknown as Types.ObjectId).toString());
-
+ 
     const uniqueIds = Array.from(new Set(ids));
     for (const id of uniqueIds) {
       try {
@@ -332,18 +346,19 @@ export class ItemService {
         if (user?.email) {
           recipients.push({ email: user.email, firstName: user.firstName || 'User' });
         }
-      } catch {}
+      } catch { }
     }
-
+ 
     const payload = {
       title: item.title,
       type: item.type,
       status: item.status,
     };
-
+ 
     const tasks: Promise<void>[] = recipients.map((r) =>
       this.emailService.sendWorkItemNotification(r.email, r.firstName, action, payload),
     );
     await Promise.allSettled(tasks);
   }
 }
+ 
