@@ -4,6 +4,9 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { EmailModule } from '../email/email.module';
 import { Workspace, WorkspaceSchema } from '../workspace/schemas/workspace.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
+import { MemberSchema } from '../member/schemas/member.schema';
+import { WorkspacePermissionGuard } from '../common/guards/workspace-permission.guard';
+import { Item, ItemSchema } from '@/work-items/schemas/work-item.schema';
 
 // Board
 import { KanbanBoardController } from './board/kanban-board.controller';
@@ -139,6 +142,8 @@ import { ColumnController } from './column/column.controller';
       // Workspace & User
       { name: Workspace.name, schema: WorkspaceSchema },
       { name: User.name, schema: UserSchema },
+      { name: 'Member', schema: MemberSchema },
+      { name: Item.name, schema: ItemSchema },
     ]),
   ],
   controllers: [
@@ -165,7 +170,11 @@ import { ColumnController } from './column/column.controller';
     AuditService,
     SearchService,
     ColumnService,
+<<<<<<< HEAD
     CommentService,
+=======
+    WorkspacePermissionGuard,
+>>>>>>> 089fb8d85bd356969689690d8ce6fdfb7b6db30a
   ],
 })
 export class KanbanModule {}
