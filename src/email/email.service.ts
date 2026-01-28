@@ -367,7 +367,8 @@ export class EmailService {
     const acceptLink = workspaceInviteCode
       ? `${this.configService.get('FRONTEND_URL')}/invite/workspace/${workspaceInviteCode}/join`
       : inviteLink;
-
+    const roleText = (role || '').toUpperCase();
+    const adminDesc = 'Can view, create, edit tasks, project and manage settings.';
     return `
       <!DOCTYPE html>
       <html>
@@ -395,6 +396,7 @@ export class EmailService {
             <div class="role">
               <strong>Role:</strong> ${role}
             </div>
+            ${roleText === 'ADMIN' ? `<p style="margin:10px 0;">${adminDesc}</p>` : ''}
             <p>Click the button below to accept your invitation and get started:</p>
             <a href="${acceptLink}" class="button">Accept Invitation</a>
             <div class="link-section">

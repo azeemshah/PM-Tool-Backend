@@ -19,6 +19,8 @@ import { UpdateBoardDto } from './dto/update-board.dto';
 import { MoveWorkItemDto } from './dto/move-work-item.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { WorkspacePermissionGuard } from '../../common/guards/workspace-permission.guard';
+import { Permissions } from '../../common/decorators/permissions.decorator';
 
 @Controller('kanban')
 export class KanbanBoardController {
@@ -27,21 +29,29 @@ export class KanbanBoardController {
   // -------------------- Boards --------------------
 
   @Post('boards')
+  @UseGuards(JwtAuthGuard, WorkspacePermissionGuard)
+  @Permissions('CREATE_PROJECT')
   async createBoard(@Body() createBoardDto: CreateBoardDto): Promise<KanbanBoard> {
     return this.boardService.createBoard(createBoardDto);
   }
 
   @Get('board/workspaces/:workspaceId/boards')
+  @UseGuards(JwtAuthGuard, WorkspacePermissionGuard)
+  @Permissions('VIEW_ONLY')
   async findBoardsByWorkspace(@Param('workspaceId') workspaceId: string): Promise<KanbanBoard[]> {
     return this.boardService.findBoardsByWorkspaceId(workspaceId);
   }
 
   @Get('board/:id')
+  @UseGuards(JwtAuthGuard, WorkspacePermissionGuard)
+  @Permissions('VIEW_ONLY')
   async findBoardById(@Param('id') id: string): Promise<KanbanBoard> {
     return this.boardService.findBoardById(id);
   }
 
   @Put('boards/:id')
+  @UseGuards(JwtAuthGuard, WorkspacePermissionGuard)
+  @Permissions('EDIT_PROJECT')
   async updateBoard(
     @Param('id') id: string,
     @Body() updateBoardDto: UpdateBoardDto,
@@ -51,6 +61,8 @@ export class KanbanBoardController {
 
   @Delete('boards/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, WorkspacePermissionGuard)
+  @Permissions('DELETE_PROJECT')
   async deleteBoard(@Param('id') id: string): Promise<void> {
     return this.boardService.deleteBoard(id);
   }
@@ -58,6 +70,8 @@ export class KanbanBoardController {
   // -------------------- Board Columns --------------------
 
   @Get('boards/:boardId/columns')
+  @UseGuards(JwtAuthGuard, WorkspacePermissionGuard)
+  @Permissions('VIEW_ONLY')
   async getBoardColumns(@Param('boardId') boardId: string): Promise<KanbanColumn[]> {
     return this.boardService.getBoardColumns(boardId);
   }
@@ -65,7 +79,8 @@ export class KanbanBoardController {
   // -------------------- Move Work Item --------------------
 
   @Post('boards/:boardId/move-work-item')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, WorkspacePermissionGuard)
+  @Permissions('EDIT_TASK')
   async moveWorkItem(
     @Param('boardId') boardId: string,
     @Body() moveWorkItemDto: MoveWorkItemDto,
@@ -77,6 +92,8 @@ export class KanbanBoardController {
   // -------------------- Reorder Cards in List --------------------
 
   @Put('boards/:boardId/columns/:columnId/reorder-cards')
+  @UseGuards(JwtAuthGuard, WorkspacePermissionGuard)
+  @Permissions('EDIT_TASK')
   async reorderCardsInList(
     @Param('boardId') boardId: string,
     @Param('columnId') columnId: string,
