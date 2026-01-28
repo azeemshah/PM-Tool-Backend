@@ -5,9 +5,11 @@ import { Model, Types } from 'mongoose';
 import { Comment, CommentDocument } from './schemas/comment.schema';
 import { CreateCommentDto } from './dto/create-comment.dto';
 
+import { UpdateCommentDto } from './dto/update-comment.dto';
+
 @Injectable()
 export class CommentService {
-  constructor(@InjectModel(Comment.name) private readonly commentModel: Model<CommentDocument>) {}
+  constructor(@InjectModel(Comment.name) private readonly commentModel: Model<CommentDocument>) { }
 
   // -------------------- Create Comment --------------------
   async createComment(dto: CreateCommentDto): Promise<Comment> {
@@ -17,7 +19,8 @@ export class CommentService {
       content: dto.content,
       userId: dto.userId ? new Types.ObjectId(dto.userId) : undefined,
     });
-    return comment.save();
+    const savedComment = await comment.save();
+    return savedComment.populate('userId');
   }
 
   // -------------------- Get All Comments --------------------
@@ -27,6 +30,15 @@ export class CommentService {
       .populate('workItem')
       .populate('parentComment')
       .populate('userId')
+      .exec();
+  }
+
+  // -------------------- Get Comments by Work Item ID --------------------
+  async getCommentsByWorkItem(workItemId: string): Promise<Comment[]> {
+    return this.commentModel
+      .find({ workItem: new Types.ObjectId(workItemId) })
+      .populate('userId')
+      .sort({ createdAt: -1 }) // Newest first
       .exec();
   }
 
@@ -41,6 +53,18 @@ export class CommentService {
     if (!comment) throw new NotFoundException(`Comment with ID ${id} not found`);
     return comment;
   }
+
+  // -------------------- Update Comment --------------------
+  async updateComment(id: string, dto: UpdateCommentDto): Promise<Comment> {
+    const comment = await this.commentModel
+      .findByIdAndUpdate(id, { $set: dto }, { new: true })
+      .populate('userId')
+      .exec();
+    if (!comment) throw new NotFoundException(`Comment with ID ${id} not found`);
+    return comment;
+  }
+
+  // -------------------- Delete Comment --------------------
 
   // -------------------- Delete Comment --------------------
   async deleteComment(id: string): Promise<{ message: string }> {

@@ -152,6 +152,7 @@ import { ColumnController } from './column/column.controller';
     AuditController,
     SearchController,
     ColumnController,
+    CommentController,
   ],
   providers: [
     KanbanBoardService,
@@ -164,6 +165,7 @@ import { ColumnController } from './column/column.controller';
     AuditService,
     SearchService,
     ColumnService,
+    CommentService,
   ],
 })
 export class KanbanModule {}
