@@ -3,6 +3,7 @@ import { Role } from '../enums/role.enum';
 // Define permissions for each role
 const rolePermissions: Record<string, string[]> = {
   [Role.ADMIN]: [
+    'VIEW_ONLY',
     'MANAGE_WORKSPACE_SETTINGS',
     'CHANGE_MEMBER_ROLE',
     'REMOVE_MEMBER',
@@ -16,6 +17,7 @@ const rolePermissions: Record<string, string[]> = {
   [Role.MEMBER]: ['CREATE_TASK', 'EDIT_TASK', 'CREATE_PROJECT', 'EDIT_PROJECT', 'VIEW_ONLY'],
   [Role.VIEWER]: ['VIEW_ONLY'],
   Owner: [
+    'VIEW_ONLY',
     'EDIT_WORKSPACE',
     'DELETE_WORKSPACE',
     'MANAGE_WORKSPACE_SETTINGS',
@@ -39,10 +41,21 @@ const roleIds: Record<string, string> = {
   Owner: '0',
 };
 
+function normalizeRole(role: string): string {
+  const r = (role || '').trim().toUpperCase();
+  if (r === 'ADMIN') return Role.ADMIN;
+  if (r === 'MEMBER') return Role.MEMBER;
+  if (r === 'VIEWER') return Role.VIEWER;
+  if (r === 'OWNER') return 'Owner';
+  return role;
+}
+
 export function getPermissionsForRole(role: string): string[] {
-  return rolePermissions[role] || [];
+  const key = normalizeRole(role);
+  return rolePermissions[key] || [];
 }
 
 export function getRoleId(role: string): string {
-  return roleIds[role] || role;
+  const key = normalizeRole(role);
+  return roleIds[key] || role;
 }
