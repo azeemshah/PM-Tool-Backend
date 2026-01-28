@@ -170,11 +170,7 @@ import { ColumnController } from './column/column.controller';
     AuditService,
     SearchService,
     ColumnService,
-<<<<<<< HEAD
-    CommentService,
-=======
     WorkspacePermissionGuard,
->>>>>>> 089fb8d85bd356969689690d8ce6fdfb7b6db30a
   ],
 })
 export class KanbanModule {}
