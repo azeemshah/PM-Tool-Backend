@@ -17,6 +17,10 @@ import { KanbanBoard } from '../kanban/board/schemas/kanban-board.schema';
 import { KanbanColumn } from '../kanban/column/schemas/column.schema';
 import { Item } from '@/work-items/schemas/work-item.schema';
 
+import { NotificationService } from '../kanban/notification/notification.service';
+import { NotificationType } from '../kanban/notification/schemas/notification.schema';
+import { UsersService } from '../users/users.service';
+
 @Injectable()
 export class WorkspaceService {
   constructor(
@@ -31,6 +35,8 @@ export class WorkspaceService {
     @InjectModel('Notification') private notificationModel: Model<any>,
     @InjectModel('SavedFilter') private savedFilterModel: Model<any>,
     @InjectModel('Sprint') private sprintModel: Model<any>,
+    private notificationService: NotificationService,
+    private usersService: UsersService,
   ) {}
 
   /**
@@ -254,6 +260,7 @@ export class WorkspaceService {
   async update(
     workspaceId: string,
     updateWorkspaceDto: UpdateWorkspaceDto,
+    userId?: string,
   ): Promise<WorkspaceDocument> {
     if (!Types.ObjectId.isValid(workspaceId)) {
       throw new BadRequestException('Invalid workspace ID');
@@ -269,6 +276,44 @@ export class WorkspaceService {
       throw new NotFoundException('Workspace not found');
     }
 
+    // Notify members about update
+    try {
+      // Get actor details
+      let actorName = 'Someone';
+      if (userId) {
+          try {
+              const actor = await this.usersService.findOne(userId);
+              if (actor) {
+                  actorName = `${actor.firstName} ${actor.lastName}`;
+              }
+          } catch (e) {
+              console.error('Failed to fetch actor details', e);
+          }
+      }
+
+      const memberIds = workspace.members.map((m: any) => m.userId ? m.userId._id.toString() : m.toString());
+      const ownerId = workspace.OwnedBy?._id?.toString() || workspace.OwnedBy?.toString();
+      const allIds = new Set([...memberIds, ownerId].filter(Boolean));
+      
+      // const recipients = Array.from(allIds).filter(id => id !== userId);
+      // User requested to receive notifications for their own actions as well
+      const recipients = Array.from(allIds);
+
+      for (const recipientId of recipients) {
+        await this.notificationService.create({
+            recipient: new Types.ObjectId(recipientId),
+            sender: userId ? new Types.ObjectId(userId) : undefined,
+            type: NotificationType.WORKSPACE_UPDATED,
+            message: recipientId.toString() === userId
+              ? `You updated workspace "${workspace.name}"`
+              : `${actorName} updated workspace "${workspace.name}"`,
+            workspace: workspace._id,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to notify members about workspace update:', err);
+    }
+
     return workspace;
   }
 
@@ -280,6 +325,24 @@ export class WorkspaceService {
     const workspace = await this.workspaceModel.findById(workspaceId);
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
+    }
+
+    // Notify members about deletion before deleting
+    try {
+      const memberIds = workspace.members.map((m: any) => m.toString());
+      const ownerId = workspace.OwnedBy?.toString();
+      const allIds = new Set([...memberIds, ownerId].filter(Boolean));
+
+      for (const recipientId of allIds) {
+        await this.notificationService.create({
+            recipient: new Types.ObjectId(recipientId),
+            type: NotificationType.WORKSPACE_DELETED,
+            message: `Workspace "${workspace.name}" was deleted`,
+            // workspace: workspace._id, // Cannot link to deleted workspace
+        });
+      }
+    } catch (err) {
+      console.error('Failed to notify members about workspace deletion:', err);
     }
 
     // 1. Delete all WorkItems in the workspace

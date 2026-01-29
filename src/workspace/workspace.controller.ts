@@ -44,8 +44,8 @@ export class WorkspaceController {
     };
   }
 
-  @Get(':id')
-  async findById(@Param('id') id: string) {
+  @Get(':workspaceId')
+  async findById(@Param('workspaceId') id: string) {
     const workspace = await this.workspaceService.findById(id);
     return {
       success: true,
@@ -54,11 +54,11 @@ export class WorkspaceController {
     };
   }
 
-  @Patch(':id')
+  @Patch(':workspaceId')
   @UseGuards(WorkspacePermissionGuard)
   @Permissions('MANAGE_WORKSPACE_SETTINGS')
-  async update(@Param('id') id: string, @Body() updateWorkspaceDto: UpdateWorkspaceDto) {
-    const workspace = await this.workspaceService.update(id, updateWorkspaceDto);
+  async update(@Request() req: any, @Param('workspaceId') id: string, @Body() updateWorkspaceDto: UpdateWorkspaceDto) {
+    const workspace = await this.workspaceService.update(id, updateWorkspaceDto, req.user.userId);
     return {
       success: true,
       message: 'Workspace updated successfully',
@@ -66,10 +66,10 @@ export class WorkspaceController {
     };
   }
 
-  @Delete(':id')
+  @Delete(':workspaceId')
   @UseGuards(WorkspacePermissionGuard)
   @Permissions('DELETE_WORKSPACE')
-  async delete(@Param('id') id: string) {
+  async delete(@Param('workspaceId') id: string) {
     await this.workspaceService.delete(id);
     return {
       success: true,
@@ -77,8 +77,8 @@ export class WorkspaceController {
     };
   }
 
-  @Get('analytics/:id')
-  getWorkspaceAnalytics(@Param('id') workspaceId: string) {
+  @Get('analytics/:workspaceId')
+  getWorkspaceAnalytics(@Param('workspaceId') workspaceId: string) {
     return this.workspaceService.getAnalytics(workspaceId);
   }
 }

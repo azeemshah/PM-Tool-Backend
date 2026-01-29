@@ -16,6 +16,7 @@ export class UserCurrentController {
     return {
       user: {
         ...serialized,
+        _id: user._id.toString(),
         currentWorkspace: user._id.toString(),
       },
     };

@@ -15,7 +15,8 @@ import { MoveWorkItemDto } from './dto/move-work-item.dto';
 import { WorkItem } from '../work-item/schemas/work-item.schema';
 import { Workspace } from '../../workspace/schemas/workspace.schema';
 import { User } from '../../users/schemas/user.schema';
-import { EmailService } from '../../email/email.service';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../notification/schemas/notification.schema';
 
 @Injectable()
 export class KanbanBoardService {
@@ -30,7 +31,7 @@ export class KanbanBoardService {
     private readonly workspaceModel: Model<Workspace>,
     @InjectModel(User.name)
     private readonly userModel: Model<User>,
-    private readonly emailService: EmailService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   // -------------------- Board CRUD --------------------
@@ -157,32 +158,24 @@ export class KanbanBoardService {
               ...(workspace.members || []).map((m) => m.toString()),
             ].filter(Boolean)
           : [];
-        const unique = Array.from(new Set(ids));
-        const users = await this.userModel
-          .find({ _id: { $in: unique } })
-          .select('email firstName lastName')
-          .exec();
-        const recipients = users.map((u: any) => ({
-          email: u.email,
-          name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || undefined,
-        }));
-        const actor = userId
-          ? await this.userModel.findById(userId).select('firstName lastName email').exec()
-          : null;
-        const actorName = actor
-          ? `${actor.firstName || ''} ${actor.lastName || ''}`.trim() || actor.email
-          : undefined;
-        const subject = `Status changed: ${workItem.title}`;
-        const html = this.emailService.buildActivityTemplate({
-          action: 'Status Changed',
-          title: workItem.title,
-          actorName,
-          workspaceName: workspace?.name,
-          boardName: board?.name,
-          details: `From <strong>${fromColumn.name}</strong> to <strong>${targetColumn.name}</strong>`,
-        });
-        await this.emailService.sendActivityEmail(recipients, subject, html);
-      } catch (_) {}
+        const uniqueIds = Array.from(new Set(ids));
+
+        for (const recipientId of uniqueIds) {
+            // Don't notify the user who performed the action
+            // if (userId && recipientId === userId.toString()) continue;
+
+            await this.notificationService.create({
+                recipient: new Types.ObjectId(recipientId),
+                sender: userId ? new Types.ObjectId(userId) : undefined,
+                type: NotificationType.STATUS_CHANGED,
+                message: `Work item "${workItem.title}" moved from ${fromColumn.name} to ${targetColumn.name}`,
+                workspace: workspace?._id,
+                workItem: new Types.ObjectId(workItemId),
+            });
+        }
+      } catch (err) {
+        console.error('Failed to send notification:', err);
+      }
 
       return { message: 'Work item moved successfully' };
     } catch (err) {

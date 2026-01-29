@@ -7,10 +7,12 @@ import { UploadAttachmentDto } from './dto/upload-attachment.dto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { WorkItem } from '../work-item/schemas/work-item.schema';
+import { Item } from '@/work-items/schemas/work-item.schema';
 import { KanbanBoard } from '../board/schemas/kanban-board.schema';
 import { Workspace } from '../../workspace/schemas/workspace.schema';
 import { User } from '../../users/schemas/user.schema';
-import { EmailService } from '../../email/email.service';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../notification/schemas/notification.schema';
 
 @Injectable()
 export class AttachmentService {
@@ -19,13 +21,15 @@ export class AttachmentService {
     private readonly attachmentModel: Model<AttachmentDocument>,
     @InjectModel(WorkItem.name)
     private readonly workItemModel: Model<WorkItem>,
+    @InjectModel(Item.name)
+    private readonly itemModel: Model<Item>,
     @InjectModel(KanbanBoard.name)
     private readonly boardModel: Model<KanbanBoard>,
     @InjectModel(Workspace.name)
     private readonly workspaceModel: Model<Workspace>,
     @InjectModel(User.name)
     private readonly userModel: Model<User>,
-    private readonly emailService: EmailService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   // -------------------- Upload Attachment --------------------
@@ -40,39 +44,47 @@ export class AttachmentService {
 
     const saved = await attachment.save();
     try {
-      const item = await this.workItemModel.findById(dto.workItemId).exec();
-      const board = item ? await this.boardModel.findById(item.board).exec() : null;
-      const workspace = board ? await this.workspaceModel.findById(board.workspaceId).exec() : null;
-      const actor = dto.userId
-        ? await this.userModel.findById(dto.userId).select('firstName lastName email').exec()
-        : null;
-      const actorName = actor
-        ? `${actor.firstName || ''} ${actor.lastName || ''}`.trim() || actor.email
-        : undefined;
+      let item: any = await this.workItemModel.findById(dto.workItemId).exec();
+      if (!item) {
+          item = await this.itemModel.findById(dto.workItemId).exec();
+      }
+
+      let workspace: any = null;
+      
+      const workspaceId = (item as any)?.workspace || (item as any)?.spaceid;
+
+      if (workspaceId) {
+          workspace = await this.workspaceModel.findById(workspaceId).exec();
+      } else if (item?.board) {
+          const board = await this.boardModel.findById(item.board).exec();
+          if (board) {
+             workspace = await this.workspaceModel.findById(board.workspaceId).exec();
+          }
+      }
+
       const ids = workspace
         ? [
             workspace.OwnedBy?.toString(),
             ...(workspace.members || []).map((m) => m.toString()),
           ].filter(Boolean)
         : [];
-      const unique = Array.from(new Set(ids));
-      const users = await this.userModel
-        .find({ _id: { $in: unique } })
-        .select('email firstName lastName')
-        .exec();
-      const recipients = users.map((u: any) => ({
-        email: u.email,
-        name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || undefined,
-      }));
-      const subject = `Attachment added: ${item?.title || ''}`;
-      const html = this.emailService.buildActivityTemplate({
-        action: 'Attachment Added',
-        title: item?.title || saved.fileName,
-        actorName,
-        details: `File: <strong>${saved.fileName}</strong>`,
-      });
-      await this.emailService.sendActivityEmail(recipients, subject, html);
-    } catch (_) {}
+      const uniqueIds = Array.from(new Set(ids));
+      
+      for (const recipientId of uniqueIds) {
+           // if (dto.userId && recipientId === dto.userId) continue;
+
+           await this.notificationService.create({
+               recipient: new Types.ObjectId(recipientId),
+               sender: dto.userId ? new Types.ObjectId(dto.userId) : undefined,
+               type: NotificationType.ATTACHMENT_ADDED,
+               message: `Attachment "${saved.fileName}" added to "${item?.title}"`,
+               workspace: workspace?._id,
+               workItem: item?._id as any
+           });
+      }
+    } catch (err) {
+      console.error('Failed to send attachment notification:', err);
+    }
     return saved;
   }
 
@@ -114,30 +126,43 @@ export class AttachmentService {
     }
 
     try {
-      const item = doc ? await this.workItemModel.findById(doc.workItem).exec() : null;
-      const board = item ? await this.boardModel.findById(item.board).exec() : null;
-      const workspace = board ? await this.workspaceModel.findById(board.workspaceId).exec() : null;
+      let item: any = doc ? await this.workItemModel.findById(doc.workItem).exec() : null;
+      if (!item && doc) {
+          item = await this.itemModel.findById(doc.workItem).exec();
+      }
+
+      let workspace: any = null;
+      
+      const workspaceId = (item as any)?.workspace || (item as any)?.spaceid;
+
+      if (workspaceId) {
+          workspace = await this.workspaceModel.findById(workspaceId).exec();
+      } else if (item?.board) {
+          const board = await this.boardModel.findById(item.board).exec();
+          if (board) {
+             workspace = await this.workspaceModel.findById(board.workspaceId).exec();
+          }
+      }
+      
       const ids = workspace
         ? [
             workspace.OwnedBy?.toString(),
             ...(workspace.members || []).map((m) => m.toString()),
           ].filter(Boolean)
         : [];
-      const users = await this.userModel
-        .find({ _id: { $in: Array.from(new Set(ids)) } })
-        .select('email firstName lastName')
-        .exec();
-      const recipients = users.map((u: any) => ({
-        email: u.email,
-        name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || undefined,
-      }));
-      const subject = `Attachment removed: ${item?.title || ''}`;
-      const html = this.emailService.buildActivityTemplate({
-        action: 'Attachment Removed',
-        title: item?.title || id,
-        details: `File removed`,
-      });
-      await this.emailService.sendActivityEmail(recipients, subject, html);
+      const uniqueIds = Array.from(new Set(ids));
+      
+      for (const recipientId of uniqueIds) {
+          // If we knew who deleted it, we'd skip them. But here we only have the ID.
+          // We'll send to everyone.
+          await this.notificationService.create({
+            recipient: new Types.ObjectId(recipientId),
+            type: NotificationType.WORK_ITEM_UPDATED, // Or generic updated
+            message: `Attachment removed from "${item?.title || 'Work Item'}"`,
+            workspace: workspace?._id,
+            workItem: item?._id as any
+          });
+      }
     } catch (_) {}
     return { message: 'Attachment deleted successfully' };
   }

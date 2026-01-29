@@ -11,7 +11,8 @@ import { KanbanColumn } from '../column/schemas/column.schema';
 import { KanbanBoard } from '../board/schemas/kanban-board.schema';
 import { Workspace } from '../../workspace/schemas/workspace.schema';
 import { User } from '../../users/schemas/user.schema';
-import { EmailService } from '../../email/email.service';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../notification/schemas/notification.schema';
 
 @Injectable()
 export class WorkItemService {
@@ -21,28 +22,37 @@ export class WorkItemService {
     @InjectModel(KanbanBoard.name) private boardModel: Model<KanbanBoard>,
     @InjectModel(Workspace.name) private workspaceModel: Model<Workspace>,
     @InjectModel(User.name) private userModel: Model<User>,
-    private readonly emailService: EmailService,
+    private readonly notificationService: NotificationService,
   ) {}
 
-  private async getRecipientsByBoard(boardId?: Types.ObjectId | string, actorId?: string) {
-    if (!boardId) return [];
-    const board = await this.boardModel.findById(boardId).exec();
-    if (!board) return [];
-    const workspace = await this.workspaceModel.findById(board.workspaceId).exec();
-    if (!workspace) return [];
-    const ids = [
+  private async getRecipientsByBoard(boardId?: Types.ObjectId | string, actorId?: string, workspaceId?: Types.ObjectId | string): Promise<Types.ObjectId[]> {
+    let workspace;
+
+    if (boardId) {
+      const board = await this.boardModel.findById(boardId).exec();
+      if (board) {
+        workspace = await this.workspaceModel.findById(board.workspaceId).exec();
+      }
+    }
+
+    // Fallback to workspaceId if board lookup failed or boardId wasn't provided
+    if (!workspace && workspaceId) {
+      workspace = await this.workspaceModel.findById(workspaceId).exec();
+    }
+
+    const ids = workspace ? [
       workspace.OwnedBy?.toString(),
       ...(workspace.members || []).map((m) => m.toString()),
-    ].filter(Boolean) as string[];
+    ].filter(Boolean) as string[] : [];
+
+    // Explicitly add actorId to ensure they get notified
+    if (actorId && !ids.includes(actorId)) {
+        ids.push(actorId);
+    }
+    
     const unique = Array.from(new Set(ids));
-    const users = await this.userModel
-      .find({ _id: { $in: unique } })
-      .select('email firstName lastName')
-      .exec();
-    return users.map((u: any) => ({
-      email: u.email,
-      name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || undefined,
-    }));
+    
+    return unique.map(id => new Types.ObjectId(id));
   }
 
   private async getActorName(actorId?: string) {
@@ -91,17 +101,30 @@ export class WorkItemService {
     }
 
     try {
-      const recipients = await this.getRecipientsByBoard(payload.board, actorId);
+      console.log('KanbanWorkItemService: notifying users for create', payload.board);
+      const recipients = await this.getRecipientsByBoard(payload.board, actorId, (savedItem as any)?.workspace);
+      console.log('KanbanWorkItemService: recipients found', recipients.length, recipients);
       const actorName = await this.getActorName(actorId);
-      const subject = `New ${savedItem.type} created: ${savedItem.title}`;
-      const html = this.emailService.buildActivityTemplate({
-        action: 'Item Created',
-        title: savedItem.title,
-        actorName,
-        details: '',
-      });
-      await this.emailService.sendActivityEmail(recipients, subject, html);
-    } catch (_) {}
+      console.log('KanbanWorkItemService: actorName', actorName);
+      
+      for (const recipientId of recipients) {
+          // Ensure recipientId is valid
+          if (!Types.ObjectId.isValid(recipientId)) continue;
+
+          await this.notificationService.create({
+              recipient: recipientId,
+              sender: actorId ? new Types.ObjectId(actorId) : undefined,
+              type: NotificationType.WORK_ITEM_CREATED,
+              message: recipientId.toString() === actorId 
+                ? `You created ${savedItem.type}: ${savedItem.title}`
+                : `${actorName || 'Someone'} created ${savedItem.type}: ${savedItem.title}`,
+              workspace: (savedItem as any)?.workspace, 
+              workItem: savedItem._id,
+          });
+      }
+    } catch (err) {
+        console.error('WorkItemService: Failed to notify on create', err);
+    }
     return savedItem;
   }
 
@@ -147,16 +170,23 @@ export class WorkItemService {
       const recipients = await this.getRecipientsByBoard(
         updatePayload.board || updatedItem.board,
         actorId,
+        (updatedItem as any)?.workspace
       );
       const actorName = await this.getActorName(actorId);
-      const subject = `Item updated: ${updatedItem.title}`;
-      const html = this.emailService.buildActivityTemplate({
-        action: 'Item Updated',
-        title: updatedItem.title,
-        actorName,
-        details: '',
-      });
-      await this.emailService.sendActivityEmail(recipients, subject, html);
+      
+      for (const recipientId of recipients) {
+          if (!Types.ObjectId.isValid(recipientId)) continue;
+          await this.notificationService.create({
+              recipient: recipientId,
+              sender: actorId ? new Types.ObjectId(actorId) : undefined,
+              type: NotificationType.WORK_ITEM_UPDATED,
+              message: recipientId.toString() === actorId
+                ? `You updated ${updatedItem.type}: ${updatedItem.title}`
+                : `${actorName || 'Someone'} updated ${updatedItem.type}: ${updatedItem.title}`,
+              workspace: (updatedItem as any)?.workspace,
+              workItem: updatedItem._id,
+          });
+      }
     } catch (_) {}
     return updatedItem;
   }
@@ -167,16 +197,25 @@ export class WorkItemService {
     const deleted = await this.workItemModel.findByIdAndDelete(id).exec();
     if (!deleted) throw new NotFoundException('Work item not found');
     try {
-      const recipients = await this.getRecipientsByBoard((existing as any)?.board, actorId);
+      const recipients = await this.getRecipientsByBoard(
+          (existing as any)?.board, 
+          actorId,
+          (existing as any)?.workspace
+      );
       const actorName = await this.getActorName(actorId);
-      const subject = `Item deleted: ${existing?.title || id}`;
-      const html = this.emailService.buildActivityTemplate({
-        action: 'Item Deleted',
-        title: existing?.title || id,
-        actorName,
-        details: '',
-      });
-      await this.emailService.sendActivityEmail(recipients, subject, html);
+      
+      for (const recipientId of recipients) {
+          await this.notificationService.create({
+              recipient: recipientId,
+              sender: actorId ? new Types.ObjectId(actorId) : undefined,
+              type: NotificationType.WORK_ITEM_DELETED,
+              message: recipientId.toString() === actorId
+                ? `You deleted ${existing?.type}: ${existing?.title}`
+                : `${actorName || 'Someone'} deleted ${existing?.type}: ${existing?.title}`,
+              workspace: (existing as any)?.workspace,
+              workItem: existing?._id,
+          });
+      }
     } catch (_) {}
     return { message: 'Work item deleted successfully' };
   }
@@ -193,14 +232,17 @@ export class WorkItemService {
     try {
       const recipients = await this.getRecipientsByBoard(saved.board, actorId);
       const actorName = await this.getActorName(actorId);
-      const subject = `Status changed: ${saved.title}`;
-      const html = this.emailService.buildActivityTemplate({
-        action: 'Status Changed',
-        title: saved.title,
-        actorName,
-        details: `From <strong>${fromStatus}</strong> to <strong>${toStatus}</strong>`,
-      });
-      await this.emailService.sendActivityEmail(recipients, subject, html);
+      
+      for (const recipientId of recipients) {
+          await this.notificationService.create({
+              recipient: recipientId,
+              sender: actorId ? new Types.ObjectId(actorId) : undefined,
+              type: NotificationType.STATUS_CHANGED,
+              message: `${actorName || 'Someone'} moved ${saved.title} to ${toStatus}`,
+              workspace: (saved as any)?.workspace,
+              workItem: saved._id,
+          });
+      }
     } catch (_) {}
     return saved;
   }
@@ -216,14 +258,19 @@ export class WorkItemService {
     try {
       const recipients = await this.getRecipientsByBoard(saved.board, actorId);
       const actorName = await this.getActorName(actorId);
-      const subject = `Assignee changed: ${saved.title}`;
-      const html = this.emailService.buildActivityTemplate({
-        action: 'Assignee Updated',
-        title: saved.title,
-        actorName,
-        details: `Assigned to user ID ${userId}`,
-      });
-      await this.emailService.sendActivityEmail(recipients, subject, html);
+      
+      for (const recipientId of recipients) {
+          await this.notificationService.create({
+              recipient: recipientId,
+              sender: actorId ? new Types.ObjectId(actorId) : undefined,
+              type: NotificationType.TASK_ASSIGNED,
+              message: recipientId.toString() === actorId
+                ? `You assigned ${saved.title} to a user`
+                : `${actorName || 'Someone'} assigned ${saved.title} to a user`,
+              workspace: (saved as any)?.workspace,
+              workItem: saved._id,
+          });
+      }
     } catch (_) {}
     return saved;
   }
