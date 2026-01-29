@@ -1,10 +1,12 @@
 // src/kanban/kanban.module.ts
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { EmailModule } from '../email/email.module';
+import { MemberModule } from '../member/member.module';
+
 import { Workspace, WorkspaceSchema } from '../workspace/schemas/workspace.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { MemberSchema } from '../member/schemas/member.schema';
-import { WorkspacePermissionGuard } from '../common/guards/workspace-permission.guard';
 import { Item, ItemSchema } from '@/work-items/schemas/work-item.schema';
 
 // Board
@@ -87,6 +89,9 @@ import { ColumnController } from './column/column.controller';
 @Module({
   imports: [
     NotificationModule,
+    EmailModule,
+    MemberModule, // ✅ REQUIRED for MemberService in guards
+
     MongooseModule.forFeature([
       // Board
       { name: KanbanBoard.name, schema: KanbanBoardSchema },
@@ -140,6 +145,7 @@ import { ColumnController } from './column/column.controller';
       { name: Item.name, schema: ItemSchema },
     ]),
   ],
+
   controllers: [
     KanbanBoardController,
     WorkItemController,
@@ -152,6 +158,7 @@ import { ColumnController } from './column/column.controller';
     ColumnController,
     CommentController,
   ],
+
   providers: [
     KanbanBoardService,
     WorkItemService,
