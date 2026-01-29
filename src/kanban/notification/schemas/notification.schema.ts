@@ -17,6 +17,7 @@ export enum NotificationType {
   MEMBER_ADDED = 'MEMBER_ADDED',
   WORKSPACE_UPDATED = 'WORKSPACE_UPDATED',
   WORKSPACE_DELETED = 'WORKSPACE_DELETED',
+  SYSTEM = "SYSTEM",
 }
 
 @Schema({ timestamps: true })
@@ -35,6 +36,12 @@ export class Notification {
 
   @Prop({ type: Types.ObjectId, ref: 'Workspace' })
   workspace?: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, refPath: 'onModel' })
+  relatedId?: Types.ObjectId;
+
+  @Prop({ type: String, enum: ['WorkItem', 'KanbanBoard', 'Sprint'] })
+  onModel?: string;
 
   @Prop({ type: Types.ObjectId, ref: 'WorkItem' })
   workItem?: Types.ObjectId;

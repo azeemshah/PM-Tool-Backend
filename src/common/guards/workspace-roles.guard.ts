@@ -18,11 +18,11 @@ export class WorkspaceRolesGuard implements CanActivate {
     if (!requiredRoles || requiredRoles.length === 0) return true; // no restriction
 
     const request = context.switchToHttp().getRequest();
-    const userId = request.user?.id;
-    const workspaceId = request.params.workspaceId;
+    const userId = request.user?.userId;
+    const workspaceId = request.params.workspaceId || request.query.workspaceId || request.body.workspaceId || request.body.workspace;
 
     if (!userId) throw new ForbiddenException('User not authenticated');
-    if (!workspaceId) throw new ForbiddenException('Workspace not specified');
+    if (!workspaceId) return true; // Skip if no workspace context (let other guards handle)
 
     // Get member role from database
     const member = await this.memberService.getUserRoleInWorkspace(userId, workspaceId);

@@ -104,24 +104,42 @@ export class MemberService {
    * Get all members of a workspace
    */
   async getWorkspaceMembers(workspaceId: string) {
-    const workspace = await this.workspaceModel.findById(workspaceId);
+    const members = await this.memberModel
+      .find({ workspaceId })
+      .populate('userId', 'firstName lastName email profilePicture')
+      .exec();
+
+    // Also get the owner
+    const workspace = await this.workspaceModel
+      .findById(workspaceId)
+      .populate('OwnedBy', 'firstName lastName email profilePicture')
+      .exec();
+
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
     }
 
-    const members = await this.memberModel
-      .find({ workspaceId })
-      .populate('userId', 'firstName lastName email profilePicture')
-      .sort({ joinedAt: -1 });
+    const result = members.map((member: any) => ({
+      _id: member._id,
+      user: member.userId,
+      role: member.role,
+      joinedAt: member.joinedAt,
+    }));
 
-    return members.map((m: any) => {
-      const obj = m.toObject ? m.toObject() : m;
-      const user = obj.userId || {};
-      obj.userName = user.firstName
-        ? `${user.firstName} ${user.lastName || ''}`.trim()
-        : user.name || null;
-      return obj;
-    });
+    // If owner is not in members list (sometimes happens), add them
+    const ownerId = workspace.OwnedBy?._id?.toString();
+    const isOwnerInMembers = result.some((m) => m.user?._id?.toString() === ownerId);
+
+    if (workspace.OwnedBy && !isOwnerInMembers) {
+      result.unshift({
+        _id: 'owner_placeholder',
+        user: workspace.OwnedBy,
+        role: 'Owner',
+        joinedAt: workspace.createdAt,
+      });
+    }
+
+    return result;
   }
 
   /**

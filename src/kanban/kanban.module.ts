@@ -92,6 +92,10 @@ import { ColumnController } from './column/column.controller';
     EmailModule,
     MemberModule, // ✅ REQUIRED for MemberService in guards
 
+    EmailModule,
+    MemberModule, // ✅ REQUIRED for MemberService in guards
+
+    NotificationModule,
     MongooseModule.forFeature([
       // Board
       { name: KanbanBoard.name, schema: KanbanBoardSchema },
