@@ -21,6 +21,9 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { WorkspacePermissionGuard } from '../../common/guards/workspace-permission.guard';
 import { Permissions } from '../../common/decorators/permissions.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { WorkspaceRolesGuard } from '@/common/guards/workspace-roles.guard';
+
 
 @Controller('kanban')
 export class KanbanBoardController {
