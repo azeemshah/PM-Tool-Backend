@@ -15,6 +15,8 @@ import { NotificationSchema } from '../kanban/notification/schemas/notification.
 import { SavedFilterSchema } from '../kanban/search/schemas/saved-filter.schema';
 import { SprintSchema } from '../sprint/schemas/sprint.schema';
 import { WorkspacePermissionGuard } from '../common/guards/workspace-permission.guard';
+import { NotificationModule } from '../kanban/notification/notification.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { WorkspacePermissionGuard } from '../common/guards/workspace-permission.
       { name: 'SavedFilter', schema: SavedFilterSchema },
       { name: 'Sprint', schema: SprintSchema },
     ]),
+    NotificationModule,
+    UsersModule,
   ],
   controllers: [WorkspaceController],
   providers: [WorkspaceService, WorkspacePermissionGuard],

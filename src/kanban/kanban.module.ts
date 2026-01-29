@@ -50,9 +50,7 @@ import { AttachmentService } from './attachment/attachment.service';
 import { Attachment, AttachmentSchema } from './attachment/schemas/attachment.schema';
 
 // Notification
-import { NotificationController } from './notification/notification.controller';
-import { NotificationService } from './notification/notification.service';
-import { Notification, NotificationSchema } from './notification/schemas/notification.schema';
+import { NotificationModule } from './notification/notification.module';
 
 // Report
 import { KanbanReportController } from './report/kanban-report.controller';
@@ -93,6 +91,7 @@ import { ColumnController } from './column/column.controller';
     EmailModule,
     MemberModule, // ✅ REQUIRED for MemberService in guards
 
+    NotificationModule,
     MongooseModule.forFeature([
       // Board
       { name: KanbanBoard.name, schema: KanbanBoardSchema },
@@ -124,9 +123,6 @@ import { ColumnController } from './column/column.controller';
       // Attachment
       { name: Attachment.name, schema: AttachmentSchema },
 
-      // Notification
-      { name: Notification.name, schema: NotificationSchema },
-
       // Report
       { name: CumulativeFlowReport.name, schema: CumulativeFlowReportSchema },
       { name: CycleTimeReport.name, schema: CycleTimeReportSchema },
@@ -155,7 +151,6 @@ import { ColumnController } from './column/column.controller';
     WorkItemController,
     TimeTrackingController,
     AttachmentController,
-    NotificationController,
     KanbanReportController,
     DashboardController,
     AuditController,
@@ -169,7 +164,6 @@ import { ColumnController } from './column/column.controller';
     WorkItemService,
     TimeTrackingService,
     AttachmentService,
-    NotificationService,
     KanbanReportService,
     DashboardService,
     AuditService,

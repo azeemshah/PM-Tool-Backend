@@ -26,7 +26,7 @@ export class ItemController {
   @UseGuards(WorkspacePermissionGuard)
   @Permissions('CREATE_TASK')
   create(@Request() req: any, @Body() dto: CreateItemDto) {
-    return this.itemService.create(dto);
+    return this.itemService.create(dto, req.user.userId);
   }
 
   @Get('workspace/:workspaceId')
@@ -59,35 +59,35 @@ export class ItemController {
   @Patch(':id/move/column/:columnId')
   @UseGuards(WorkspacePermissionGuard)
   @Permissions('EDIT_TASK')
-  moveToColumn(@Param('id') id: string, @Param('columnId') columnId: string) {
-    return this.itemService.moveToColumn(id, columnId);
+  moveToColumn(@Param('id') id: string, @Param('columnId') columnId: string, @Request() req: any) {
+    return this.itemService.moveToColumn(id, columnId, req.user.userId);
   }
 
   @Patch(':id/move/backlog')
   @UseGuards(WorkspacePermissionGuard)
   @Permissions('EDIT_TASK')
-  moveToBacklog(@Param('id') id: string) {
-    return this.itemService.moveToBacklog(id);
+  moveToBacklog(@Param('id') id: string, @Request() req: any) {
+    return this.itemService.moveToBacklog(id, req.user.userId);
   }
 
   @Post('update/:id')
   @UseGuards(WorkspacePermissionGuard)
   @Permissions('EDIT_TASK')
-  update(@Param('id') id: string, @Body() dto: UpdateItemDto) {
-    return this.itemService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateItemDto, @Request() req: any) {
+    return this.itemService.update(id, dto, req.user.userId);
   }
 
   @Patch(':id')
   @UseGuards(WorkspacePermissionGuard)
   @Permissions('EDIT_TASK')
-  updatePatch(@Param('id') id: string, @Body() dto: UpdateItemDto) {
-    return this.itemService.update(id, dto);
+  updatePatch(@Param('id') id: string, @Body() dto: UpdateItemDto, @Request() req: any) {
+    return this.itemService.update(id, dto, req.user.userId);
   }
 
   @Delete('delete/:id')
   @UseGuards(WorkspacePermissionGuard)
   @Permissions('DELETE_TASK')
-  delete(@Param('id') id: string) {
-    return this.itemService.delete(id);
+  delete(@Param('id') id: string, @Request() req: any) {
+    return this.itemService.delete(id, req.user.userId);
   }
 }

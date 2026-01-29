@@ -5,11 +5,11 @@ import { ItemController } from './work-item.controller';
 import { Item, ItemSchema } from './schemas/work-item.schema';
 import { KanbanColumn, ColumnSchema } from '../kanban/column/schemas/column.schema';
 import { KanbanBoard, KanbanBoardSchema } from '../kanban/board/schemas/kanban-board.schema';
-import { EmailModule } from '../email/email.module';
 import { UsersModule } from '../users/users.module';
 import { MemberSchema } from '../member/schemas/member.schema';
 import { WorkspacePermissionGuard } from '../common/guards/workspace-permission.guard';
 import { Workspace, WorkspaceSchema } from '../workspace/schemas/workspace.schema';
+import { NotificationModule } from '../kanban/notification/notification.module';
 
 @Module({
   imports: [
@@ -20,8 +20,8 @@ import { Workspace, WorkspaceSchema } from '../workspace/schemas/workspace.schem
       { name: 'Member', schema: MemberSchema },
       { name: Workspace.name, schema: WorkspaceSchema },
     ]),
-    EmailModule,
     UsersModule,
+    NotificationModule,
   ],
   controllers: [ItemController],
   providers: [ItemService, WorkspacePermissionGuard],

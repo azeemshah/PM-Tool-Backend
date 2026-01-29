@@ -16,6 +16,7 @@ export class NotificationController {
   /* ================= Get User Notifications ================= */
   @Get('user/:userId')
   getUserNotifications(@Param('userId') userId: string) {
+    console.log('NotificationController: Getting notifications for user', userId);
     return this.notificationService.findByUser(new Types.ObjectId(userId));
   }
 

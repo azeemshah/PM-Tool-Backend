@@ -9,6 +9,7 @@ import { WorkspaceSchema } from '../workspace/schemas/workspace.schema';
 import { UserSchema } from '../users/schemas/user.schema';
 import { InvitationSchema } from './schemas/invitation.schema';
 import { EmailModule } from '../email/email.module';
+import { NotificationModule } from '../kanban/notification/notification.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { EmailModule } from '../email/email.module';
       inject: [ConfigService],
     }),
     EmailModule,
+    NotificationModule,
   ],
   controllers: [MemberController],
   providers: [MemberService],
