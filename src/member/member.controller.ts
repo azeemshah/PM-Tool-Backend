@@ -16,6 +16,8 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
 import { InviteMemberDto } from './dto/invite-member.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
+import { Roles } from '../common/decorators/roles.decorator';
+import { WorkspaceRolesGuard } from '@/common/guards/workspace-roles.guard';
 
 @Controller('members')
 @UseGuards(JwtAuthGuard)
@@ -34,6 +36,8 @@ export class MemberController {
   }
 
   // 🔐 ADMIN ONLY
+    @Roles('Owner', 'Admin')
+    @UseGuards(WorkspaceRolesGuard)
   @Post('invite')
   async inviteMember(@Body() dto: InviteMemberDto, @Request() req: any) {
     await this.memberService.sendInvitation(dto.email, dto.role, req.user.userId, dto.workspaceId);

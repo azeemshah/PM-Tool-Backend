@@ -9,11 +9,14 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { CreateColumnDto } from './dto/create-column.dto';
 import { UpdateColumnDto } from './dto/update-column.dto';
 import { ColumnService } from './column.service';
 import { KanbanColumn } from './schemas/column.schema';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { WorkspaceRolesGuard } from '@/common/guards/workspace-roles.guard';
 
 @Controller('column')
 export class ColumnController {
