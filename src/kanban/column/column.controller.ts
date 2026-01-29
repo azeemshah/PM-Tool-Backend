@@ -15,8 +15,9 @@ import { CreateColumnDto } from './dto/create-column.dto';
 import { UpdateColumnDto } from './dto/update-column.dto';
 import { ColumnService } from './column.service';
 import { KanbanColumn } from './schemas/column.schema';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { WorkspaceRolesGuard } from '@/common/guards/workspace-roles.guard';
+import { WorkspaceRolesByBoardGuard } from './../workspace-roles-by-board.guard';
 
 @Controller('column')
 export class ColumnController {
