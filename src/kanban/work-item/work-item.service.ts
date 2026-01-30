@@ -104,11 +104,14 @@ export class WorkItemService {
         .exec();
     }
 
+    let recipients: Types.ObjectId[] = [];
+    let actorName: string | undefined;
+
     try {
       console.log('KanbanWorkItemService: notifying users for create', payload.board);
-      const recipients = await this.getRecipientsByBoard(payload.board, actorId, (savedItem as any)?.workspace);
+      recipients = await this.getRecipientsByBoard(payload.board, actorId, (savedItem as any)?.workspace);
       console.log('KanbanWorkItemService: recipients found', recipients.length, recipients);
-      const actorName = await this.getActorName(actorId);
+      actorName = await this.getActorName(actorId);
       const subject = `New ${savedItem.type} created: ${savedItem.title}`;
       const html = this.emailService.buildActivityTemplate({
         action: 'Item Created',
@@ -116,8 +119,10 @@ export class WorkItemService {
         actorName,
         details: '',
       });
-      await this.emailService.sendActivityEmail(recipients, subject, html);
+      // emailService may expect a different recipient shape; cast to any to avoid type mismatch here
+      await this.emailService.sendActivityEmail(recipients as any, subject, html);
     } catch (_) {}
+
     // Log activity
     try {
       const board = await this.boardModel.findById((savedItem as any).board).exec();
@@ -130,26 +135,28 @@ export class WorkItemService {
         details: { title: savedItem.title },
       } as any);
     } catch (e) {
-      // ignore
-      console.log('KanbanWorkItemService: actorName', actorName);
-      
-      for (const recipientId of recipients) {
-          // Ensure recipientId is valid
-          if (!Types.ObjectId.isValid(recipientId)) continue;
+      // ignore history errors
+    }
 
-          await this.notificationService.create({
-              recipient: recipientId,
-              sender: actorId ? new Types.ObjectId(actorId) : undefined,
-              type: NotificationType.WORK_ITEM_CREATED,
-              message: recipientId.toString() === actorId 
-                ? `You created ${savedItem.type}: ${savedItem.title}`
-                : `${actorName || 'Someone'} created ${savedItem.type}: ${savedItem.title}`,
-              workspace: (savedItem as any)?.workspace, 
-              workItem: savedItem._id,
-          });
+    // Notify via notificationService
+    try {
+      for (const recipientId of recipients) {
+        // Ensure recipientId is valid string or ObjectId
+        const rid = recipientId instanceof Types.ObjectId ? recipientId : new Types.ObjectId(String(recipientId));
+        await this.notificationService.create({
+          recipient: rid,
+          sender: actorId ? new Types.ObjectId(actorId) : undefined,
+          type: NotificationType.WORK_ITEM_CREATED,
+          message:
+            rid.toString() === actorId
+              ? `You created ${savedItem.type}: ${savedItem.title}`
+              : `${actorName || 'Someone'} created ${savedItem.type}: ${savedItem.title}`,
+          workspace: (savedItem as any)?.workspace,
+          workItem: savedItem._id,
+        });
       }
     } catch (err) {
-        console.error('WorkItemService: Failed to notify on create', err);
+      console.error('WorkItemService: Failed to notify on create', err);
     }
     return savedItem;
   }

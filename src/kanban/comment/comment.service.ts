@@ -4,13 +4,12 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Comment, CommentDocument } from './schemas/comment.schema';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { UpdateCommentDto } from './dto/update-comment.dto';
 import { WorkItem } from '../work-item/schemas/work-item.schema';
+import { Item } from '../../work-items/schemas/work-item.schema';
 import { HistoryService } from '../history/history.service';
 import { KanbanBoard, KanbanBoardDocument } from '../board/schemas/kanban-board.schema';
 import { KanbanColumn, ColumnDocument } from '../column/schemas/column.schema';
-import { UpdateCommentDto } from './dto/update-comment.dto';
-import { WorkItem } from '../work-item/schemas/work-item.schema';
-import { Item } from '@/work-items/schemas/work-item.schema';
 import { User } from '../../users/schemas/user.schema';
 import { Workspace } from '../../workspace/schemas/workspace.schema';
 import { NotificationService } from '../notification/notification.service';
@@ -21,15 +20,14 @@ export class CommentService {
   constructor(
     @InjectModel(Comment.name) private readonly commentModel: Model<CommentDocument>,
     @InjectModel(WorkItem.name) private readonly workItemModel: Model<WorkItem>,
+    @InjectModel(Item.name) private readonly itemModel: Model<Item>,
     @InjectModel(KanbanBoard.name) private readonly boardModel: Model<KanbanBoardDocument>,
     @InjectModel(KanbanColumn.name) private readonly columnModel: Model<ColumnDocument>,
-    private readonly historyService: HistoryService,
-  ) { }
-    @InjectModel(Item.name) private readonly itemModel: Model<Item>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(Workspace.name) private readonly workspaceModel: Model<Workspace>,
+    private readonly historyService: HistoryService,
     private readonly notificationService: NotificationService,
-  ) { }
+  ) {}
 
   private async getActorName(actorId?: string) {
     if (!actorId) return undefined;
@@ -45,38 +43,41 @@ export class CommentService {
       workItem: new Types.ObjectId(dto.workItemId),
       parentComment: dto.parentCommentId ? new Types.ObjectId(dto.parentCommentId) : null,
       content: dto.content,
-      userId: (dto.userId || actorId) ? new Types.ObjectId(dto.userId || actorId!) : undefined,
+      userId: dto.userId || actorId ? new Types.ObjectId(dto.userId || actorId!) : undefined,
     });
     const savedComment = await comment.save();
 
     // Log activity
     try {
-      const workItem = await this.workItemModel.findById(dto.workItemId).exec();
+      let workItem: any = await this.workItemModel.findById(dto.workItemId).exec();
+      if (!workItem) {
+        workItem = await this.itemModel.findById(dto.workItemId).exec();
+      }
+
       if (workItem) {
-        let projectId = workItem.spaceid;
+        let projectId = (workItem as any).workspace || (workItem as any).spaceid;
 
         // Strategy 1: Try to get workspaceId from board if not on workItem
         if (!projectId && workItem.board) {
           const board = await this.boardModel.findById(workItem.board).select('workspaceId').exec();
-          if (board) {
-            projectId = board.workspaceId;
-          }
+          if (board) projectId = board.workspaceId;
         }
 
         // Strategy 2: Try to get workspaceId from column (via status) if status is an ID
-        if (!projectId && workItem.status && Types.ObjectId.isValid(workItem.status)) {
+        if (!projectId && workItem.status && Types.ObjectId.isValid(String(workItem.status))) {
           const column = await this.columnModel.findById(workItem.status).select('BoardId').exec();
           if (column && column.BoardId) {
-            const board = await this.boardModel.findById(column.BoardId).select('workspaceId').exec();
-            if (board) {
-              projectId = board.workspaceId;
-            }
+            const board = await this.boardModel
+              .findById(column.BoardId)
+              .select('workspaceId')
+              .exec();
+            if (board) projectId = board.workspaceId;
           }
         }
 
         if (projectId) {
           await this.historyService.log({
-            userId: (dto.userId || actorId) ? new Types.ObjectId(dto.userId || actorId!) : undefined,
+            userId: dto.userId || actorId ? new Types.ObjectId(dto.userId || actorId!) : undefined,
             projectId: projectId,
             taskId: workItem._id,
             type: 'comment',
@@ -85,68 +86,68 @@ export class CommentService {
             },
           } as any);
         } else {
-          console.warn(`[CommentService] Failed to log activity: No workspaceId found for workItem ${dto.workItemId}`);
+          console.warn(
+            `[CommentService] Failed to log activity: No workspaceId found for workItem ${dto.workItemId}`,
+          );
         }
       }
     } catch (e) {
       console.error('Failed to log comment activity', e);
-    
+    }
+
     // Notify relevant users
     try {
-        let workItem: any = await this.workItemModel.findById(dto.workItemId).exec();
-        if (!workItem) {
-             workItem = await this.itemModel.findById(dto.workItemId).exec();
+      let workItem: any = await this.workItemModel.findById(dto.workItemId).exec();
+      if (!workItem) {
+        workItem = await this.itemModel.findById(dto.workItemId).exec();
+      }
+
+      if (workItem) {
+        const actor = dto.userId || actorId;
+        const actorName = await this.getActorName(actor);
+        const recipients = new Set<string>();
+
+        // Notify Assignee (even if commenter)
+        if (workItem.assignee) recipients.add(String(workItem.assignee));
+
+        // Notify Reporter/Creator
+        const reporter = (workItem as any).reporter;
+        if (reporter) recipients.add(String(reporter));
+
+        // Fetch workspace members to notify everyone
+        const workspaceId = (workItem as any).workspace || (workItem as any).spaceid;
+        if (workspaceId) {
+          const workspace = await this.workspaceModel.findById(workspaceId).exec();
+          if (workspace) {
+            if (workspace.OwnedBy) recipients.add(String(workspace.OwnedBy));
+            if (workspace.members) workspace.members.forEach((m) => recipients.add(String(m)));
+          }
         }
 
-        if (workItem) {
-            const actorId = dto.userId;
-            const actorName = await this.getActorName(actorId);
-            const recipients = new Set<string>();
-
-            // Notify Assignee (even if commenter)
-            if (workItem.assignee) {
-                recipients.add(workItem.assignee.toString());
-            }
-
-            // Notify Reporter/Creator (if not the commenter)
-            const reporter = (workItem as any).reporter;
-            if (reporter) {
-                recipients.add(reporter.toString());
-            }
-
-            // Fetch workspace members to notify everyone
-            const workspaceId = (workItem as any).workspace || (workItem as any).spaceid;
-            if (workspaceId) {
-                const workspace = await this.workspaceModel.findById(workspaceId).exec();
-                if (workspace) {
-                     if (workspace.OwnedBy) recipients.add(workspace.OwnedBy.toString());
-                     if (workspace.members) {
-                         workspace.members.forEach(m => recipients.add(m.toString()));
-                     }
-                }
-            }
-            
-            // Also if it's a reply to a comment, notify the parent comment author?
-            if (dto.parentCommentId) {
-                const parent = await this.commentModel.findById(dto.parentCommentId);
-                if (parent && parent.userId) {
-                    recipients.add(parent.userId.toString());
-                }
-            }
-
-            for (const recipientId of recipients) {
-                await this.notificationService.create({
-                    recipient: new Types.ObjectId(recipientId),
-                    sender: actorId ? new Types.ObjectId(actorId) : undefined,
-                    type: NotificationType.COMMENT_ADDED,
-                    message: `${actorName || 'Someone'} commented on ${workItem.title}`,
-                    workspace: workspaceId,
-                    workItem: workItem._id,
-                });
-            }
+        // If it's a reply to a comment, notify the parent comment author
+        if (dto.parentCommentId) {
+          const parent = await this.commentModel.findById(dto.parentCommentId).exec();
+          if (parent && (parent as any).userId) recipients.add(String((parent as any).userId));
         }
+
+        for (const recipientId of Array.from(recipients)) {
+          try {
+            if (!Types.ObjectId.isValid(recipientId)) continue;
+            await this.notificationService.create({
+              recipient: new Types.ObjectId(recipientId),
+              sender: actor ? new Types.ObjectId(actor) : undefined,
+              type: NotificationType.COMMENT_ADDED,
+              message: `${actorName || 'Someone'} commented on ${workItem.title || 'work item'}`,
+              workspace: workspaceId,
+              workItem: workItem._id,
+            });
+          } catch (err) {
+            console.error('Failed to send comment notification to', recipientId, err);
+          }
+        }
+      }
     } catch (err) {
-        console.error('Failed to send comment notification', err);
+      console.error('Failed to send comment notification', err);
     }
 
     return savedComment.populate('userId');

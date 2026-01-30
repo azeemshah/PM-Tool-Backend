@@ -31,7 +31,7 @@ export class ItemService {
     private readonly notificationService: NotificationService,
     private readonly usersService: UsersService,
     private readonly historyService: HistoryService,
-  ) { }
+  ) {}
 
   async create(dto: CreateItemDto, userId?: string): Promise<Item> {
     let path = '';
@@ -39,7 +39,7 @@ export class ItemService {
 
     // Set reporter if userId is provided
     if (userId && !dto.reporter) {
-        dto.reporter = userId;
+      dto.reporter = userId;
     }
 
     let parent: Item | null = null;
@@ -241,17 +241,17 @@ export class ItemService {
       ...task,
       assignedTo: task.assignedTo
         ? {
-          _id: task.assignedTo._id,
-          name: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
-          profilePicture: task.assignedTo.profilePicture,
-        }
+            _id: task.assignedTo._id,
+            name: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
+            profilePicture: task.assignedTo.profilePicture,
+          }
         : null,
       reporter: task.reporter
         ? {
-          _id: task.reporter._id,
-          name: `${task.reporter.firstName} ${task.reporter.lastName}`,
-          profilePicture: task.reporter.profilePicture,
-        }
+            _id: task.reporter._id,
+            name: `${task.reporter.firstName} ${task.reporter.lastName}`,
+            profilePicture: task.reporter.profilePicture,
+          }
         : null,
     }));
 
@@ -277,7 +277,6 @@ export class ItemService {
   }
 
   async moveToColumn(itemId: string, columnId: string, actorId?: string) {
-  async moveToColumn(itemId: string, columnId: string, userId?: string) {
     const column = await this.columnModel.findById(columnId);
     if (!column) {
       throw new NotFoundException('Target column not found');
@@ -288,16 +287,15 @@ export class ItemService {
       throw new NotFoundException('Item not found');
     }
 
-    const oldColumnId = item.column;
     const oldStatus = item.status;
     const workspaceId = item.workspace;
 
-    const normalize = (value: string) => value.toLowerCase().replace(/\s/g, '');
-    const columnName = normalize(column.name || '');
+    const normalize = (value: string) => (value || '').toLowerCase().replace(/\s/g, '');
+    const columnName = normalize(column.name);
 
-    let nextStatus: string = column.name || 'To Do';
+    let nextStatus: string = ItemStatus.TODO;
 
-    if (columnName === 'todo' || columnName === 'todo') {
+    if (columnName === 'todo') {
       nextStatus = ItemStatus.TODO;
     } else if (columnName === 'inprogress') {
       nextStatus = ItemStatus.INPROGRESS;
@@ -335,21 +333,11 @@ export class ItemService {
       console.error('History log error:', e);
     }
 
-    return updated;
-    const item = await this.itemModel.findByIdAndUpdate(
-      itemId,
-      {
-        status: nextStatus,
-        column: new Types.ObjectId(columnId),
-      },
-      { new: true },
-    );
-
-    if (item) {
-        await this.notifyUsers(item, 'updated', userId);
+    if (updated) {
+      await this.notifyUsers(updated, 'updated', actorId);
     }
-    
-    return item;
+
+    return updated;
   }
 
   async moveToBacklog(itemId: string, userId?: string) {
@@ -363,13 +351,12 @@ export class ItemService {
     );
 
     if (item) {
-        await this.notifyUsers(item, 'updated', userId);
+      await this.notifyUsers(item, 'updated', userId);
     }
     return item;
   }
 
   async update(itemId: string, dto: UpdateItemDto, actorId?: string): Promise<Item> {
-  async update(itemId: string, dto: UpdateItemDto, userId?: string): Promise<Item> {
     const item = await this.itemModel.findById(itemId);
     if (!item) throw new NotFoundException('Item not found');
 
@@ -388,10 +375,13 @@ export class ItemService {
 
     Object.assign(item, dto);
     const saved = await item.save();
-    await this.notifyUsers(saved, 'updated');
+    await this.notifyUsers(saved, 'updated', actorId);
 
     // Log activity if status or column changed
-    if ((dto.status && dto.status !== oldStatus) || (dto.column && dto.column !== oldColumn?.toString())) {
+    if (
+      (dto.status && dto.status !== oldStatus) ||
+      (dto.column && dto.column !== oldColumn?.toString())
+    ) {
       try {
         await this.historyService.log({
           userId: actorId,
@@ -407,7 +397,7 @@ export class ItemService {
       }
     }
 
-    await this.notifyUsers(saved, 'updated', userId);
+    await this.notifyUsers(saved, 'updated', actorId);
     return saved;
   }
 
@@ -439,12 +429,16 @@ export class ItemService {
     };
   }
 
-  private async notifyUsers(item: Item, action: 'created' | 'updated' | 'deleted', actorId?: string): Promise<void> {
+  private async notifyUsers(
+    item: Item,
+    action: 'created' | 'updated' | 'deleted',
+    actorId?: string,
+  ): Promise<void> {
     const ids: string[] = [];
-    
+
     // Explicitly add actor to ensure they get notified
     if (actorId) {
-        ids.push(actorId);
+      ids.push(actorId);
     }
 
     if (item.assignedTo) ids.push((item.assignedTo as unknown as Types.ObjectId).toString());
@@ -452,71 +446,86 @@ export class ItemService {
 
     // Fetch workspace members to notify everyone
     if (item.workspace) {
+      try {
         const workspace = await this.workspaceModel.findById(item.workspace).exec();
         if (workspace) {
-            console.log('WorkItemService: Workspace found:', workspace._id, 'Members:', workspace.members?.length, 'Owner:', workspace.OwnedBy);
-            if (workspace.OwnedBy) ids.push(workspace.OwnedBy.toString());
-            if (workspace.members) {
-                workspace.members.forEach(m => ids.push(m.toString()));
-            }
+          console.log(
+            'WorkItemService: Workspace found:',
+            workspace._id,
+            'Members:',
+            workspace.members?.length,
+            'Owner:',
+            workspace.OwnedBy,
+          );
+          if (workspace.OwnedBy) ids.push(workspace.OwnedBy.toString());
+          if (workspace.members) {
+            workspace.members.forEach((m) => ids.push(m.toString()));
+          }
         } else {
-            console.warn('WorkItemService: Workspace not found during notification', item.workspace);
+          console.warn('WorkItemService: Workspace not found during notification', item.workspace);
         }
-      } catch { }
+      } catch (e) {
+        console.warn('WorkItemService: Error fetching workspace for notifications', e);
+      }
     } else {
-        console.warn('WorkItemService: Item has no workspace defined', item._id);
+      console.warn('WorkItemService: Item has no workspace defined', item._id);
     }
 
     // Get actor details
     let actorName = 'Someone';
     if (actorId) {
-        try {
-            const actor = await this.usersService.findOne(actorId);
-            if (actor) {
-                actorName = `${actor.firstName} ${actor.lastName}`;
-            }
-        } catch (e) {
-            console.error('Failed to fetch actor details', e);
+      try {
+        const actor = await this.usersService.findOne(actorId);
+        if (actor) {
+          actorName = `${actor.firstName} ${actor.lastName}`;
         }
+      } catch (e) {
+        console.error('Failed to fetch actor details', e);
+      }
     }
 
     const uniqueIds = Array.from(new Set(ids));
-    
+
     // User requested to receive notifications for their own actions as well
     const recipients = uniqueIds;
-    
+
     console.log('WorkItemService: NotifyUsers - Actor:', actorName, actorId);
     console.log('WorkItemService: NotifyUsers - Action:', action);
     console.log('WorkItemService: NotifyUsers - Recipients Count:', recipients.length);
     console.log('WorkItemService: NotifyUsers - Recipients List:', recipients);
 
-    const sender = actorId ? new Types.ObjectId(actorId) : (item.reporter ? new Types.ObjectId(item.reporter as any) : undefined);
-          
-          for (const recipientId of recipients) {
-            try {
-              let type = NotificationType.WORK_ITEM_UPDATED;
-              if (action === 'created') type = NotificationType.WORK_ITEM_CREATED;
-              else if (action === 'deleted') type = NotificationType.WORK_ITEM_DELETED;
+    const sender = actorId
+      ? new Types.ObjectId(actorId)
+      : item.reporter
+        ? new Types.ObjectId(item.reporter as any)
+        : undefined;
 
-              // Ensure recipientId is valid
-              if (!Types.ObjectId.isValid(recipientId)) {
-                  console.warn(`Invalid recipient ID: ${recipientId}`);
-                  continue;
-              }
+    for (const recipientId of recipients) {
+      try {
+        let type = NotificationType.WORK_ITEM_UPDATED;
+        if (action === 'created') type = NotificationType.WORK_ITEM_CREATED;
+        else if (action === 'deleted') type = NotificationType.WORK_ITEM_DELETED;
 
-              await this.notificationService.create({
-                  recipient: new Types.ObjectId(recipientId),
-                  sender: sender,
-                  type: type,
-                  message: recipientId === actorId 
-                    ? `You ${action} work item "${item.title}"`
-                    : `${actorName} ${action} work item "${item.title}"`,
-                  workspace: item.workspace,
-                  workItem: action === 'deleted' ? undefined : (item._id as any),
-              });
-            } catch (err) {
-                console.error(`Failed to notify user ${recipientId}`, err);
-            }
-          }
+        // Ensure recipientId is valid
+        if (!Types.ObjectId.isValid(recipientId)) {
+          console.warn(`Invalid recipient ID: ${recipientId}`);
+          continue;
+        }
+
+        await this.notificationService.create({
+          recipient: new Types.ObjectId(recipientId),
+          sender: sender,
+          type: type,
+          message:
+            recipientId === actorId
+              ? `You ${action} work item "${item.title || 'work item'}"`
+              : `${actorName} ${action} work item "${item.title || 'work item'}"`,
+          workspace: item.workspace,
+          workItem: action === 'deleted' ? undefined : (item._id as any),
+        });
+      } catch (err) {
+        console.error(`Failed to notify user ${recipientId}`, err);
+      }
+    }
   }
 }

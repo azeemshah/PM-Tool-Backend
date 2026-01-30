@@ -20,7 +20,7 @@ import { Permissions } from '../common/decorators/permissions.decorator';
 @Controller('items')
 @UseGuards(JwtAuthGuard)
 export class ItemController {
-  constructor(private readonly itemService: ItemService) { }
+  constructor(private readonly itemService: ItemService) {}
 
   @Post('create')
   @UseGuards(WorkspacePermissionGuard)
@@ -59,39 +59,29 @@ export class ItemController {
   @Patch(':id/move/column/:columnId')
   @UseGuards(WorkspacePermissionGuard)
   @Permissions('EDIT_TASK')
-  moveToColumn(
-    @Param('id') id: string,
-    @Param('columnId') columnId: string,
-    @Request() req,
-  ) {
+  moveToColumn(@Param('id') id: string, @Param('columnId') columnId: string, @Request() req) {
     return this.itemService.moveToColumn(id, columnId, req.user?.userId);
-  moveToColumn(@Param('id') id: string, @Param('columnId') columnId: string, @Request() req: any) {
-    return this.itemService.moveToColumn(id, columnId, req.user.userId);
   }
 
   @Patch(':id/move/backlog')
   @UseGuards(WorkspacePermissionGuard)
   @Permissions('EDIT_TASK')
   moveToBacklog(@Param('id') id: string, @Request() req: any) {
-    return this.itemService.moveToBacklog(id, req.user.userId);
+    return this.itemService.moveToBacklog(id, req.user?.userId);
   }
 
   @Post('update/:id')
   @UseGuards(WorkspacePermissionGuard)
   @Permissions('EDIT_TASK')
-  update(@Param('id') id: string, @Body() dto: UpdateItemDto, @Request() req) {
-    return this.itemService.update(id, dto, req.user?.userId);
   update(@Param('id') id: string, @Body() dto: UpdateItemDto, @Request() req: any) {
-    return this.itemService.update(id, dto, req.user.userId);
+    return this.itemService.update(id, dto, req.user?.userId);
   }
 
   @Patch(':id')
   @UseGuards(WorkspacePermissionGuard)
   @Permissions('EDIT_TASK')
-  updatePatch(@Param('id') id: string, @Body() dto: UpdateItemDto, @Request() req) {
-    return this.itemService.update(id, dto, req.user?.userId);
   updatePatch(@Param('id') id: string, @Body() dto: UpdateItemDto, @Request() req: any) {
-    return this.itemService.update(id, dto, req.user.userId);
+    return this.itemService.update(id, dto, req.user?.userId);
   }
 
   @Delete('delete/:id')

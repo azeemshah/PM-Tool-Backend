@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { EmailModule } from '../email/email.module';
 import { MemberModule } from '../member/member.module';
+import { WorkspacePermissionGuard } from '../common/guards/workspace-permission.guard';
 
 import { Workspace, WorkspaceSchema } from '../workspace/schemas/workspace.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
