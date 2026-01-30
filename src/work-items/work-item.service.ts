@@ -124,7 +124,7 @@ export class ItemService {
       let columns = await this.columnModel.find({ BoardId: board._id }).sort({ position: 1 });
 
       if (columns.length === 0) {
-        const defaultColumns = ['To Do', 'In Progress', 'In Review', 'Done'];
+        const defaultColumns = ['To Do', 'In Progress', 'In Review', 'Blocked', 'Done', 'Closed'];
 
         const createdColumns = await Promise.all(
           defaultColumns.map((name, index) =>
@@ -301,8 +301,12 @@ export class ItemService {
       nextStatus = ItemStatus.INPROGRESS;
     } else if (columnName === 'inreview' || columnName === 'review') {
       nextStatus = ItemStatus.REVIEW;
+    } else if (columnName === 'blocked') {
+      nextStatus = ItemStatus.BLOCKED;
     } else if (columnName === 'done') {
       nextStatus = ItemStatus.DONE;
+    } else if (columnName === 'closed') {
+      nextStatus = ItemStatus.CLOSED;
     } else if (columnName === 'backlog') {
       nextStatus = ItemStatus.BACKLOG;
     }

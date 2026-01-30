@@ -22,7 +22,9 @@ export enum ItemStatus {
   TODO = 'To Do',
   INPROGRESS = 'In Progress',
   REVIEW = 'In Review',
+  BLOCKED = 'Blocked',
   DONE = 'Done',
+  CLOSED = 'Closed',
 }
 
 @Schema({ timestamps: true })
