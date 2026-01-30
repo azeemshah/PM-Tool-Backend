@@ -14,6 +14,7 @@ import { TimeLogSchema } from '../kanban/time-tracking/schemas/time-log.schema';
 import { NotificationSchema } from '../kanban/notification/schemas/notification.schema';
 import { SavedFilterSchema } from '../kanban/search/schemas/saved-filter.schema';
 import { SprintSchema } from '../sprint/schemas/sprint.schema';
+import { WorkspacePermissionGuard } from '../common/guards/workspace-permission.guard';
 
 @Module({
   imports: [
@@ -32,7 +33,7 @@ import { SprintSchema } from '../sprint/schemas/sprint.schema';
     ]),
   ],
   controllers: [WorkspaceController],
-  providers: [WorkspaceService],
+  providers: [WorkspaceService, WorkspacePermissionGuard],
   exports: [WorkspaceService],
 })
 export class WorkspaceModule {}

@@ -87,7 +87,7 @@ export class AttachmentController {
   )
   async uploadBinary(
     @Param('workItemId') workItemId: string,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: any, // Express.Multer.File
     @CurrentUser('userId') userId?: string,
   ) {
     if (!file) {

@@ -4,6 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { TimeLog, TimeLogDocument } from './schemas/time-log.schema';
 import { Timesheet, TimesheetDocument } from './schemas/timesheet.schema';
+import { HistoryService } from '../history/history.service';
 import { CreateTimeLogDto } from './dto/create-time-log.dto';
 import { UpdateTimeLogDto } from './dto/update-time-log.dto';
 
@@ -12,6 +13,7 @@ export class TimeTrackingService {
   constructor(
     @InjectModel(TimeLog.name) private readonly timeLogModel: Model<TimeLogDocument>,
     @InjectModel(Timesheet.name) private readonly timesheetModel: Model<TimesheetDocument>,
+    private readonly historyService: HistoryService,
   ) {}
 
   // -------------------- Create Time Log --------------------
@@ -22,7 +24,18 @@ export class TimeTrackingService {
       description: dto.description,
       userId: dto.userId ? new Types.ObjectId(dto.userId) : undefined,
     });
-    return timeLog.save();
+    const saved = await timeLog.save();
+    // Log activity (non-blocking)
+    try {
+      await this.historyService.log({
+        userId: dto.userId,
+        taskId: dto.workItemId,
+        type: 'time_logged',
+        timeSpentSeconds: Math.round((dto.hoursSpent || 0) * 3600),
+        details: { description: dto.description },
+      } as any);
+    } catch (e) {}
+    return saved;
   }
 
   // -------------------- Get All Time Logs --------------------

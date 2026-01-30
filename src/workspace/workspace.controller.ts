@@ -15,6 +15,8 @@ import { WorkspaceService } from './workspace.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { WorkspacePermissionGuard } from '../common/guards/workspace-permission.guard';
+import { Permissions } from '../common/decorators/permissions.decorator';
 
 @Controller('workspace')
 @UseGuards(JwtAuthGuard)
@@ -53,6 +55,8 @@ export class WorkspaceController {
   }
 
   @Patch(':id')
+  @UseGuards(WorkspacePermissionGuard)
+  @Permissions('MANAGE_WORKSPACE_SETTINGS')
   async update(@Param('id') id: string, @Body() updateWorkspaceDto: UpdateWorkspaceDto) {
     const workspace = await this.workspaceService.update(id, updateWorkspaceDto);
     return {
@@ -63,6 +67,8 @@ export class WorkspaceController {
   }
 
   @Delete(':id')
+  @UseGuards(WorkspacePermissionGuard)
+  @Permissions('DELETE_WORKSPACE')
   async delete(@Param('id') id: string) {
     await this.workspaceService.delete(id);
     return {

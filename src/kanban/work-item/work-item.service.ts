@@ -12,6 +12,7 @@ import { KanbanBoard } from '../board/schemas/kanban-board.schema';
 import { Workspace } from '../../workspace/schemas/workspace.schema';
 import { User } from '../../users/schemas/user.schema';
 import { EmailService } from '../../email/email.service';
+import { HistoryService } from '../history/history.service';
 
 @Injectable()
 export class WorkItemService {
@@ -22,6 +23,7 @@ export class WorkItemService {
     @InjectModel(Workspace.name) private workspaceModel: Model<Workspace>,
     @InjectModel(User.name) private userModel: Model<User>,
     private readonly emailService: EmailService,
+    private readonly historyService: HistoryService,
   ) {}
 
   private async getRecipientsByBoard(boardId?: Types.ObjectId | string, actorId?: string) {
@@ -102,6 +104,20 @@ export class WorkItemService {
       });
       await this.emailService.sendActivityEmail(recipients, subject, html);
     } catch (_) {}
+    // Log activity
+    try {
+      const board = await this.boardModel.findById((savedItem as any).board).exec();
+      const workspaceId = (board as any)?.workspaceId;
+      await this.historyService.log({
+        userId: actorId,
+        projectId: workspaceId,
+        taskId: savedItem._id,
+        type: 'create',
+        details: { title: savedItem.title },
+      } as any);
+    } catch (e) {
+      // ignore
+    }
     return savedItem;
   }
 
@@ -158,6 +174,18 @@ export class WorkItemService {
       });
       await this.emailService.sendActivityEmail(recipients, subject, html);
     } catch (_) {}
+    // Log activity
+    try {
+      const board = await this.boardModel.findById((updatedItem as any).board).exec();
+      const workspaceId = (board as any)?.workspaceId;
+      await this.historyService.log({
+        userId: actorId,
+        projectId: workspaceId,
+        taskId: updatedItem._id,
+        type: 'edit',
+        details: { title: updatedItem.title, changes: updatePayload },
+      } as any);
+    } catch (e) {}
     return updatedItem;
   }
 
@@ -178,6 +206,18 @@ export class WorkItemService {
       });
       await this.emailService.sendActivityEmail(recipients, subject, html);
     } catch (_) {}
+    // Log activity
+    try {
+      const board = await this.boardModel.findById((existing as any)?.board).exec();
+      const workspaceId = (board as any)?.workspaceId;
+      await this.historyService.log({
+        userId: actorId,
+        projectId: workspaceId,
+        taskId: existing?._id,
+        type: 'delete',
+        details: { title: existing?.title },
+      } as any);
+    } catch (e) {}
     return { message: 'Work item deleted successfully' };
   }
 
@@ -202,6 +242,20 @@ export class WorkItemService {
       });
       await this.emailService.sendActivityEmail(recipients, subject, html);
     } catch (_) {}
+    // Log activity
+    try {
+      const board = await this.boardModel.findById((saved as any).board).exec();
+      const workspaceId = (board as any)?.workspaceId;
+      await this.historyService.log({
+        userId: actorId,
+        projectId: workspaceId,
+        taskId: saved._id,
+        type: 'status_change',
+        from: fromStatus,
+        to: toStatus,
+        details: { title: saved.title, board: saved.board },
+      } as any);
+    } catch (e) {}
     return saved;
   }
 
@@ -225,6 +279,18 @@ export class WorkItemService {
       });
       await this.emailService.sendActivityEmail(recipients, subject, html);
     } catch (_) {}
+    // Log activity
+    try {
+      const board = await this.boardModel.findById((saved as any).board).exec();
+      const workspaceId = (board as any)?.workspaceId;
+      await this.historyService.log({
+        userId: actorId,
+        projectId: workspaceId,
+        taskId: saved._id,
+        type: 'edit',
+        details: { title: saved.title, assigneeId: userId },
+      } as any);
+    } catch (e) {}
     return saved;
   }
 }

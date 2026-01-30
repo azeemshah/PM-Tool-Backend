@@ -7,6 +7,11 @@ import { KanbanColumn, ColumnSchema } from '../kanban/column/schemas/column.sche
 import { KanbanBoard, KanbanBoardSchema } from '../kanban/board/schemas/kanban-board.schema';
 import { EmailModule } from '../email/email.module';
 import { UsersModule } from '../users/users.module';
+import { MemberSchema } from '../member/schemas/member.schema';
+import { WorkspacePermissionGuard } from '../common/guards/workspace-permission.guard';
+import { Workspace, WorkspaceSchema } from '../workspace/schemas/workspace.schema';
+import { HistoryService } from '../kanban/history/history.service';
+import { Activity, ActivitySchema } from '../kanban/history/schemas/activity.schema';
 
 @Module({
   imports: [
@@ -14,12 +19,15 @@ import { UsersModule } from '../users/users.module';
       { name: Item.name, schema: ItemSchema },
       { name: KanbanColumn.name, schema: ColumnSchema },
       { name: KanbanBoard.name, schema: KanbanBoardSchema },
+      { name: 'Member', schema: MemberSchema },
+      { name: Workspace.name, schema: WorkspaceSchema },
+      { name: Activity.name, schema: ActivitySchema },
     ]),
     EmailModule,
     UsersModule,
   ],
   controllers: [ItemController],
-  providers: [ItemService],
+  providers: [ItemService, HistoryService, WorkspacePermissionGuard],
   exports: [ItemService],
 })
 export class ItemModule {}

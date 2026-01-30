@@ -4,6 +4,9 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { EmailModule } from '../email/email.module';
 import { Workspace, WorkspaceSchema } from '../workspace/schemas/workspace.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
+import { MemberSchema } from '../member/schemas/member.schema';
+import { WorkspacePermissionGuard } from '../common/guards/workspace-permission.guard';
+import { Item, ItemSchema } from '@/work-items/schemas/work-item.schema';
 
 // Board
 import { KanbanBoardController } from './board/kanban-board.controller';
@@ -73,6 +76,10 @@ import {
 import { AuditController } from './audit/audit.controller';
 import { AuditService } from './audit/audit.service';
 import { AuditLog, AuditLogSchema } from './audit/schemas/audit-log.schema';
+// History
+import { HistoryController } from './history/history.controller';
+import { HistoryService } from './history/history.service';
+import { Activity, ActivitySchema } from './history/schemas/activity.schema';
 
 // Search
 import { SearchController } from './search/search.controller';
@@ -132,6 +139,8 @@ import { ColumnController } from './column/column.controller';
 
       // Audit
       { name: AuditLog.name, schema: AuditLogSchema },
+      // Activity / History
+      { name: Activity.name, schema: ActivitySchema },
 
       // Search
       { name: SavedFilter.name, schema: SavedFilterSchema },
@@ -139,6 +148,8 @@ import { ColumnController } from './column/column.controller';
       // Workspace & User
       { name: Workspace.name, schema: WorkspaceSchema },
       { name: User.name, schema: UserSchema },
+      { name: 'Member', schema: MemberSchema },
+      { name: Item.name, schema: ItemSchema },
     ]),
   ],
   controllers: [
@@ -150,9 +161,11 @@ import { ColumnController } from './column/column.controller';
     KanbanReportController,
     DashboardController,
     AuditController,
+    HistoryController,
     SearchController,
     ColumnController,
     CommentController,
+    EstimationController,
   ],
   providers: [
     KanbanBoardService,
@@ -163,9 +176,12 @@ import { ColumnController } from './column/column.controller';
     KanbanReportService,
     DashboardService,
     AuditService,
+    HistoryService,
     SearchService,
     ColumnService,
     CommentService,
+    EstimationService,
+    WorkspacePermissionGuard,
   ],
 })
 export class KanbanModule {}

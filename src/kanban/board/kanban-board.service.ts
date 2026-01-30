@@ -93,7 +93,11 @@ export class KanbanBoardService {
 
   // -------------------- Move Work Item --------------------
 
-  async moveWorkItem(boardId: string, moveWorkItemDto: MoveWorkItemDto, userId: string | undefined) {
+  async moveWorkItem(
+    boardId: string,
+    moveWorkItemDto: MoveWorkItemDto,
+    userId: string | undefined,
+  ) {
     const { workItemId, fromColumnId, toColumnId, position } = moveWorkItemDto;
 
     if (!Types.ObjectId.isValid(boardId)) {
@@ -144,9 +148,14 @@ export class KanbanBoardService {
 
       try {
         const board = await this.boardModel.findById(boardId).exec();
-        const workspace = board ? await this.workspaceModel.findById(board.workspaceId).exec() : null;
+        const workspace = board
+          ? await this.workspaceModel.findById(board.workspaceId).exec()
+          : null;
         const ids = workspace
-          ? [workspace.OwnedBy?.toString(), ...((workspace.members || []).map((m) => m.toString()))].filter(Boolean)
+          ? [
+              workspace.OwnedBy?.toString(),
+              ...(workspace.members || []).map((m) => m.toString()),
+            ].filter(Boolean)
           : [];
         const unique = Array.from(new Set(ids));
         const users = await this.userModel
@@ -157,9 +166,12 @@ export class KanbanBoardService {
           email: u.email,
           name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || undefined,
         }));
-        const actor =
-          userId ? await this.userModel.findById(userId).select('firstName lastName email').exec() : null;
-        const actorName = actor ? (`${actor.firstName || ''} ${actor.lastName || ''}`.trim() || actor.email) : undefined;
+        const actor = userId
+          ? await this.userModel.findById(userId).select('firstName lastName email').exec()
+          : null;
+        const actorName = actor
+          ? `${actor.firstName || ''} ${actor.lastName || ''}`.trim() || actor.email
+          : undefined;
         const subject = `Status changed: ${workItem.title}`;
         const html = this.emailService.buildActivityTemplate({
           action: 'Status Changed',
