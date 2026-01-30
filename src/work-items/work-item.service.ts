@@ -11,9 +11,11 @@ import { CreateItemDto } from './dto/create-work-item.dto';
 import { UpdateItemDto } from './dto/update-work-item.dto';
 import { KanbanColumn } from '../kanban/column/schemas/column.schema';
 import { KanbanBoard } from '../kanban/board/schemas/kanban-board.schema';
-import { EmailService } from '../email/email.service';
+import { Workspace } from '../workspace/schemas/workspace.schema';
 import { UsersService } from '../users/users.service';
 import { HistoryService } from '../kanban/history/history.service';
+import { NotificationService } from '../kanban/notification/notification.service';
+import { NotificationType } from '../kanban/notification/schemas/notification.schema';
 
 @Injectable()
 export class ItemService {
@@ -24,14 +26,21 @@ export class ItemService {
     private readonly columnModel: Model<KanbanColumn>,
     @InjectModel(KanbanBoard.name)
     private readonly boardModel: Model<KanbanBoard>,
-    private readonly emailService: EmailService,
+    @InjectModel(Workspace.name)
+    private readonly workspaceModel: Model<Workspace>,
+    private readonly notificationService: NotificationService,
     private readonly usersService: UsersService,
     private readonly historyService: HistoryService,
   ) { }
 
-  async create(dto: CreateItemDto): Promise<Item> {
+  async create(dto: CreateItemDto, userId?: string): Promise<Item> {
     let path = '';
     console.log('DTO Received in Service:', dto);
+
+    // Set reporter if userId is provided
+    if (userId && !dto.reporter) {
+        dto.reporter = userId;
+    }
 
     let parent: Item | null = null;
 
@@ -165,6 +174,7 @@ export class ItemService {
     } catch (e) {
       // ignore logging errors
     }
+    await this.notifyUsers(saved, 'created', userId);
     return saved;
   }
 
@@ -267,6 +277,7 @@ export class ItemService {
   }
 
   async moveToColumn(itemId: string, columnId: string, actorId?: string) {
+  async moveToColumn(itemId: string, columnId: string, userId?: string) {
     const column = await this.columnModel.findById(columnId);
     if (!column) {
       throw new NotFoundException('Target column not found');
@@ -325,10 +336,24 @@ export class ItemService {
     }
 
     return updated;
+    const item = await this.itemModel.findByIdAndUpdate(
+      itemId,
+      {
+        status: nextStatus,
+        column: new Types.ObjectId(columnId),
+      },
+      { new: true },
+    );
+
+    if (item) {
+        await this.notifyUsers(item, 'updated', userId);
+    }
+    
+    return item;
   }
 
-  async moveToBacklog(itemId: string) {
-    return this.itemModel.findByIdAndUpdate(
+  async moveToBacklog(itemId: string, userId?: string) {
+    const item = await this.itemModel.findByIdAndUpdate(
       itemId,
       {
         status: ItemStatus.BACKLOG,
@@ -336,9 +361,15 @@ export class ItemService {
       },
       { new: true },
     );
+
+    if (item) {
+        await this.notifyUsers(item, 'updated', userId);
+    }
+    return item;
   }
 
   async update(itemId: string, dto: UpdateItemDto, actorId?: string): Promise<Item> {
+  async update(itemId: string, dto: UpdateItemDto, userId?: string): Promise<Item> {
     const item = await this.itemModel.findById(itemId);
     if (!item) throw new NotFoundException('Item not found');
 
@@ -376,12 +407,16 @@ export class ItemService {
       }
     }
 
+    await this.notifyUsers(saved, 'updated', userId);
     return saved;
   }
 
-  async delete(itemId: string) {
+  async delete(itemId: string, userId?: string) {
     const item = await this.itemModel.findById(itemId);
     if (!item) throw new NotFoundException('Item not found');
+
+    // Notify users before deletion (so we have the item data)
+    await this.notifyUsers(item, 'deleted', userId);
 
     // 1. Detach direct children
     await this.itemModel.updateMany(
@@ -404,32 +439,84 @@ export class ItemService {
     };
   }
 
-  private async notifyUsers(item: Item, action: 'created' | 'updated'): Promise<void> {
-    const recipients: Array<{ email: string; firstName: string }> = [];
-
+  private async notifyUsers(item: Item, action: 'created' | 'updated' | 'deleted', actorId?: string): Promise<void> {
     const ids: string[] = [];
+    
+    // Explicitly add actor to ensure they get notified
+    if (actorId) {
+        ids.push(actorId);
+    }
+
     if (item.assignedTo) ids.push((item.assignedTo as unknown as Types.ObjectId).toString());
     if (item.reporter) ids.push((item.reporter as unknown as Types.ObjectId).toString());
 
-    const uniqueIds = Array.from(new Set(ids));
-    for (const id of uniqueIds) {
-      try {
-        const user = await this.usersService.findOne(id);
-        if (user?.email) {
-          recipients.push({ email: user.email, firstName: user.firstName || 'User' });
+    // Fetch workspace members to notify everyone
+    if (item.workspace) {
+        const workspace = await this.workspaceModel.findById(item.workspace).exec();
+        if (workspace) {
+            console.log('WorkItemService: Workspace found:', workspace._id, 'Members:', workspace.members?.length, 'Owner:', workspace.OwnedBy);
+            if (workspace.OwnedBy) ids.push(workspace.OwnedBy.toString());
+            if (workspace.members) {
+                workspace.members.forEach(m => ids.push(m.toString()));
+            }
+        } else {
+            console.warn('WorkItemService: Workspace not found during notification', item.workspace);
         }
       } catch { }
+    } else {
+        console.warn('WorkItemService: Item has no workspace defined', item._id);
     }
 
-    const payload = {
-      title: item.title,
-      type: item.type,
-      status: item.status,
-    };
+    // Get actor details
+    let actorName = 'Someone';
+    if (actorId) {
+        try {
+            const actor = await this.usersService.findOne(actorId);
+            if (actor) {
+                actorName = `${actor.firstName} ${actor.lastName}`;
+            }
+        } catch (e) {
+            console.error('Failed to fetch actor details', e);
+        }
+    }
 
-    const tasks: Promise<void>[] = recipients.map((r) =>
-      this.emailService.sendWorkItemNotification(r.email, r.firstName, action, payload),
-    );
-    await Promise.allSettled(tasks);
+    const uniqueIds = Array.from(new Set(ids));
+    
+    // User requested to receive notifications for their own actions as well
+    const recipients = uniqueIds;
+    
+    console.log('WorkItemService: NotifyUsers - Actor:', actorName, actorId);
+    console.log('WorkItemService: NotifyUsers - Action:', action);
+    console.log('WorkItemService: NotifyUsers - Recipients Count:', recipients.length);
+    console.log('WorkItemService: NotifyUsers - Recipients List:', recipients);
+
+    const sender = actorId ? new Types.ObjectId(actorId) : (item.reporter ? new Types.ObjectId(item.reporter as any) : undefined);
+          
+          for (const recipientId of recipients) {
+            try {
+              let type = NotificationType.WORK_ITEM_UPDATED;
+              if (action === 'created') type = NotificationType.WORK_ITEM_CREATED;
+              else if (action === 'deleted') type = NotificationType.WORK_ITEM_DELETED;
+
+              // Ensure recipientId is valid
+              if (!Types.ObjectId.isValid(recipientId)) {
+                  console.warn(`Invalid recipient ID: ${recipientId}`);
+                  continue;
+              }
+
+              await this.notificationService.create({
+                  recipient: new Types.ObjectId(recipientId),
+                  sender: sender,
+                  type: type,
+                  message: recipientId === actorId 
+                    ? `You ${action} work item "${item.title}"`
+                    : `${actorName} ${action} work item "${item.title}"`,
+                  workspace: item.workspace,
+                  workItem: action === 'deleted' ? undefined : (item._id as any),
+              });
+            } catch (err) {
+                console.error(`Failed to notify user ${recipientId}`, err);
+            }
+          }
   }
 }

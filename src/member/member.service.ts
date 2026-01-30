@@ -17,6 +17,8 @@ import { EmailService } from '../email/email.service';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import { ConfigService } from '@nestjs/config';
+import { NotificationService } from '../kanban/notification/notification.service';
+import { NotificationType } from '../kanban/notification/schemas/notification.schema';
 
 @Injectable()
 export class MemberService {
@@ -27,6 +29,7 @@ export class MemberService {
     @InjectModel(Invitation.name) private invitationModel: Model<InvitationDocument>,
     private jwtService: JwtService,
     private mailService: EmailService,
+    private notificationService: NotificationService,
     private configService: ConfigService,
   ) {}
 
@@ -74,8 +77,24 @@ export class MemberService {
         workspace.members.push(userObjectId);
         await workspace.save();
       }
+
+      // Notify workspace members
+      const memberIds = workspace.members.map((m: any) => m.toString());
+      const ownerId = workspace.OwnedBy?.toString();
+      const allIds = new Set([...memberIds, ownerId].filter(Boolean));
+
+      for (const recipientId of allIds) {
+          // if (recipientId === userId) continue;
+
+          await this.notificationService.create({
+              recipient: new Types.ObjectId(recipientId),
+              type: NotificationType.MEMBER_ADDED,
+              message: `User ${user.firstName} ${user.lastName} joined the workspace ${workspace.name}`,
+              workspace: workspace._id,
+          });
+      }
     } catch (err) {
-      console.error('Failed to update workspace.members after adding member:', err);
+      console.error('Failed to update workspace.members or notify:', err);
     }
 
     return saved;
@@ -85,24 +104,42 @@ export class MemberService {
    * Get all members of a workspace
    */
   async getWorkspaceMembers(workspaceId: string) {
-    const workspace = await this.workspaceModel.findById(workspaceId);
+    const members = await this.memberModel
+      .find({ workspaceId })
+      .populate('userId', 'firstName lastName email profilePicture')
+      .exec();
+
+    // Also get the owner
+    const workspace = await this.workspaceModel
+      .findById(workspaceId)
+      .populate('OwnedBy', 'firstName lastName email profilePicture')
+      .exec();
+
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
     }
 
-    const members = await this.memberModel
-      .find({ workspaceId })
-      .populate('userId', 'firstName lastName email profilePicture')
-      .sort({ joinedAt: -1 });
+    const result = members.map((member: any) => ({
+      _id: member._id,
+      user: member.userId,
+      role: member.role,
+      joinedAt: member.joinedAt,
+    }));
 
-    return members.map((m: any) => {
-      const obj = m.toObject ? m.toObject() : m;
-      const user = obj.userId || {};
-      obj.userName = user.firstName
-        ? `${user.firstName} ${user.lastName || ''}`.trim()
-        : user.name || null;
-      return obj;
-    });
+    // If owner is not in members list (sometimes happens), add them
+    const ownerId = workspace.OwnedBy?._id?.toString();
+    const isOwnerInMembers = result.some((m) => m.user?._id?.toString() === ownerId);
+
+    if (workspace.OwnedBy && !isOwnerInMembers) {
+      result.unshift({
+        _id: 'owner_placeholder',
+        user: workspace.OwnedBy,
+        role: 'Owner',
+        joinedAt: workspace.createdAt,
+      });
+    }
+
+    return result;
   }
 
   /**
@@ -311,7 +348,25 @@ export class MemberService {
 
       const inviteLink = `${this.configService.get('FRONTEND_URL')}/invite?token=${rawToken}`;
 
+      // Check if user exists to send in-app notification
+      const existingUser = await this.userModel.findOne({ email });
+
+      if (existingUser) {
+         // Send in-app notification
+         try {
+             await this.notificationService.create({
+                 recipient: existingUser._id,
+                 type: NotificationType.MEMBER_ADDED, // Using MEMBER_ADDED as proxy for invitation
+                 message: `You have been invited to join workspace "${workspace.name}" as ${role}`,
+                 workspace: workspace._id,
+             });
+         } catch (err) {
+             console.error('Failed to send in-app invitation notification:', err);
+         }
+      }
+
       // Send invite email with workspace inviteCode
+      // We keep sending email because invitation link is needed even for existing users if they are not logged in
       await this.mailService.sendInvite(email, role, inviteLink, workspace.inviteCode);
 
       return { message: 'Invitation email sent successfully' };
@@ -448,6 +503,36 @@ export class MemberService {
       invite.status = 'ACCEPTED';
       await invite.save();
       console.log('✅ [acceptInvitation] Invitation marked as ACCEPTED');
+
+      // Add to workspace members array if not present
+      const workspace = await this.workspaceModel.findById(invite.workspaceId);
+      if (workspace) {
+        const userObjectId = new Types.ObjectId(user._id);
+        if (!workspace.members.find((m: any) => m.toString() === userObjectId.toString())) {
+          workspace.members.push(userObjectId);
+          await workspace.save();
+        }
+
+        // Notify workspace members
+        const memberIds = workspace.members.map((m: any) => m.toString());
+        const ownerId = workspace.OwnedBy?.toString();
+        const allIds = new Set([...memberIds, ownerId].filter(Boolean));
+
+        for (const recipientId of allIds) {
+            if (recipientId === user._id.toString()) continue;
+
+            try {
+              await this.notificationService.create({
+                  recipient: new Types.ObjectId(recipientId),
+                  type: NotificationType.MEMBER_ADDED,
+                  message: `User ${user.firstName} ${user.lastName} joined the workspace ${workspace.name}`,
+                  workspace: workspace._id,
+              });
+            } catch (err) {
+              console.error('Failed to notify member about new user:', err);
+            }
+        }
+      }
 
       // Generate JWT access token
       const accessToken = this.jwtService.sign({

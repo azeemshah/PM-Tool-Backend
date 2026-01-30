@@ -7,6 +7,8 @@ import { MoveStatusDto } from './dto/move-status.dto';
 import { AssignUserDto } from './dto/assign-user.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { WorkspaceRolesGuard } from '@/common/guards/workspace-roles.guard';
 
 @Controller('kanban/items')
 @UseGuards(JwtAuthGuard)
@@ -14,6 +16,8 @@ export class WorkItemController {
   constructor(private readonly workItemService: WorkItemService) {}
 
   /* ================= Create Work Item ================= */
+  @Roles('Owner', 'Admin', 'Member')
+  @UseGuards(WorkspaceRolesGuard)
   @Post()
   async createWorkItem(
     @Body() createDto: CreateWorkItemDto,
@@ -24,6 +28,7 @@ export class WorkItemController {
   }
 
   /* ================= Get All Work Items ================= */
+  
   @Get()
   async getAllWorkItems() {
     return this.workItemService.findAll();
@@ -36,6 +41,8 @@ export class WorkItemController {
   }
 
   /* ================= Update Work Item ================= */
+    @Roles('Owner', 'Admin', 'Member')
+  @UseGuards(WorkspaceRolesGuard)
   @Put(':id')
   async updateWorkItem(
     @Param('id') id: string,
@@ -46,18 +53,24 @@ export class WorkItemController {
   }
 
   /* ================= Delete Work Item ================= */
+    @Roles('Owner', 'Admin')
+  @UseGuards(WorkspaceRolesGuard)
   @Delete(':id')
   async deleteWorkItem(@Param('id') id: string, @CurrentUser('userId') userId?: string) {
     return this.workItemService.delete(id, userId);
   }
 
   /* ================= Move Work Item Status ================= */
+    @Roles('Owner', 'Admin', 'Member')
+  @UseGuards(WorkspaceRolesGuard)
   @Put(':id/move-status')
   async moveStatus(@Body() moveDto: MoveStatusDto, @CurrentUser('userId') userId?: string) {
     return this.workItemService.moveStatus(moveDto, userId);
   }
 
   /* ================= Assign User to Work Item ================= */
+    @Roles('Owner', 'Admin', 'Member')
+  @UseGuards(WorkspaceRolesGuard)
   @Put(':id/assign-user')
   async assignUser(@Body() assignDto: AssignUserDto, @CurrentUser('userId') userId?: string) {
     return this.workItemService.assignUser(assignDto, userId);

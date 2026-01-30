@@ -9,21 +9,29 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
 import { CreateColumnDto } from './dto/create-column.dto';
 import { UpdateColumnDto } from './dto/update-column.dto';
 import { ColumnService } from './column.service';
 import { KanbanColumn } from './schemas/column.schema';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { WorkspaceRolesByBoardGuard } from './../workspace-roles-by-board.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
+@UseGuards(JwtAuthGuard)
 @Controller('column')
 export class ColumnController {
   constructor(private readonly columnService: ColumnService) {}
 
   // -------------------- Columns --------------------
-
+  @Roles('Owner')
+@UseGuards(WorkspaceRolesByBoardGuard)
   @Post('create')
-  async createColumn(@Body() createColumnDto: CreateColumnDto): Promise<KanbanColumn> {
-    return this.columnService.createColumn(createColumnDto);
+  async createColumn(@Body() createColumnDto: CreateColumnDto, @CurrentUser('userId') userId: string): Promise<KanbanColumn> {
+    return this.columnService.createColumn(createColumnDto, userId);
   }
 
   @Put('columns/:columnId')
@@ -36,8 +44,8 @@ export class ColumnController {
 
   @Delete('columns/:columnId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteColumn(@Param('columnId') columnId: string): Promise<void> {
-    return this.columnService.deleteColumn(columnId);
+  async deleteColumn(@Param('columnId') columnId: string, @CurrentUser('userId') userId: string): Promise<void> {
+    return this.columnService.deleteColumn(columnId, userId);
   }
 
   @Get(':boardId/columns')

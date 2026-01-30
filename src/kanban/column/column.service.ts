@@ -6,6 +6,8 @@ import { UpdateColumnDto } from './dto/update-column.dto';
 import { CreateColumnDto } from './dto/create-column.dto';
 import { KanbanColumn } from './schemas/column.schema';
 import { KanbanBoard } from '../board/schemas/kanban-board.schema';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../notification/schemas/notification.schema';
 
 @Injectable()
 export class ColumnService {
@@ -16,11 +18,13 @@ export class ColumnService {
     private readonly boardModel: Model<KanbanBoard>,
     @InjectModel(WorkItem.name)
     private readonly workItemModel: Model<WorkItem>,
+    private readonly notificationService: NotificationService,
+    @InjectModel('Workspace') private readonly workspaceModel: Model<any>,
   ) {}
 
   // -------------------- Column CRUD --------------------
 
-  async createColumn(createColumnDto: CreateColumnDto): Promise<KanbanColumn> {
+  async createColumn(createColumnDto: CreateColumnDto, userId: string): Promise<KanbanColumn> {
     // Find the board
     const board = await this.boardModel.findById(createColumnDto.board).exec();
     if (!board) throw new NotFoundException('Board not found');
@@ -35,7 +39,20 @@ export class ColumnService {
       position: columnCount, // sets position as next available slot
     });
 
-    return column.save();
+    const savedColumn = await column.save();
+
+    // Notify workspace members about the new column
+    if (board.workspaceId) {
+       this.notifyBoardMembers(
+         board.workspaceId.toString(),
+         userId,
+         `New column "${savedColumn.name}" created in board "${board.name}"`,
+         NotificationType.SYSTEM,
+         board._id
+       );
+    }
+    
+    return savedColumn;
   }
 
   async updateColumn(columnId: string, updateColumnDto: UpdateColumnDto): Promise<KanbanColumn> {
@@ -48,12 +65,59 @@ export class ColumnService {
     return column;
   }
 
-  async deleteColumn(columnId: string): Promise<void> {
+  async deleteColumn(columnId: string, userId?: string): Promise<void> {
     const column = await this.columnModel.findById(columnId).exec();
     if (!column) throw new NotFoundException(`Column with ID ${columnId} not found`);
 
     await this.workItemModel.deleteMany({ status: column._id }).exec();
     await column.deleteOne();
+
+    // Notify
+    const board = await this.boardModel.findById(column.BoardId).select('workspaceId name').lean();
+    if (board && board.workspaceId && userId) {
+        this.notifyBoardMembers(
+            board.workspaceId.toString(),
+            userId,
+            `Column "${column.name}" deleted from board "${board.name}"`,
+            NotificationType.SYSTEM,
+            board._id
+        );
+    }
+  }
+
+  // Helper to notify members
+  private async notifyBoardMembers(
+    workspaceId: string, 
+    senderId: string, 
+    message: string, 
+    type: NotificationType,
+    boardId: any
+  ) {
+    try {
+        // Cast to any to bypass strict type checking on the generic Model<any>
+        const workspace = await (this.workspaceModel as any).findById(workspaceId).select('members OwnedBy').lean();
+        if (!workspace) return;
+
+        const memberIds = workspace.members ? workspace.members.map((m: any) => m.toString()) : [];
+        if (workspace.OwnedBy) memberIds.push(workspace.OwnedBy.toString());
+
+        const uniqueRecipients = new Set(memberIds);
+
+        for (const recipientId of uniqueRecipients) {
+            // if (recipientId === senderId) continue; // Don't notify the sender
+
+            await this.notificationService.create({
+                recipient: new Types.ObjectId(recipientId as string),
+                type,
+                message,
+                workspace: new Types.ObjectId(workspaceId),
+                relatedId: new Types.ObjectId(boardId),
+                onModel: 'KanbanBoard'
+            } as any);
+        }
+    } catch (error) {
+        console.error('Failed to notify board members:', error);
+    }
   }
 
   async getBoardColumns(boardId: string): Promise<KanbanColumn[]> {

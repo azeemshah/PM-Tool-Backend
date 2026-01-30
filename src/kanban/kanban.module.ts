@@ -2,10 +2,11 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { EmailModule } from '../email/email.module';
+import { MemberModule } from '../member/member.module';
+
 import { Workspace, WorkspaceSchema } from '../workspace/schemas/workspace.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { MemberSchema } from '../member/schemas/member.schema';
-import { WorkspacePermissionGuard } from '../common/guards/workspace-permission.guard';
 import { Item, ItemSchema } from '@/work-items/schemas/work-item.schema';
 
 // Board
@@ -49,9 +50,7 @@ import { AttachmentService } from './attachment/attachment.service';
 import { Attachment, AttachmentSchema } from './attachment/schemas/attachment.schema';
 
 // Notification
-import { NotificationController } from './notification/notification.controller';
-import { NotificationService } from './notification/notification.service';
-import { Notification, NotificationSchema } from './notification/schemas/notification.schema';
+import { NotificationModule } from './notification/notification.module';
 
 // Report
 import { KanbanReportController } from './report/kanban-report.controller';
@@ -93,7 +92,14 @@ import { ColumnController } from './column/column.controller';
 
 @Module({
   imports: [
+    NotificationModule,
     EmailModule,
+    MemberModule, // ✅ REQUIRED for MemberService in guards
+
+    EmailModule,
+    MemberModule, // ✅ REQUIRED for MemberService in guards
+
+    NotificationModule,
     MongooseModule.forFeature([
       // Board
       { name: KanbanBoard.name, schema: KanbanBoardSchema },
@@ -125,9 +131,6 @@ import { ColumnController } from './column/column.controller';
       // Attachment
       { name: Attachment.name, schema: AttachmentSchema },
 
-      // Notification
-      { name: Notification.name, schema: NotificationSchema },
-
       // Report
       { name: CumulativeFlowReport.name, schema: CumulativeFlowReportSchema },
       { name: CycleTimeReport.name, schema: CycleTimeReportSchema },
@@ -152,12 +155,12 @@ import { ColumnController } from './column/column.controller';
       { name: Item.name, schema: ItemSchema },
     ]),
   ],
+
   controllers: [
     KanbanBoardController,
     WorkItemController,
     TimeTrackingController,
     AttachmentController,
-    NotificationController,
     KanbanReportController,
     DashboardController,
     AuditController,
@@ -167,12 +170,12 @@ import { ColumnController } from './column/column.controller';
     CommentController,
     EstimationController,
   ],
+
   providers: [
     KanbanBoardService,
     WorkItemService,
     TimeTrackingService,
     AttachmentService,
-    NotificationService,
     KanbanReportService,
     DashboardService,
     AuditService,
