@@ -89,9 +89,11 @@ export class MemberController {
 
     // Return available roles along with members
     const roles = [
-      { _id: 'admin', name: 'ADMIN' },
-      { _id: 'member', name: 'MEMBER' },
-      { _id: 'viewer', name: 'VIEWER' },
+      { _id: 'admin', name: 'Admin' },
+      { _id: 'team_lead', name: 'Team Lead' },
+      { _id: 'project_manager', name: 'Project Manager' },
+      { _id: 'member', name: 'Member' },
+      { _id: 'viewer', name: 'Viewer' },
     ];
 
     return {
