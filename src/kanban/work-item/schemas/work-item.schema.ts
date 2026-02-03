@@ -40,6 +40,12 @@ export class WorkItem extends Document {
   @Prop({ default: 'Medium' })
   priority: string;
 
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'KanbanLabel' }], default: [] })
+  labels: Types.ObjectId[];
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Tag' }], default: [] })
+  tags: Types.ObjectId[]; // Tags for organizing and filtering work items
+
   @Prop({ type: Object, default: {} })
   metadata?: Record<string, any>; // Additional info like labels, tags, attachments
 }
@@ -50,3 +56,5 @@ export const WorkItemSchema = SchemaFactory.createForClass(WorkItem);
 WorkItemSchema.index({ spaceid: 1, board: 1, status: 1 });
 WorkItemSchema.index({ assignee: 1 });
 WorkItemSchema.index({ parent: 1 });
+WorkItemSchema.index({ tags: 1 });
+WorkItemSchema.index({ spaceid: 1, tags: 1 }); // For filtering by tags in workspace

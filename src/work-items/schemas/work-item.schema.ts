@@ -22,7 +22,9 @@ export enum ItemStatus {
   TODO = 'To Do',
   INPROGRESS = 'In Progress',
   REVIEW = 'In Review',
+  BLOCKED = 'Blocked',
   DONE = 'Done',
+  CLOSED = 'Closed',
 }
 
 @Schema({ timestamps: true })
@@ -83,6 +85,9 @@ export class Item extends Document {
     default: null,
   })
   dueDate?: Date;
+
+  @Prop({ type: [String], default: [] })
+  labels: string[];
 
   // Materialized path for fast hierarchy queries
   @Prop({ required: true, index: true })

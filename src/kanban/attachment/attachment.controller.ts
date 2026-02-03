@@ -82,7 +82,7 @@ export class AttachmentController {
           cb(null, unique);
         },
       }),
-      limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+      limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
     }),
   )
   async uploadBinary(

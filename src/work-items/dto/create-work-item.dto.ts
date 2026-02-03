@@ -1,4 +1,4 @@
-import { IsEnum, IsMongoId, IsOptional, IsString, IsDateString } from 'class-validator';
+import { IsEnum, IsMongoId, IsOptional, IsString, IsDateString, IsArray } from 'class-validator';
 import { ItemStatus, ItemType, ItemPriority } from '../schemas/work-item.schema';
 
 export class CreateItemDto {
@@ -33,6 +33,16 @@ export class CreateItemDto {
   @IsOptional()
   @IsDateString()
   dueDate?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  labels?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsMongoId({ each: true })
+  tags?: string[];
 
   // ---------------- Existing relations ----------------
 

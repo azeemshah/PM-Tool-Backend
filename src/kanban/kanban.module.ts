@@ -91,11 +91,21 @@ import { KanbanColumn } from './column/schemas/column.schema';
 import { ColumnService } from './column/column.service';
 import { ColumnController } from './column/column.controller';
 
+// Label
+import { KanbanLabelController } from './label/kanban-label.controller';
+import { KanbanLabelService } from './label/kanban-label.service';
+import { KanbanLabel, KanbanLabelSchema } from './board/schemas/kanban-label.schema';
+
+// Tag
+import { TagModule } from './tag/tag.module';
+import { Tag, TagSchema } from './tag/schemas/tag.schema';
+
 @Module({
   imports: [
     NotificationModule,
     EmailModule,
     MemberModule, // ✅ REQUIRED for MemberService in guards
+    TagModule, // ✅ Tag module for work-item tagging
 
     EmailModule,
     MemberModule, // ✅ REQUIRED for MemberService in guards
@@ -104,8 +114,12 @@ import { ColumnController } from './column/column.controller';
     MongooseModule.forFeature([
       // Board
       { name: KanbanBoard.name, schema: KanbanBoardSchema },
+      { name: KanbanLabel.name, schema: KanbanLabelSchema },
       { name: WipRule.name, schema: WipRuleSchema },
       { name: Swimlane.name, schema: SwimlaneSchema },
+
+      // Tag
+      { name: Tag.name, schema: TagSchema },
 
       // Column
       { name: KanbanColumn.name, schema: ColumnSchema },
@@ -159,6 +173,7 @@ import { ColumnController } from './column/column.controller';
 
   controllers: [
     KanbanBoardController,
+    KanbanLabelController,
     WorkItemController,
     TimeTrackingController,
     AttachmentController,
@@ -174,6 +189,7 @@ import { ColumnController } from './column/column.controller';
 
   providers: [
     KanbanBoardService,
+    KanbanLabelService,
     WorkItemService,
     TimeTrackingService,
     AttachmentService,

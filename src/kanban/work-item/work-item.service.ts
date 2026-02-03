@@ -168,7 +168,12 @@ export class WorkItemService {
 
   /* ================= Find Work Item by ID ================= */
   async findById(id: string): Promise<WorkItem> {
-    const item = await this.workItemModel.findById(id).exec();
+    const item = await this.workItemModel.findById(id)
+      .populate('parent')
+      .populate('assignee')
+      .populate('reporter')
+      .populate('labels')
+      .exec();
     if (!item) throw new NotFoundException('Work item not found');
     return item;
   }

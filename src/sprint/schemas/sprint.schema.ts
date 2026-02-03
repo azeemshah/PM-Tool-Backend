@@ -35,7 +35,7 @@ export class Sprint extends Document {
 
   @Prop({
     type: [String],
-    default: ['To Do', 'In Progress', 'In Review', 'Done'],
+    default: ['To Do', 'In Progress', 'In Review', 'Blocked', 'Done', 'Closed'],
   })
   columns: string[];
 }
