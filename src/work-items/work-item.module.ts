@@ -12,6 +12,8 @@ import { Workspace, WorkspaceSchema } from '../workspace/schemas/workspace.schem
 import { HistoryService } from '../kanban/history/history.service';
 import { Activity, ActivitySchema } from '../kanban/history/schemas/activity.schema';
 import { NotificationModule } from '../kanban/notification/notification.module';
+import { TagModule } from '../kanban/tag/tag.module';
+import { Tag, TagSchema } from '../kanban/tag/schemas/tag.schema';
 
 @Module({
   imports: [
@@ -22,9 +24,11 @@ import { NotificationModule } from '../kanban/notification/notification.module';
       { name: 'Member', schema: MemberSchema },
       { name: Workspace.name, schema: WorkspaceSchema },
       { name: Activity.name, schema: ActivitySchema },
+      { name: Tag.name, schema: TagSchema },
     ]),
     UsersModule,
     NotificationModule,
+    TagModule,
   ],
   controllers: [ItemController],
   providers: [ItemService, HistoryService, WorkspacePermissionGuard],

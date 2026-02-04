@@ -89,6 +89,9 @@ export class Item extends Document {
   @Prop({ type: [String], default: [] })
   labels: string[];
 
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Tag' }], default: [] })
+  tags: Types.ObjectId[];
+
   // Materialized path for fast hierarchy queries
   @Prop({ required: true, index: true })
   path: string;

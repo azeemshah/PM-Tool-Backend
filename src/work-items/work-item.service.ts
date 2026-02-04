@@ -232,6 +232,7 @@ export class ItemService {
           path: 'reporter',
           select: '_id firstName lastName profilePicture',
         })
+        .populate('tags')
         .lean(),
 
       this.itemModel.countDocuments(filter),
@@ -264,6 +265,21 @@ export class ItemService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async findOne(id: string): Promise<Item> {
+    const item = await this.itemModel
+      .findById(id)
+      .populate('assignedTo', 'firstName lastName email profilePicture')
+      .populate('reporter', 'firstName lastName email profilePicture')
+      .populate('parent')
+      .populate('tags')
+      .exec();
+
+    if (!item) {
+      throw new NotFoundException('Item not found');
+    }
+    return item;
   }
 
   async findTree(rootId: string) {

@@ -173,7 +173,18 @@ export class WorkItemService {
       .populate('assignee')
       .populate('reporter')
       .populate('labels')
+      .populate('tags')
       .exec();
+    
+    if (item) {
+        console.log(`[WorkItemService] findById(${id}):`, {
+            labels: item.labels,
+            tags: item.tags,
+            labelsType: Array.isArray(item.labels) ? 'array' : typeof item.labels,
+            tagsType: Array.isArray(item.tags) ? 'array' : typeof item.tags
+        });
+    }
+
     if (!item) throw new NotFoundException('Work item not found');
     return item;
   }
