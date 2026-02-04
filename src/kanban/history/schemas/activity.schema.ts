@@ -14,7 +14,7 @@ export class Activity extends Document {
 
   @Prop({
     required: true,
-    enum: ['create', 'edit', 'move', 'status_change', 'time_logged', 'comment', 'delete'],
+    enum: ['create', 'edit', 'move', 'status_change', 'time_logged', 'comment', 'delete', 'estimate'],
   })
   type: string;
 

@@ -96,7 +96,7 @@ export class ItemService {
         userId: userId,
         projectId: item.workspace?.toString(),
         taskId: item._id,
-        type: 'log-work',
+        type: 'time_logged',
         details: { timeSpent, comment },
       } as any);
     } catch (_) {}
@@ -521,24 +521,35 @@ export class ItemService {
     const saved = await item.save();
     await this.notifyUsers(saved, 'updated', actorId);
 
-    // Log activity if status or column changed
-    if (
-      (dto.status && dto.status !== oldStatus) ||
-      (dto.column && dto.column !== oldColumn?.toString())
-    ) {
-      try {
+    // Log activity for changes
+    try {
+      // Check if status or column actually changed
+      const statusChanged = dto.status && dto.status !== oldStatus;
+      const columnChanged = dto.column && dto.column !== oldColumn?.toString();
+      
+      if (statusChanged || columnChanged) {
+        // Log move/status change
         await this.historyService.log({
           userId: actorId,
           projectId: saved.workspace.toString(),
           taskId: saved._id,
-          type: 'move',
+          type: 'status_change',
           from: oldStatus,
           to: saved.status,
           details: { title: saved.title, status: saved.status },
         } as any);
-      } catch (e) {
-        console.error('History log error:', e);
+      } else if (Object.keys(dto).length > 0) {
+        // Only log edit if something else actually changed (not just a no-op)
+        await this.historyService.log({
+          userId: actorId,
+          projectId: saved.workspace.toString(),
+          taskId: saved._id,
+          type: 'edit',
+          details: { title: saved.title, changes: dto },
+        } as any);
       }
+    } catch (e) {
+      console.error('History log error:', e);
     }
 
     await this.notifyUsers(saved, 'updated', actorId);
@@ -567,6 +578,19 @@ export class ItemService {
 
     // 2. Delete only the item itself
     await this.itemModel.deleteOne({ _id: item._id });
+
+    // Log activity for deleted item
+    try {
+      await this.historyService.log({
+        userId: userId,
+        projectId: item.workspace?.toString(),
+        taskId: item._id,
+        type: 'delete',
+        details: { title: item.title },
+      } as any);
+    } catch (e) {
+      console.error('History log error:', e);
+    }
 
     return {
       message: 'Item deleted. Children detached and moved to root.',

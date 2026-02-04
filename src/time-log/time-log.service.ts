@@ -268,6 +268,7 @@ export class TimeLogService {
             description: `Updated time log from ${oldTimeSpent} to ${data.timeSpent || oldTimeSpent} minutes`,
           },
         });
+
       } catch (err) {
         console.error('Failed to log activity history:', err);
         // Don't fail the update if history logging fails

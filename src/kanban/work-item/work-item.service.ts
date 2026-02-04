@@ -191,6 +191,10 @@ export class WorkItemService {
 
   /* ================= Update Work Item ================= */
   async update(id: string, updateDto: UpdateWorkItemDto, actorId?: string): Promise<WorkItem> {
+    // Get the item before update to compare changes
+    const originalItem = await this.workItemModel.findById(id).exec();
+    if (!originalItem) throw new NotFoundException('Work item not found');
+
     // Map DTO fields to schema fields before updating
     const updatePayload: any = { ...updateDto };
     if ((updateDto as any).boardId) {
@@ -237,18 +241,38 @@ export class WorkItemService {
           });
       }
     } catch (_) {}
-    // Log activity
+    
+    // Log activity - distinguish between status change and edit
     try {
       const board = await this.boardModel.findById((updatedItem as any).board).exec();
       const workspaceId = (board as any)?.workspaceId;
-      await this.historyService.log({
-        userId: actorId,
-        projectId: workspaceId,
-        taskId: updatedItem._id,
-        type: 'edit',
-        details: { title: updatedItem.title, changes: updatePayload },
-      } as any);
+      
+      // Check if status changed
+      const statusChanged = updateDto.status && updateDto.status !== originalItem.status;
+      
+      if (statusChanged) {
+        // Log status change
+        await this.historyService.log({
+          userId: actorId,
+          projectId: workspaceId,
+          taskId: updatedItem._id,
+          type: 'status_change',
+          from: originalItem.status,
+          to: updateDto.status,
+          details: { title: updatedItem.title, status: updateDto.status },
+        } as any);
+      } else if (Object.keys(updatePayload).length > 0) {
+        // Log regular edit for other changes
+        await this.historyService.log({
+          userId: actorId,
+          projectId: workspaceId,
+          taskId: updatedItem._id,
+          type: 'edit',
+          details: { title: updatedItem.title, changes: updatePayload },
+        } as any);
+      }
     } catch (e) {}
+    
     return updatedItem;
   }
 
