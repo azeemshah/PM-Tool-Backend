@@ -92,6 +92,19 @@ export class Item extends Document {
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Tag' }], default: [] })
   tags: Types.ObjectId[];
 
+  // Time tracking & estimation (minutes)
+  @Prop({ type: Number, default: 0 })
+  originalEstimate?: number;
+
+  @Prop({ type: Number, default: 0 })
+  remainingEstimate?: number;
+
+  @Prop({ type: Number, default: 0 })
+  timeSpent?: number;
+
+  @Prop({ type: Number, default: null })
+  storyPoints?: number;
+
   // Materialized path for fast hierarchy queries
   @Prop({ required: true, index: true })
   path: string;
