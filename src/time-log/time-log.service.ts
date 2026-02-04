@@ -153,7 +153,7 @@ export class TimeLogService {
 
     const endedAt = new Date();
     const elapsedMs = endedAt.getTime() - timer.startedAt!.getTime();
-    const elapsedMinutes = Math.max(1, Math.round(elapsedMs / 60000)); // at least 1 minute
+    const elapsedMinutes = elapsedMs / 60000;
 
     timer.endedAt = endedAt;
     timer.timeSpent = elapsedMinutes;
@@ -184,7 +184,7 @@ export class TimeLogService {
           details: {
             timeSpent: elapsedMinutes,
             comment: comment || '',
-            description: `Logged ${elapsedMinutes} minutes from timer`,
+            description: `Logged time from timer`,
           },
         });
       } catch (err) {
