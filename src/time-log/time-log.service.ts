@@ -63,9 +63,9 @@ export class TimeLogService {
     // Log to activity history
     try {
       await this.historyService.log({
-        userId: new Types.ObjectId(data.userId),
-        projectId: new Types.ObjectId(issue.workspace.toString()),
-        taskId: new Types.ObjectId(data.issueId),
+        userId: data.userId,
+        projectId: issue.workspace?.toString(),
+        taskId: data.issueId,
         type: 'time_logged',
         details: {
           timeSpent: data.timeSpent,
@@ -177,9 +177,9 @@ export class TimeLogService {
       // Log to activity history
       try {
         await this.historyService.log({
-          userId: new Types.ObjectId(userId),
-          projectId: new Types.ObjectId(issue.workspace.toString()),
-          taskId: new Types.ObjectId(issueId),
+          userId: userId,
+          projectId: issue.workspace?.toString(),
+          taskId: issueId,
           type: 'time_logged',
           details: {
             timeSpent: elapsedMinutes,
@@ -258,9 +258,9 @@ export class TimeLogService {
         }
 
         await this.historyService.log({
-          userId: new Types.ObjectId(userId),
-          projectId: new Types.ObjectId(issue.workspace.toString()),
-          taskId: new Types.ObjectId(log.workItemId.toString()),
+          userId: userId,
+          projectId: issue.workspace?.toString(),
+          taskId: log.workItemId.toString(),
           type: 'time_logged',
           details: {
             action: 'updated',
@@ -312,9 +312,9 @@ export class TimeLogService {
       // Log to activity history
       try {
         await this.historyService.log({
-          userId: new Types.ObjectId(userId),
-          projectId: new Types.ObjectId(issue.workspace.toString()),
-          taskId: new Types.ObjectId(log.workItemId.toString()),
+          userId: userId,
+          projectId: issue.workspace?.toString(),
+          taskId: log.workItemId.toString(),
           type: 'time_logged',
           details: {
             action: 'deleted',
