@@ -24,8 +24,8 @@ export class SprintController {
   }
 
   @Patch(':id/complete')
-  complete(@Param('id') id: string) {
-    return this.sprintService.completeSprint(id);
+  complete(@Param('id') id: string, @Body('targetSprintId') targetSprintId?: string) {
+    return this.sprintService.completeSprint(id, targetSprintId);
   }
 
   @Patch(':id/reopen')

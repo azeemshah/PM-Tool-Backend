@@ -185,6 +185,8 @@ export class MemberService {
     const roleMap: Record<string, string> = {
       owner: 'Owner',
       admin: 'Admin',
+      team_lead: 'Team Lead',
+      project_manager: 'Project Manager',
       member: 'Member',
       viewer: 'Viewer',
     };
@@ -197,7 +199,7 @@ export class MemberService {
       finalRole = roleMap[roleId.toLowerCase()];
     }
 
-    const allowed = ['Owner', 'Admin', 'Member', 'Viewer'];
+    const allowed = ['Owner', 'Admin', 'Team Lead', 'Project Manager', 'Member', 'Viewer'];
 
     if (!finalRole || !allowed.includes(finalRole)) {
       throw new BadRequestException('Invalid or missing role');
@@ -300,7 +302,7 @@ export class MemberService {
   // 🔑 Send invitation email
   async sendInvitation(
     email: string,
-    role: 'ADMIN' | 'MEMBER' | 'VIEWER',
+    role: 'ADMIN' | 'TEAM_LEAD' | 'PROJECT_MANAGER' | 'MEMBER' | 'VIEWER',
     invitedBy: string,
     workspaceId: string,
   ) {

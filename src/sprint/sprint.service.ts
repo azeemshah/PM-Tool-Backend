@@ -35,28 +35,49 @@ export class SprintService {
 
     sprint.status = SprintStatus.ACTIVE;
 
-    // Move work-items to TODO (ensure they start in To Do column)
-    await this.workItemModel.updateMany(
-      { _id: { $in: sprint.workItems } },
-      { status: ItemStatus.TODO },
-    );
-
     return sprint.save();
   }
 
-  async completeSprint(sprintId: string) {
+  async completeSprint(sprintId: string, targetSprintId?: string) {
     const sprint = await this.sprintModel.findById(sprintId);
     if (!sprint) throw new NotFoundException('Sprint not found');
 
     sprint.status = SprintStatus.COMPLETED;
 
-    // ❗ Not done → Backlog
-    await this.workItemModel.updateMany(
-      {
-        _id: { $in: sprint.workItems },
-        status: { $ne: ItemStatus.DONE },
-      },
-      { status: ItemStatus.BACKLOG },
+    // Get all non-done work items
+    const nonDoneItems = await this.workItemModel.find({
+      _id: { $in: sprint.workItems },
+      status: { $ne: ItemStatus.DONE },
+    });
+
+    const nonDoneItemIds = nonDoneItems.map((item) => item._id);
+
+    if (targetSprintId) {
+      // Move items to target sprint with their current statuses
+      const targetSprint = await this.sprintModel.findById(targetSprintId);
+      if (!targetSprint) throw new NotFoundException('Target sprint not found');
+
+      // Add work items to target sprint
+      targetSprint.workItems = [
+        ...new Set([...targetSprint.workItems, ...nonDoneItemIds]),
+      ];
+      await targetSprint.save();
+
+      // Update work items to reference the target sprint (keep their current statuses)
+      // Note: Items maintain their current status instead of being moved to BACKLOG
+    } else {
+      // ❗ Not done → Backlog (original behavior)
+      await this.workItemModel.updateMany(
+        {
+          _id: { $in: nonDoneItemIds },
+        },
+        { status: ItemStatus.BACKLOG },
+      );
+    }
+
+    // Remove non-done items from the completed sprint
+    sprint.workItems = sprint.workItems.filter(
+      (itemId) => !nonDoneItemIds.some((id) => id.toString() === itemId.toString()),
     );
 
     return sprint.save();
@@ -176,6 +197,15 @@ export class SprintService {
   async deleteSprint(sprintId: string) {
     const sprint = await this.sprintModel.findByIdAndDelete(sprintId);
     if (!sprint) throw new NotFoundException('Sprint not found');
+
+    // Move all items in the sprint to backlog
+    if (sprint.workItems && sprint.workItems.length > 0) {
+      await this.workItemModel.updateMany(
+        { _id: { $in: sprint.workItems } },
+        { status: ItemStatus.BACKLOG },
+      );
+    }
+
     return { message: 'Sprint deleted successfully', sprintId };
   }
 }

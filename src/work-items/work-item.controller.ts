@@ -56,6 +56,11 @@ export class ItemController {
     return this.itemService.findTree(id);
   }
 
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.itemService.findOne(id);
+  }
+
   @Patch(':id/move/column/:columnId')
   @UseGuards(WorkspacePermissionGuard)
   @Permissions('EDIT_TASK')

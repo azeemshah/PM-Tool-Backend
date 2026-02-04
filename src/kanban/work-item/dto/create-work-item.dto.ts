@@ -1,5 +1,5 @@
 // src/work-item/dto/create-work-item.dto.ts
-import { IsString, IsNotEmpty, IsOptional, IsEnum, IsMongoId, IsISO8601 } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsEnum, IsMongoId, IsISO8601, IsArray } from 'class-validator';
 
 export enum WorkItemType {
   EPIC = 'Epic',
@@ -50,4 +50,14 @@ export class CreateWorkItemDto {
   @IsISO8601()
   @IsOptional()
   dueDate?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  labels?: string[];
+
+  @IsArray()
+  @IsMongoId({ each: true })
+  @IsOptional()
+  tags?: string[]; // Array of tag IDs to assign to this work item
 }
