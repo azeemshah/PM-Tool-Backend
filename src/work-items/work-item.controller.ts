@@ -90,4 +90,23 @@ export class ItemController {
   delete(@Param('id') id: string, @Request() req: any) {
     return this.itemService.delete(id, req.user.userId);
   }
+
+  @Post(':id/estimate')
+  @UseGuards(WorkspacePermissionGuard)
+  @Permissions('EDIT_TASK')
+  setEstimate(@Param('id') id: string, @Body() body: { originalEstimate: number }, @Request() req: any) {
+    return this.itemService.setEstimate(id, body.originalEstimate, req.user?.userId);
+  }
+
+  @Post(':id/log-work')
+  @UseGuards(WorkspacePermissionGuard)
+  @Permissions('EDIT_TASK')
+  logWork(@Param('id') id: string, @Body() body: { timeSpent: number; comment?: string; adjustRemaining?: boolean }, @Request() req: any) {
+    return this.itemService.logWork(id, { timeSpent: body.timeSpent, comment: body.comment, adjustRemaining: body.adjustRemaining !== false }, req.user?.userId);
+  }
+
+  @Get(':id/time-tracking')
+  getTimeTracking(@Param('id') id: string) {
+    return this.itemService.getTimeTracking(id);
+  }
 }

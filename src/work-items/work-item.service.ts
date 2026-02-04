@@ -16,6 +16,8 @@ import { UsersService } from '../users/users.service';
 import { HistoryService } from '../kanban/history/history.service';
 import { NotificationService } from '../kanban/notification/notification.service';
 import { NotificationType } from '../kanban/notification/schemas/notification.schema';
+import { TimeLog } from '../time-log/schemas/time-log.schema';
+// (Imports consolidated above; no duplicate imports needed here)
 
 @Injectable()
 export class ItemService {
@@ -28,10 +30,132 @@ export class ItemService {
     private readonly boardModel: Model<KanbanBoard>,
     @InjectModel(Workspace.name)
     private readonly workspaceModel: Model<Workspace>,
+    @InjectModel(TimeLog.name)
+    private readonly timeLogModel: Model<TimeLog>,
     private readonly notificationService: NotificationService,
     private readonly usersService: UsersService,
     private readonly historyService: HistoryService,
   ) {}
+
+  // ----------------- Estimates & Time Tracking -----------------
+  async setEstimate(itemId: string, originalEstimate: number, actorId?: string) {
+    if (!Types.ObjectId.isValid(itemId)) throw new BadRequestException('Invalid item id');
+    const item = await this.itemModel.findById(itemId);
+    if (!item) throw new NotFoundException('Item not found');
+
+    // Prevent manual estimate if item has children
+    const childCount = await this.itemModel.countDocuments({ parent: item._id });
+    if (childCount > 0) {
+      throw new BadRequestException('Cannot manually set estimate on item with children');
+    }
+
+    item.originalEstimate = Math.max(0, Number(originalEstimate || 0));
+    // initialize remainingEstimate if not present or reset to original
+    item.remainingEstimate = Math.max(0, Number(item.originalEstimate) - Number(item.timeSpent || 0));
+    await item.save();
+
+    try {
+      await this.historyService.log({
+        userId: actorId,
+        projectId: item.workspace?.toString(),
+        taskId: item._id,
+        type: 'estimate',
+        details: { originalEstimate: item.originalEstimate, remainingEstimate: item.remainingEstimate },
+      } as any);
+    } catch (_) {}
+
+    // propagate up the tree
+    if (item.parent) await this.recalculateParentTime(item.parent.toString());
+
+    return item;
+  }
+
+  async logWork(itemId: string, opts: { timeSpent: number; comment?: string; adjustRemaining?: boolean }, userId?: string) {
+    const { timeSpent, comment, adjustRemaining = true } = opts;
+    if (!Types.ObjectId.isValid(itemId)) throw new BadRequestException('Invalid item id');
+    if (!timeSpent || Number(timeSpent) <= 0) throw new BadRequestException('timeSpent must be a positive number (minutes)');
+
+    const item = await this.itemModel.findById(itemId);
+    if (!item) throw new NotFoundException('Item not found');
+
+    // Create time log
+    const tl = await this.timeLogModel.create({ userId: new Types.ObjectId(userId), workItemId: item._id, timeSpent, logDate: new Date() });
+
+    // Update item's cached timeSpent
+    item.timeSpent = (item.timeSpent || 0) + Number(timeSpent);
+
+    if (adjustRemaining) {
+      const original = Number(item.originalEstimate || 0);
+      item.remainingEstimate = Math.max(0, original - Number(item.timeSpent || 0));
+    }
+
+    await item.save();
+
+    try {
+      await this.historyService.log({
+        userId: userId,
+        projectId: item.workspace?.toString(),
+        taskId: item._id,
+        type: 'log-work',
+        details: { timeSpent, comment },
+      } as any);
+    } catch (_) {}
+
+    // propagate changes to parents
+    if (item.parent) await this.recalculateParentTime(item.parent.toString());
+
+    return { timeLog: tl, item };
+  }
+
+  async getTimeTracking(itemId: string) {
+    if (!Types.ObjectId.isValid(itemId)) throw new BadRequestException('Invalid item id');
+    const item = await this.itemModel.findById(itemId).lean();
+    if (!item) throw new NotFoundException('Item not found');
+
+    const logs = await this.timeLogModel.find({ workItemId: item._id }).sort({ createdAt: -1 }).lean();
+
+    const totalTimeSpent = logs.reduce((s, l: any) => s + (Number(l.timeSpent) || 0), 0);
+
+    return {
+      item: {
+        _id: item._id,
+        originalEstimate: item.originalEstimate || 0,
+        remainingEstimate: item.remainingEstimate || Math.max(0, (item.originalEstimate || 0) - totalTimeSpent),
+        timeSpent: item.timeSpent || totalTimeSpent,
+      },
+      logs,
+    };
+  }
+
+  // Recalculate parent aggregates recursively
+  async recalculateParentTime(parentId: string) {
+    if (!Types.ObjectId.isValid(parentId)) return;
+    const parent = await this.itemModel.findById(parentId);
+    if (!parent) return;
+
+    // Sum direct children
+    const children = await this.itemModel.find({ parent: parent._id }).lean();
+    const sums = children.reduce(
+      (acc: any, c: any) => {
+        acc.original += Number(c.originalEstimate || 0);
+        acc.remaining += Number(c.remainingEstimate || Math.max(0, (c.originalEstimate || 0) - (c.timeSpent || 0)));
+        acc.spent += Number(c.timeSpent || 0);
+        return acc;
+      },
+      { original: 0, remaining: 0, spent: 0 },
+    );
+
+    // When children exist, parent becomes aggregated
+    if (children.length > 0) {
+      parent.originalEstimate = sums.original;
+      parent.remainingEstimate = Math.max(0, sums.remaining);
+      parent.timeSpent = sums.spent;
+      await parent.save();
+    }
+
+    // recurse upwards
+    if (parent.parent) await this.recalculateParentTime(parent.parent.toString());
+  }
 
   async create(dto: CreateItemDto, userId?: string): Promise<Item> {
     let path = '';

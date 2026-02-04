@@ -10,7 +10,6 @@ import { KanbanColumn, ColumnSchema } from '../kanban/column/schemas/column.sche
 import { Item, ItemSchema } from '@/work-items/schemas/work-item.schema';
 import { CommentSchema } from '../kanban/comment/schemas/comment.schema';
 import { AttachmentSchema } from '../kanban/attachment/schemas/attachment.schema';
-import { TimeLogSchema } from '../kanban/time-tracking/schemas/time-log.schema';
 import { NotificationSchema } from '../kanban/notification/schemas/notification.schema';
 import { SavedFilterSchema } from '../kanban/search/schemas/saved-filter.schema';
 import { SprintSchema } from '../sprint/schemas/sprint.schema';
@@ -28,7 +27,6 @@ import { UsersModule } from '../users/users.module';
       { name: KanbanColumn.name, schema: ColumnSchema },
       { name: 'Comment', schema: CommentSchema },
       { name: 'Attachment', schema: AttachmentSchema },
-      { name: 'TimeLog', schema: TimeLogSchema },
       { name: 'Notification', schema: NotificationSchema },
       { name: 'SavedFilter', schema: SavedFilterSchema },
       { name: 'Sprint', schema: SprintSchema },

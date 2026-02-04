@@ -1,0 +1,179 @@
+
+You are a senior Jira backend + frontend engineer.
+
+The project already has:
+- Projects, Epics, Stories, Tasks, Subtasks, Bugs
+- Task Estimation & Time Tracking fields (originalEstimate, remainingEstimate, timeSpent)
+
+GOAL:
+Implement FULL Jira-style Time Logging (8.2) functionality
+without breaking existing estimation logic.
+
+==================================================
+STEP 1 — ANALYZE EXISTING IMPLEMENTATION
+==================================================
+
+1. Scan backend & frontend code.
+2. Identify:
+   - Existing log work APIs (if any)
+   - Existing timeSpent / remainingEstimate usage
+   - Where task status updates happen
+3. DO NOT recreate existing logic.
+4. Extend only where required.
+
+==================================================
+STEP 2 — DATA MODEL (LOG WORK ENTITY)
+==================================================
+
+Create a dedicated TimeLog (WorkLog) model.
+
+Fields:
+- issueId (Task | Subtask | Bug)
+- issueType ("task" | "subtask" | "bug")
+- userId
+- timeSpent (minutes)
+- logDate (YYYY-MM-DD)
+- comment?
+- startedAt? (for timer)
+- endedAt? (for timer)
+- createdAt
+- updatedAt
+
+Rules:
+- One log entry = immutable time record
+- Editing creates audit-safe updates
+- Time is always stored in minutes
+
+==================================================
+STEP 3 — BACKEND API (NestJS)
+==================================================
+
+A) Manual Time Logging
+POST /time-logs
+{
+  issueId,
+  timeSpent,
+  logDate,
+  comment?
+}
+
+B) Timer-based Logging
+POST /time-logs/start
+POST /time-logs/stop
+
+- Timer auto-calculates timeSpent
+- Prevent multiple active timers per user
+
+C) Edit Logged Time (Permission Based)
+PUT /time-logs/:id
+
+Rules:
+- Admin → can edit/delete any log
+- User → can edit/delete own logs only
+
+D) Delete Logged Time
+DELETE /time-logs/:id
+
+Rules:
+- Restore remainingEstimate correctly
+- Recalculate parent hierarchy
+
+==================================================
+STEP 4 — TIME CONSISTENCY LOGIC
+==================================================
+
+When time is logged / edited / deleted:
+
+1. Update issue.timeSpent
+2. Recalculate remainingEstimate
+3. Roll up time:
+   Subtask → Task → Story → Epic
+4. Prevent negative remaining time
+5. Prevent logging beyond remaining estimate (unless admin)
+
+==================================================
+STEP 5 — DAILY & WEEKLY TIMESHEETS
+==================================================
+
+Implement:
+
+GET /time-logs/timesheet?userId=&from=&to=
+
+Response:
+- Day-wise grouped logs
+- Total time per day
+- Total time per week
+- Project-wise summary
+
+Example:
+{
+  "2025-01-10": {
+    "totalMinutes": 420,
+    "entries": [...]
+  }
+}
+
+==================================================
+STEP 6 — FRONTEND IMPLEMENTATION
+==================================================
+
+A) Log Work Modal
+- Manual entry (hours/minutes)
+- Date picker
+- Comment
+- Remaining estimate preview
+
+B) Timer UI
+- Start / Stop button
+- Live timer
+- Auto-save on stop
+
+C) Issue View
+- Time log list
+- Edit / Delete (based on permission)
+- Total time summary
+
+D) Timesheet Page
+- Daily view
+- Weekly view
+- Filters:
+  - Project
+  - Issue Type
+  - Date range
+
+==================================================
+STEP 7 — PERMISSIONS
+==================================================
+
+Implement guards:
+- User can edit/delete own logs
+- Admin can edit/delete all logs
+- Backend enforced (not UI only)
+
+==================================================
+STEP 8 — JIRA BEHAVIOR RULES
+==================================================
+
+- Time logs never disappear silently
+- Deleting a log restores remaining estimate
+- Timer auto-stops on logout / refresh
+- All updates are audit-safe
+
+==================================================
+OUTPUT EXPECTATION
+==================================================
+
+- TimeLog schema
+- Services & controllers
+- Permission guards
+- API examples
+- Frontend components & hooks
+- No dummy code
+- Clean & maintainable implementation
+
+==================================================
+IMPORTANT
+==================================================
+
+Implement this exactly like real Jira Time Logging.
+Respect existing architecture and hierarchy.

@@ -1,5 +1,5 @@
 // src/kanban/comment/comment.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Comment, CommentDocument } from './schemas/comment.schema';
@@ -39,10 +39,15 @@ export class CommentService {
 
   // -------------------- Create Comment --------------------
   async createComment(dto: CreateCommentDto, actorId?: string): Promise<Comment> {
+    if ((!dto.content || !dto.content.trim()) && (!dto.attachments || dto.attachments.length === 0)) {
+        throw new BadRequestException('Comment must have content or attachments.');
+    }
+
     const comment = new this.commentModel({
       workItem: new Types.ObjectId(dto.workItemId),
       parentComment: dto.parentCommentId ? new Types.ObjectId(dto.parentCommentId) : null,
       content: dto.content,
+      attachments: dto.attachments || [],
       userId: dto.userId || actorId ? new Types.ObjectId(dto.userId || actorId!) : undefined,
     });
     const savedComment = await comment.save();
@@ -82,7 +87,7 @@ export class CommentService {
             taskId: workItem._id,
             type: 'comment',
             details: {
-              description: dto.content,
+              description: dto.content || (dto.attachments?.length ? 'Added attachment(s)' : ''),
             },
           } as any);
         } else {

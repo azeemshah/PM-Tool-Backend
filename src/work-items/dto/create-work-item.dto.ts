@@ -1,4 +1,4 @@
-import { IsEnum, IsMongoId, IsOptional, IsString, IsDateString } from 'class-validator';
+import { IsEnum, IsMongoId, IsOptional, IsString, IsDateString, IsNumber, Min } from 'class-validator';
 import { ItemStatus, ItemType, ItemPriority } from '../schemas/work-item.schema';
 
 export class CreateItemDto {
@@ -46,4 +46,25 @@ export class CreateItemDto {
   @IsOptional()
   @IsMongoId()
   parent?: string;
+
+  // ---------------- Estimates & story points (minutes)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  originalEstimate?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  remainingEstimate?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  timeSpent?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  storyPoints?: number;
 }

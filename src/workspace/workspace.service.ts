@@ -31,7 +31,6 @@ export class WorkspaceService {
     @InjectModel(KanbanColumn.name) private columnModel: Model<KanbanColumn>,
     @InjectModel('Comment') private commentModel: Model<any>,
     @InjectModel('Attachment') private attachmentModel: Model<any>,
-    @InjectModel('TimeLog') private timeLogModel: Model<any>,
     @InjectModel('Notification') private notificationModel: Model<any>,
     @InjectModel('SavedFilter') private savedFilterModel: Model<any>,
     @InjectModel('Sprint') private sprintModel: Model<any>,
@@ -354,7 +353,6 @@ export class WorkspaceService {
       // Delete related data for these work items
       await this.commentModel.deleteMany({ workItem: { $in: workItemIds } });
       await this.attachmentModel.deleteMany({ workItem: { $in: workItemIds } });
-      await this.timeLogModel.deleteMany({ workItem: { $in: workItemIds } });
 
       // Delete the work items themselves
       await this.workItemModel.deleteMany({ workspace: workspaceId });

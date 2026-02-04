@@ -35,10 +35,7 @@ import { EstimationService } from './estimation/estimation.service';
 import { Estimation, EstimationSchema } from './estimation/schemas/estimation.schema';
 
 // Time Tracking
-import { TimeTrackingController } from './time-tracking/time-tracking.controller';
-import { TimeTrackingService } from './time-tracking/time-tracking.service';
-import { TimeLog, TimeLogSchema } from './time-tracking/schemas/time-log.schema';
-import { Timesheet, TimesheetSchema } from './time-tracking/schemas/timesheet.schema';
+// DISABLED: Using new TimeLogModule from src/time-log instead
 
 // Comment
 import { CommentController } from './comment/comment.controller';
@@ -122,10 +119,6 @@ import { ColumnController } from './column/column.controller';
       // Estimation
       { name: Estimation.name, schema: EstimationSchema },
 
-      // Time Tracking
-      { name: TimeLog.name, schema: TimeLogSchema },
-      { name: Timesheet.name, schema: TimesheetSchema },
-
       // Comment
       { name: Comment.name, schema: CommentSchema },
 
@@ -160,7 +153,7 @@ import { ColumnController } from './column/column.controller';
   controllers: [
     KanbanBoardController,
     WorkItemController,
-    TimeTrackingController,
+    // TimeTrackingController, // DISABLED: Using new TimeLogModule from src/time-log instead
     AttachmentController,
     KanbanReportController,
     DashboardController,
@@ -175,7 +168,7 @@ import { ColumnController } from './column/column.controller';
   providers: [
     KanbanBoardService,
     WorkItemService,
-    TimeTrackingService,
+    // TimeTrackingService, // DISABLED: Using new TimeLogModule from src/time-log instead
     AttachmentService,
     KanbanReportService,
     DashboardService,

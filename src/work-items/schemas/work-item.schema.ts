@@ -86,6 +86,20 @@ export class Item extends Document {
   })
   dueDate?: Date;
 
+  // -------- Time tracking & estimation (minutes)
+  @Prop({ type: Number, default: 0 })
+  originalEstimate?: number; // minutes
+
+  @Prop({ type: Number, default: 0 })
+  remainingEstimate?: number; // minutes
+
+  @Prop({ type: Number, default: 0 })
+  timeSpent?: number; // minutes (cached total)
+
+  // Story points (optional, typically for Story & Epic)
+  @Prop({ type: Number, default: null })
+  storyPoints?: number | null;
+
   // Materialized path for fast hierarchy queries
   @Prop({ required: true, index: true })
   path: string;

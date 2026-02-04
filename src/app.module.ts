@@ -10,6 +10,7 @@ import { WorkspaceModule } from './workspace/workspace.module';
 import { MemberModule } from './member/member.module';
 import { ItemModule } from './work-items/work-item.module';
 import { SprintModule } from './sprint/sprint.module';
+import { TimeLogModule } from './time-log/time-log.module';
 
 @Module({
   imports: [
@@ -49,15 +50,9 @@ import { SprintModule } from './sprint/sprint.module';
     KanbanModule,
     WorkspaceModule,
     MemberModule,
-    EmailModule,
     ItemModule,
-    // ProjectsModule,
-    // IssueModule,
-    // SprintModule,
-    // TimeLogModule,
-    // UsersModule,
-    AuthModule,
     SprintModule,
+    TimeLogModule,
   ],
 })
 export class AppModule {}
