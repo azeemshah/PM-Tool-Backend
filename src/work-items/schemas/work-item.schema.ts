@@ -1,6 +1,6 @@
 import { Subtask } from './../../kanban/work-item/schemas/subtask.schema';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, Schema as MongooseSchema } from 'mongoose';
 
 export enum ItemPriority {
   LOW = 'low',
@@ -91,6 +91,21 @@ export class Item extends Document {
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Tag' }], default: [] })
   tags: Types.ObjectId[];
+
+  // Custom fields support (flexible storage for workspace-specific custom fields)
+  @Prop({
+    type: [
+      {
+        name: String,
+        fieldType: String, // e.g., text, number, dropdown, multi-select, checkbox, date, user, url
+        value: MongooseSchema.Types.Mixed,
+        options: [String], // for dropdown / multi-select
+        userValue: { type: Types.ObjectId, ref: 'User', default: null }, // for user picker
+      },
+    ],
+    default: [],
+  })
+  customFields: any[];
 
   // Time tracking & estimation (minutes)
   @Prop({ type: Number, default: 0 })

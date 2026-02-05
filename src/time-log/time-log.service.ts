@@ -116,7 +116,20 @@ export class TimeLogService {
     });
 
     if (otherActive) {
-      throw new BadRequestException('Stop your current timer before starting a new one');
+      // Auto-stop the previous timer instead of throwing error
+      try {
+        const otherIssueId = (otherActive.workItemId as any)._id 
+          ? (otherActive.workItemId as any)._id.toString() 
+          : otherActive.workItemId.toString();
+
+        console.log(`Auto-stopping active timer for issue ${otherIssueId}`);
+        await this.stopTimer(otherIssueId, userId);
+      } catch (err) {
+        console.error('Failed to auto-stop previous timer:', err);
+        // Force deactivate if stopTimer fails
+        otherActive.isActive = false;
+        await otherActive.save();
+      }
     }
 
     const now = new Date();

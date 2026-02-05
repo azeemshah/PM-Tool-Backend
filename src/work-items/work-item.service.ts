@@ -392,12 +392,14 @@ export class ItemService {
   }
 
   async findOne(id: string): Promise<Item> {
+    if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid item id');
     const item = await this.itemModel
       .findById(id)
       .populate('assignedTo', 'firstName lastName email profilePicture')
       .populate('reporter', 'firstName lastName email profilePicture')
       .populate('parent')
       .populate('tags')
+      .populate('customFields.userValue', 'firstName lastName email profilePicture')
       .exec();
 
     if (!item) {
@@ -407,6 +409,7 @@ export class ItemService {
   }
 
   async findTree(rootId: string) {
+    if (!Types.ObjectId.isValid(rootId)) throw new BadRequestException('Invalid item id');
     const root = await this.itemModel.findById(rootId);
     if (!root) throw new NotFoundException('Item not found');
 

@@ -1,6 +1,7 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { CreateItemDto } from './create-work-item.dto';
-import { IsOptional, IsString, IsEnum, IsMongoId, IsISO8601, IsArray } from 'class-validator';
+import { CreateItemDto, CustomFieldDto } from './create-work-item.dto';
+import { IsOptional, IsString, IsEnum, IsMongoId, IsISO8601, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ItemPriority, ItemType } from '../schemas/work-item.schema';
 
 export class UpdateItemDto extends PartialType(CreateItemDto) {
@@ -57,4 +58,10 @@ export class UpdateItemDto extends PartialType(CreateItemDto) {
   @IsMongoId()
   @IsOptional()
   parent?: string;
+
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => CustomFieldDto)
+  @IsArray()
+  customFields?: CustomFieldDto[];
 }
