@@ -433,7 +433,7 @@ export class ItemService {
     const normalize = (value: string) => (value || '').toLowerCase().replace(/\s/g, '');
     const columnName = normalize(column.name);
 
-    let nextStatus: string = ItemStatus.TODO;
+    let nextStatus: string = column.name; // Default to column name for custom columns
 
     if (columnName === 'todo') {
       nextStatus = ItemStatus.TODO;
