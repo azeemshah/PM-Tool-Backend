@@ -56,6 +56,11 @@ export class NotificationService {
     return this.notificationModel.updateMany({ recipient: userId, isRead: false }, { isRead: true });
   }
 
+  /* ================= Delete All Notifications ================= */
+  async deleteAll(userId: Types.ObjectId) {
+    return this.notificationModel.deleteMany({ recipient: userId });
+  }
+
   /* ================= Delete Notification ================= */
   async delete(notificationId: Types.ObjectId) {
     const notification = await this.notificationModel.findByIdAndDelete(notificationId);

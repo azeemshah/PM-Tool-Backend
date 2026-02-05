@@ -32,6 +32,12 @@ export class NotificationController {
     return this.notificationService.markAllAsRead(new Types.ObjectId(userId));
   }
 
+  /* ================= Delete All Notifications ================= */
+  @Delete('user/:userId/clear-all')
+  deleteAll(@Param('userId') userId: string) {
+    return this.notificationService.deleteAll(new Types.ObjectId(userId));
+  }
+
   /* ================= Delete Notification ================= */
   @Delete(':id')
   delete(@Param('id') id: string) {
