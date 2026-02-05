@@ -696,4 +696,93 @@ export class ItemService {
       }
     }
   }
+
+  async globalSearch(searchTerm: string, userId: string) {
+    try {
+      if (!userId) {
+        return { success: false, data: [], message: 'User not authenticated' };
+      }
+
+      // Convert userId to ObjectId if it's a string
+      const userObjectId = Types.ObjectId.isValid(userId) 
+        ? new Types.ObjectId(userId) 
+        : new Types.ObjectId();
+
+      // Get all workspaces where the user is a member or owner
+      const userWorkspaces = await this.workspaceModel
+        .find({
+          $or: [
+            { OwnedBy: userObjectId },
+            { members: userObjectId },
+          ],
+        })
+        .select('_id')
+        .lean()
+        .exec();
+
+      if (userWorkspaces.length === 0) {
+        return { success: true, data: [], message: 'No workspaces found' };
+      }
+
+      const workspaceIds = userWorkspaces.map((ws: any) => ws._id);
+      const workspaceStrings = workspaceIds.map((id: any) => id.toString());
+      
+      console.log('Workspace IDs to search:', workspaceStrings);
+
+      // First check: items with matching workspace (no search term)
+      const itemsWithWorkspace = await this.itemModel.countDocuments({
+        $or: [
+          { workspace: { $in: workspaceIds } },
+          { workspace: { $in: workspaceStrings } }
+        ]
+      });
+      console.log('Items with matching workspace:', itemsWithWorkspace);
+
+      // Second check: items matching search term only
+      const itemsWithSearchTerm = await this.itemModel.countDocuments({
+        $or: [
+          { title: { $regex: searchTerm, $options: 'i' } },
+          { description: { $regex: searchTerm, $options: 'i' } },
+        ]
+      });
+      console.log('Items matching search term "' + searchTerm + '":', itemsWithSearchTerm);
+
+      // Search items by workspace ID and search term
+      const workItems = await this.itemModel
+        .find({
+          $and: [
+            {
+              $or: [
+                { workspace: { $in: workspaceIds } },
+                { workspace: { $in: workspaceStrings } }
+              ]
+            },
+            {
+              $or: [
+                { title: { $regex: searchTerm, $options: 'i' } },
+                { description: { $regex: searchTerm, $options: 'i' } },
+              ]
+            }
+          ]
+        })
+        .populate('assignedTo', 'name profilePicture firstName lastName')
+        .populate('reporter', 'name profilePicture firstName lastName')
+        .populate('workspace', 'name')
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .lean()
+        .exec();
+
+      console.log('Final search results for term "' + searchTerm + '":', workItems.length);
+
+      return {
+        success: true,
+        data: workItems,
+        count: workItems.length,
+      };
+    } catch (error) {
+      console.error('Global search error:', error);
+      return { success: false, data: [], message: `Global search failed: ${error.message}` };
+    }
+  }
 }

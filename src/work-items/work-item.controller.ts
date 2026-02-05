@@ -51,6 +51,14 @@ export class ItemController {
     });
   }
 
+  @Get('search/global/:searchTerm')
+  globalSearch(
+    @Param('searchTerm') searchTerm: string,
+    @Request() req: any,
+  ) {
+    return this.itemService.globalSearch(searchTerm, req.user?.userId);
+  }
+
   @Get(':id/tree')
   getTree(@Param('id') id: string) {
     return this.itemService.findTree(id);
