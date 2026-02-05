@@ -79,6 +79,13 @@ export class Item extends Document {
   })
   reporter?: Types.ObjectId;
 
+  // Start date for timeline (Gantt Chart)
+  @Prop({
+    type: Date,
+    default: null,
+  })
+  startDate?: Date;
+
   // Due date for completion
   @Prop({
     type: Date,
