@@ -177,22 +177,24 @@ export class ItemService {
       case ItemType.SUBTASK: {
         if (!parent) {
           throw new BadRequestException(
-            'Subtask must be assigned to a parent issue (Story/Task/Bug)',
+            'Subtask must be assigned to a parent issue (Story/Task/Bug/Improvement)',
           );
         }
 
         if (
           parent.type !== ItemType.STORY &&
           parent.type !== ItemType.TASK &&
-          parent.type !== ItemType.BUG
+          parent.type !== ItemType.BUG &&
+          parent.type !== ItemType.IMPROVEMENT
         ) {
-          throw new BadRequestException('Parent issue must be of type story, task, or bug');
+          throw new BadRequestException('Parent issue must be of type story, task, bug, or improvement');
         }
         break;
       }
       case ItemType.STORY:
       case ItemType.TASK:
-      case ItemType.BUG: {
+      case ItemType.BUG:
+      case ItemType.IMPROVEMENT: {
         if (parent && parent.type !== ItemType.EPIC) {
           throw new BadRequestException('Referenced issue is not an Epic');
         }

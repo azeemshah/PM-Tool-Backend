@@ -15,6 +15,7 @@ export enum ItemType {
   TASK = 'task',
   EPIC = 'epic',
   SUBTASK = 'subtask',
+  IMPROVEMENT = 'improvement',
 }
 
 export enum ItemStatus {
