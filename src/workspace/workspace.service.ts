@@ -114,6 +114,52 @@ export class WorkspaceService {
       }
     }
 
+    // Create default Sprint if boardType is 'scrumboard'
+    if (savedWorkspace.boardType === 'scrumboard') {
+      try {
+        const now = new Date();
+        const startDate = now;
+        const endDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000); // 2 weeks from now
+
+        // Create default sprint and save it as a board in KanbanBoard collection
+        const defaultBoard = new this.boardModel({
+          name: 'Sprint 1',
+          description: `Initial sprint for ${savedWorkspace.name}`,
+          workspaceId: savedWorkspace._id,
+        });
+        const savedBoard = await defaultBoard.save();
+
+        // Create default columns for the sprint board
+        const defaultColumns = ['To Do', 'In Progress', 'In Review', 'Blocked', 'Done', 'Closed'];
+        for (let i = 0; i < defaultColumns.length; i++) {
+          const column = new this.columnModel({
+            BoardId: savedBoard._id,
+            name: defaultColumns[i],
+            position: i,
+          });
+          await column.save();
+        }
+
+        // Also create the sprint document with reference to the board
+        const defaultSprint = new this.sprintModel({
+          workspaceId: savedWorkspace._id,
+          name: 'Sprint 1',
+          goal: `Initial sprint for ${savedWorkspace.name}`,
+          startDate,
+          endDate,
+          status: 'PLANNED',
+          workItems: [],
+          columns: ['To Do', 'In Progress', 'In Review', 'Blocked', 'Done', 'Closed'],
+        });
+        await defaultSprint.save();
+
+        console.log('Default Sprint board created for workspace:', savedWorkspace._id);
+      } catch (error) {
+        console.error('Failed to create default Sprint board:', error);
+        // Don't fail workspace creation if sprint creation fails
+      }
+    }
+
     return savedWorkspace;
   }
 
