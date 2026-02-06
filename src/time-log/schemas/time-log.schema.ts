@@ -19,8 +19,8 @@ export class TimeLog extends Document {
   @Prop({ default: null })
   comment?: string;
 
-  // Issue type for audit trail (task | subtask | bug)
-  @Prop({ enum: ['epic', 'story', 'task', 'bug', 'subtask'], default: 'task' })
+  // Issue type for audit trail (task | subtask | bug | improvement)
+  @Prop({ enum: ['epic', 'story', 'task', 'bug', 'improvement', 'subtask'], default: 'task' })
   issueType?: string;
 
   // Timer fields: for auto-calculated/timer-based logs
