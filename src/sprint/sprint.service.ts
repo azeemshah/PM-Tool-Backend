@@ -7,20 +7,81 @@ import { CreateSprintDto } from './dto/create-sprint.dto';
 import { SprintStatus } from './enums/sprint-status.enum';
 import { Item, ItemDocument, ItemStatus } from '../work-items/schemas/work-item.schema';
 import { AddWorkItemsToSprintDto } from './dto/add-workitems-to-sprint.dto';
+import { NotificationService } from '../kanban/notification/notification.service';
+import { NotificationType } from '../kanban/notification/schemas/notification.schema';
+import { Workspace } from '../workspace/schemas/workspace.schema';
 
 @Injectable()
 export class SprintService {
   constructor(
     @InjectModel(Sprint.name) private sprintModel: Model<Sprint>,
     @InjectModel(Item.name) private workItemModel: Model<ItemDocument>,
+    @InjectModel(Workspace.name) private workspaceModel: Model<Workspace>,
+    private readonly notificationService: NotificationService,
   ) {}
 
-  async createSprint(dto: CreateSprintDto) {
-    return this.sprintModel.create({
+  private async notifyWorkspaceMembers(
+    sprint: Sprint,
+    type: NotificationType,
+    message: string,
+    actorId?: string,
+  ) {
+    if (!sprint.workspaceId) return;
+    
+    try {
+      const workspace = await this.workspaceModel.findById(sprint.workspaceId).exec();
+      if (!workspace) return;
+
+      const recipientIds = new Set<string>();
+      
+      // Add workspace owner
+      if (workspace.OwnedBy) recipientIds.add(workspace.OwnedBy.toString());
+      
+      // Add workspace members
+      if (workspace.members) {
+        workspace.members.forEach((m) => recipientIds.add(m.toString()));
+      }
+
+      // Remove actor from recipients if provided
+      if (actorId) {
+        recipientIds.delete(actorId);
+      }
+
+      const notifications = Array.from(recipientIds).map((recipient) => ({
+        recipient: new Types.ObjectId(recipient),
+        sender: actorId ? new Types.ObjectId(actorId) : undefined,
+        type,
+        message,
+        workspace: sprint.workspaceId,
+        onModel: 'Sprint',
+        relatedId: sprint._id as Types.ObjectId,
+        isRead: false,
+      }));
+
+      // Send notifications in parallel
+      await Promise.all(
+        notifications.map((n) => this.notificationService.create(n))
+      );
+    } catch (error) {
+      console.error('SprintService: Failed to send notifications', error);
+    }
+  }
+
+  async createSprint(dto: CreateSprintDto, actorId?: string) {
+    const sprint = await this.sprintModel.create({
       ...dto,
       workspaceId: new Types.ObjectId(dto.workspaceId),
       workItems: dto.workItems?.map((id) => new Types.ObjectId(id)) || [],
     });
+
+    await this.notifyWorkspaceMembers(
+      sprint,
+      NotificationType.SPRINT_CREATED,
+      `New sprint "${sprint.name}" created`,
+      actorId
+    );
+
+    return sprint;
   }
 
   async getWorkspaceSprints(workspaceId: string) {
@@ -29,16 +90,24 @@ export class SprintService {
       .populate('workItems');
   }
 
-  async startSprint(sprintId: string) {
+  async startSprint(sprintId: string, actorId?: string) {
     const sprint = await this.sprintModel.findById(sprintId);
     if (!sprint) throw new NotFoundException('Sprint not found');
 
     sprint.status = SprintStatus.ACTIVE;
+    const savedSprint = await sprint.save();
 
-    return sprint.save();
+    await this.notifyWorkspaceMembers(
+      savedSprint,
+      NotificationType.SPRINT_STARTED,
+      `Sprint "${sprint.name}" has started`,
+      actorId
+    );
+
+    return savedSprint;
   }
 
-  async completeSprint(sprintId: string, targetSprintId?: string) {
+  async completeSprint(sprintId: string, targetSprintId?: string, actorId?: string) {
     const sprint = await this.sprintModel.findById(sprintId);
     if (!sprint) throw new NotFoundException('Sprint not found');
 
@@ -80,7 +149,16 @@ export class SprintService {
       (itemId) => !nonDoneItemIds.some((id) => id.toString() === itemId.toString()),
     );
 
-    return sprint.save();
+    const savedSprint = await sprint.save();
+
+    await this.notifyWorkspaceMembers(
+      savedSprint,
+      NotificationType.SPRINT_COMPLETED,
+      `Sprint "${sprint.name}" completed`,
+      actorId
+    );
+
+    return savedSprint;
   }
 
   // sprint.service.ts

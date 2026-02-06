@@ -524,7 +524,6 @@ export class ItemService {
 
     Object.assign(item, dto);
     const saved = await item.save();
-    await this.notifyUsers(saved, 'updated', actorId);
 
     // Log activity for changes
     try {

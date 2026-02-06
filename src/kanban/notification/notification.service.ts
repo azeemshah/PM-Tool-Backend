@@ -19,7 +19,11 @@ export class NotificationService {
       ...payload,
       isRead: false,
     });
-    const savedNotification = await notification.save();
+    let savedNotification = await notification.save();
+    
+    // Populate workspace details
+    savedNotification = await savedNotification.populate('workspace', 'name');
+
     console.log('NotificationService: Saved notification', savedNotification._id);
     
     // Emit real-time notification
@@ -33,7 +37,11 @@ export class NotificationService {
 
   /* ================= Get Notifications by User ================= */
   async findByUser(userId: Types.ObjectId) {
-    return this.notificationModel.find({ recipient: userId }).sort({ createdAt: -1 }).exec();
+    return this.notificationModel
+      .find({ recipient: userId })
+      .populate('workspace', 'name')
+      .sort({ createdAt: -1 })
+      .exec();
   }
 
   /* ================= Mark Single Notification as Read ================= */
