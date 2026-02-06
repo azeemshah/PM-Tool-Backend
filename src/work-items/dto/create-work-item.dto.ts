@@ -7,8 +7,42 @@ import {
   IsArray,
   IsNumber,
   Min,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ItemStatus, ItemType, ItemPriority } from '../schemas/work-item.schema';
+
+export enum CustomFieldType {
+  TEXT = 'text',
+  NUMBER = 'number',
+  DROPDOWN = 'dropdown',
+  MULTI_SELECT = 'multi-select',
+  CHECKBOX = 'checkbox',
+  DATE = 'date',
+  USER = 'user',
+  URL = 'url',
+}
+
+export class CustomFieldDto {
+  @IsString()
+  name: string;
+
+  @IsEnum(CustomFieldType)
+  fieldType: CustomFieldType;
+
+  // value can be different types depending on fieldType; keep optional and flexible
+  @IsOptional()
+  value?: any;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  options?: string[];
+
+  @IsOptional()
+  @IsMongoId()
+  userValue?: string;
+}
 
 export class CreateItemDto {
   @IsString()
@@ -90,4 +124,10 @@ export class CreateItemDto {
   @IsNumber()
   @Min(0)
   storyPoints?: number;
+
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => CustomFieldDto)
+  @IsArray()
+  customFields?: CustomFieldDto[];
 }
