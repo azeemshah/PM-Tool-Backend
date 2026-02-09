@@ -8,8 +8,8 @@ export class Invitation {
   @Prop({ required: true })
   email: string;
 
-  @Prop({ enum: ['ADMIN', 'TEAM_LEAD', 'PROJECT_MANAGER', 'MEMBER', 'VIEWER'], required: true })
-  role: 'ADMIN' | 'TEAM_LEAD' | 'PROJECT_MANAGER' | 'MEMBER' | 'VIEWER';
+  @Prop({ enum: ['ADMIN', 'TEAM_LEAD', 'PROJECT_MANAGER', 'MEMBER', 'VIEWER', 'WATCHER'], required: true })
+  role: 'ADMIN' | 'TEAM_LEAD' | 'PROJECT_MANAGER' | 'MEMBER' | 'VIEWER' | 'WATCHER';
 
   @Prop({ unique: true, required: true })
   tokenHash: string;

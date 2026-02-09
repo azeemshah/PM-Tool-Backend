@@ -287,7 +287,6 @@ export class ItemService {
 
     const saved = await item.save();
 
-    await this.notifyUsers(saved, 'created');
     // Log activity for created item
     try {
       await this.historyService.log({
@@ -395,19 +394,92 @@ export class ItemService {
 
   async findOne(id: string): Promise<Item> {
     if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid item id');
-    const item = await this.itemModel
-      .findById(id)
-      .populate('assignedTo', 'firstName lastName email avatar')
-      .populate('reporter', 'firstName lastName email avatar')
-      .populate('parent')
-      .populate('tags')
-      .populate('customFields.userValue', 'firstName lastName email avatar')
-      .exec();
+    
+    const result = await this.itemModel.aggregate([
+      { $match: { _id: new Types.ObjectId(id) } },
+      {
+        $addFields: {
+          tagsObjectIds: {
+            $map: {
+              input: '$tags',
+              as: 'tag',
+              in: {
+                $cond: [
+                  { $eq: [{ $type: '$$tag' }, 'objectId'] },
+                  '$$tag',
+                  { $toObjectId: '$$tag' }
+                ]
+              }
+            }
+          },
+          labelsObjectIds: {
+            $map: {
+              input: '$labels',
+              as: 'label',
+              in: {
+                $cond: [
+                  { $eq: [{ $type: '$$label' }, 'objectId'] },
+                  '$$label',
+                  { $toObjectId: '$$label' }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: 'tags',
+          localField: 'tagsObjectIds',
+          foreignField: '_id',
+          as: 'tags'
+        }
+      },
+      {
+        $lookup: {
+          from: 'kanbanlabels',
+          localField: 'labelsObjectIds',
+          foreignField: '_id',
+          as: 'labels'
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'assignedTo',
+          foreignField: '_id',
+          as: 'assignedToData'
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'reporter',
+          foreignField: '_id',
+          as: 'reporterData'
+        }
+      },
+      {
+        $lookup: {
+          from: 'items',
+          localField: 'parent',
+          foreignField: '_id',
+          as: 'parentData'
+        }
+      },
+      {
+        $addFields: {
+          assignedTo: { $arrayElemAt: ['$assignedToData', 0] },
+          reporter: { $arrayElemAt: ['$reporterData', 0] },
+          parent: { $arrayElemAt: ['$parentData', 0] }
+        }
+      }
+    ]).exec();
 
-    if (!item) {
+    if (!result || result.length === 0) {
       throw new NotFoundException('Item not found');
     }
-    return item;
+    return result[0] as Item;
   }
 
   async findTree(rootId: string) {
@@ -608,10 +680,10 @@ export class ItemService {
   ): Promise<void> {
     const ids: string[] = [];
 
-    // Explicitly add actor to ensure they get notified
-    if (actorId) {
-      ids.push(actorId);
-    }
+    // Explicitly add actor to ensure they get notified -> DISABLED
+    // if (actorId) {
+    //   ids.push(actorId);
+    // }
 
     if (item.assignedTo) ids.push((item.assignedTo as unknown as Types.ObjectId).toString());
     if (item.reporter) ids.push((item.reporter as unknown as Types.ObjectId).toString());
@@ -658,8 +730,8 @@ export class ItemService {
 
     const uniqueIds = Array.from(new Set(ids));
 
-    // User requested to receive notifications for their own actions as well
-    const recipients = uniqueIds;
+    // Filter out actor from recipients
+    const recipients = uniqueIds.filter(id => id !== actorId);
 
     console.log('WorkItemService: NotifyUsers - Actor:', actorName, actorId);
     console.log('WorkItemService: NotifyUsers - Action:', action);
@@ -751,31 +823,93 @@ export class ItemService {
       });
       console.log('Items matching search term "' + searchTerm + '":', itemsWithSearchTerm);
 
-      // Search items by workspace ID and search term
-      const workItems = await this.itemModel
-        .find({
-          $and: [
-            {
-              $or: [
-                { workspace: { $in: workspaceIds } },
-                { workspace: { $in: workspaceStrings } }
-              ]
-            },
-            {
-              $or: [
-                { title: { $regex: searchTerm, $options: 'i' } },
-                { description: { $regex: searchTerm, $options: 'i' } },
-              ]
+      // Search items by workspace ID and search term using aggregation pipeline
+      const workItems = await this.itemModel.aggregate([
+        {
+          $match: {
+            $or: [
+              { workspace: { $in: workspaceIds } },
+              { workspace: { $in: workspaceStrings } }
+            ]
+          }
+        },
+        {
+          $addFields: {
+            tagsObjectIds: {
+              $map: {
+                input: '$tags',
+                as: 'tag',
+                in: {
+                  $cond: [
+                    { $eq: [{ $type: '$$tag' }, 'objectId'] },
+                    '$$tag',
+                    { $toObjectId: '$$tag' }
+                  ]
+                }
+              }
             }
-          ]
-        })
-        .populate('assignedTo', 'name avatar firstName lastName')
-        .populate('reporter', 'name avatar firstName lastName')
-        .populate('workspace', 'name')
-        .sort({ createdAt: -1 })
-        .limit(50)
-        .lean()
-        .exec();
+          }
+        },
+        {
+          $lookup: {
+            from: 'tags',
+            localField: 'tagsObjectIds',
+            foreignField: '_id',
+            as: 'populatedTags'
+          }
+        },
+        {
+          $match: {
+            $or: [
+              { title: { $regex: searchTerm, $options: 'i' } },
+              { description: { $regex: searchTerm, $options: 'i' } },
+              { 'populatedTags.name': { $regex: searchTerm, $options: 'i' } }
+            ]
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'assignedTo',
+            foreignField: '_id',
+            as: 'assignedToData'
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'reporter',
+            foreignField: '_id',
+            as: 'reporterData'
+          }
+        },
+        {
+          $lookup: {
+            from: 'workspaces',
+            localField: 'workspace',
+            foreignField: '_id',
+            as: 'workspaceData'
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            title: 1,
+            description: 1,
+            type: 1,
+            priority: 1,
+            status: 1,
+            createdAt: 1,
+            workspaceId: '$workspace',
+            assignedTo: { $arrayElemAt: ['$assignedToData', 0] },
+            reporter: { $arrayElemAt: ['$reporterData', 0] },
+            workspace: { $arrayElemAt: ['$workspaceData', 0] },
+            tags: '$populatedTags'
+          }
+        },
+        { $sort: { createdAt: -1 } },
+        { $limit: 50 }
+      ]).exec();
 
       console.log('Final search results for term "' + searchTerm + '":', workItems.length);
 

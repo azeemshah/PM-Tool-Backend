@@ -13,6 +13,8 @@ import {
 } from '@nestjs/common';
 import { TimeLogService } from './time-log.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard'; // Adjust path as needed
+import { WorkspaceRolesByTimelogGuard } from '../common/guards/workspace-roles-by-timelog.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 
 @Controller('time-logs')
 @UseGuards(JwtAuthGuard)
@@ -137,8 +139,11 @@ export class TimeLogController {
   /**
    * DELETE /time-logs/:id
    * Delete a time log and restore remaining estimate
+   * Only Admin and Owner roles allowed
    */
   @Delete(':id')
+  @Roles('Owner', 'Admin')
+  @UseGuards(WorkspaceRolesByTimelogGuard)
   async deleteTimeLog(@Param('id') id: string, @Request() req: any) {
     const isAdmin = req.user?.role === 'admin'; // Adjust based on your auth structure
     return this.timeLogService.remove(id, req.user?.userId, isAdmin);

@@ -14,7 +14,7 @@ export const MemberSchema = new Schema(
     },
     role: {
       type: String,
-      enum: ['Owner', 'Admin', 'Team Lead', 'Project Manager', 'Member', 'Viewer'],
+      enum: ['Owner', 'Admin', 'Team Lead', 'Project Manager', 'Member', 'Viewer', 'Watcher'],
       default: 'Member',
       required: true,
     },

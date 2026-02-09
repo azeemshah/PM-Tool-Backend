@@ -94,6 +94,7 @@ export class MemberController {
       { _id: 'project_manager', name: 'Project Manager' },
       { _id: 'member', name: 'Member' },
       { _id: 'viewer', name: 'Viewer' },
+      { _id: 'watcher', name: 'Watcher' },
     ];
 
     return {

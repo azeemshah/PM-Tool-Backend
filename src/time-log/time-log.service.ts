@@ -13,7 +13,7 @@ export class TimeLogService {
     @InjectModel(Item.name)
     private itemModel: Model<Item>,
     private historyService: HistoryService,
-  ) {}
+  ) { }
 
   // ============ MANUAL TIME LOGGING ============
 
@@ -63,9 +63,9 @@ export class TimeLogService {
     // Log to activity history
     try {
       await this.historyService.log({
-        userId: data.userId,
-        projectId: issue.workspace?.toString(),
-        taskId: data.issueId,
+        userId: new Types.ObjectId(data.userId),
+        projectId: issue.workspace ? new Types.ObjectId(issue.workspace.toString()) : undefined,
+        taskId: new Types.ObjectId(data.issueId),
         type: 'time_logged',
         details: {
           timeSpent: data.timeSpent,
@@ -118,8 +118,8 @@ export class TimeLogService {
     if (otherActive) {
       // Auto-stop the previous timer instead of throwing error
       try {
-        const otherIssueId = (otherActive.workItemId as any)._id 
-          ? (otherActive.workItemId as any)._id.toString() 
+        const otherIssueId = (otherActive.workItemId as any)._id
+          ? (otherActive.workItemId as any)._id.toString()
           : otherActive.workItemId.toString();
 
         console.log(`Auto-stopping active timer for issue ${otherIssueId}`);
@@ -190,9 +190,9 @@ export class TimeLogService {
       // Log to activity history
       try {
         await this.historyService.log({
-          userId: userId,
-          projectId: issue.workspace?.toString(),
-          taskId: issueId,
+          userId: new Types.ObjectId(userId),
+          projectId: issue.workspace ? new Types.ObjectId(issue.workspace.toString()) : undefined,
+          taskId: new Types.ObjectId(issueId),
           type: 'time_logged',
           details: {
             timeSpent: elapsedMinutes,
@@ -271,9 +271,9 @@ export class TimeLogService {
         }
 
         await this.historyService.log({
-          userId: userId,
-          projectId: issue.workspace?.toString(),
-          taskId: log.workItemId.toString(),
+          userId: new Types.ObjectId(userId),
+          projectId: issue.workspace ? new Types.ObjectId(issue.workspace.toString()) : undefined,
+          taskId: new Types.ObjectId(log.workItemId.toString()),
           type: 'time_logged',
           details: {
             action: 'updated',
@@ -325,9 +325,9 @@ export class TimeLogService {
       // Log to activity history
       try {
         await this.historyService.log({
-          userId: userId,
-          projectId: issue.workspace?.toString(),
-          taskId: log.workItemId.toString(),
+          userId: new Types.ObjectId(userId),
+          projectId: issue.workspace ? new Types.ObjectId(issue.workspace.toString()) : undefined,
+          taskId: new Types.ObjectId(log.workItemId.toString()),
           type: 'time_logged',
           details: {
             action: 'deleted',

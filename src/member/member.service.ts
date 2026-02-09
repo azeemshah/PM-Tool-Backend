@@ -189,6 +189,7 @@ export class MemberService {
       project_manager: 'Project Manager',
       member: 'Member',
       viewer: 'Viewer',
+      watcher: 'Watcher',
     };
 
     let finalRole: string | undefined = undefined;
@@ -199,7 +200,7 @@ export class MemberService {
       finalRole = roleMap[roleId.toLowerCase()];
     }
 
-    const allowed = ['Owner', 'Admin', 'Team Lead', 'Project Manager', 'Member', 'Viewer'];
+    const allowed = ['Owner', 'Admin', 'Team Lead', 'Project Manager', 'Member', 'Viewer', 'Watcher'];
 
     if (!finalRole || !allowed.includes(finalRole)) {
       throw new BadRequestException('Invalid or missing role');
@@ -443,6 +444,7 @@ export class MemberService {
         ADMIN: 'Admin',
         MEMBER: 'Member',
         VIEWER: 'Viewer',
+        WATCHER: 'Watcher',
       };
       const memberRole = roleMap[invite.role as keyof typeof roleMap];
 
