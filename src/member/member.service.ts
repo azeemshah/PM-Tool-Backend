@@ -106,13 +106,13 @@ export class MemberService {
   async getWorkspaceMembers(workspaceId: string) {
     const members = await this.memberModel
       .find({ workspaceId })
-      .populate('userId', 'firstName lastName email profilePicture')
+      .populate('userId', 'firstName lastName email avatar')
       .exec();
 
     // Also get the owner
     const workspace = await this.workspaceModel
       .findById(workspaceId)
-      .populate('OwnedBy', 'firstName lastName email profilePicture')
+      .populate('OwnedBy', 'firstName lastName email avatar')
       .exec();
 
     if (!workspace) {
@@ -148,7 +148,7 @@ export class MemberService {
   async getMember(memberId: string) {
     const member = await this.memberModel
       .findById(memberId)
-      .populate('userId', 'firstName lastName email profilePicture')
+      .populate('userId', 'firstName lastName email avatar')
       .populate('workspaceId', 'name');
 
     if (!member) {
@@ -207,7 +207,7 @@ export class MemberService {
 
     const member = await this.memberModel
       .findByIdAndUpdate(memberId, { role: finalRole }, { new: true })
-      .populate('userId', 'name email');
+      .populate('userId', 'firstName lastName email avatar');
 
     if (!member) {
       throw new NotFoundException('Member not found');

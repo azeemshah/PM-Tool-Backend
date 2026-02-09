@@ -352,11 +352,11 @@ export class ItemService {
         .limit(limit)
         .populate({
           path: 'assignedTo',
-          select: '_id firstName lastName profilePicture',
+          select: '_id firstName lastName avatar',
         })
         .populate({
           path: 'reporter',
-          select: '_id firstName lastName profilePicture',
+          select: '_id firstName lastName avatar',
         })
         .populate('tags')
         .lean(),
@@ -370,14 +370,14 @@ export class ItemService {
         ? {
             _id: task.assignedTo._id,
             name: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
-            profilePicture: task.assignedTo.profilePicture,
+            profilePicture: task.assignedTo.avatar,
           }
         : null,
       reporter: task.reporter
         ? {
             _id: task.reporter._id,
             name: `${task.reporter.firstName} ${task.reporter.lastName}`,
-            profilePicture: task.reporter.profilePicture,
+            profilePicture: task.reporter.avatar,
           }
         : null,
     }));
@@ -397,11 +397,11 @@ export class ItemService {
     if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid item id');
     const item = await this.itemModel
       .findById(id)
-      .populate('assignedTo', 'firstName lastName email profilePicture')
-      .populate('reporter', 'firstName lastName email profilePicture')
+      .populate('assignedTo', 'firstName lastName email avatar')
+      .populate('reporter', 'firstName lastName email avatar')
       .populate('parent')
       .populate('tags')
-      .populate('customFields.userValue', 'firstName lastName email profilePicture')
+      .populate('customFields.userValue', 'firstName lastName email avatar')
       .exec();
 
     if (!item) {
@@ -769,8 +769,8 @@ export class ItemService {
             }
           ]
         })
-        .populate('assignedTo', 'name profilePicture firstName lastName')
-        .populate('reporter', 'name profilePicture firstName lastName')
+        .populate('assignedTo', 'name avatar firstName lastName')
+        .populate('reporter', 'name avatar firstName lastName')
         .populate('workspace', 'name')
         .sort({ createdAt: -1 })
         .limit(50)
@@ -781,7 +781,11 @@ export class ItemService {
 
       return {
         success: true,
-        data: workItems,
+        data: workItems.map((item: any) => ({
+          ...item,
+          assignedTo: item.assignedTo ? { ...item.assignedTo, profilePicture: item.assignedTo.avatar } : null,
+          reporter: item.reporter ? { ...item.reporter, profilePicture: item.reporter.avatar } : null,
+        })),
         count: workItems.length,
       };
     } catch (error) {

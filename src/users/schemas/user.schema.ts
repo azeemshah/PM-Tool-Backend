@@ -83,6 +83,11 @@ UserSchema.virtual('name').get(function () {
   return `${this.firstName} ${this.lastName}`;
 });
 
+// Add virtual for profilePicture (alias for avatar)
+UserSchema.virtual('profilePicture').get(function () {
+  return this.avatar;
+});
+
 // Ensure virtuals are included in JSON
 UserSchema.set('toJSON', { virtuals: true });
 UserSchema.set('toObject', { virtuals: true });

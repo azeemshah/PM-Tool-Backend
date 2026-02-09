@@ -356,7 +356,14 @@ export class TimeLogService {
     return this.timeLogModel
       .find({ workItemId: new Types.ObjectId(issueId), isActive: false })
       .sort({ logDate: -1 })
-      .populate({ path: 'userId', select: '_id firstName lastName profilePicture' });
+      .populate({ path: 'userId', select: '_id firstName lastName avatar' })
+      .then(logs => logs.map(log => {
+        const logObj = log.toObject();
+        if (logObj.userId) {
+          (logObj.userId as any).profilePicture = (logObj.userId as any).avatar;
+        }
+        return logObj;
+      }));
   }
 
   getByUser(userId: string) {
