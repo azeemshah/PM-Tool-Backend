@@ -4,4 +4,5 @@ export enum Role {
   PROJECT_MANAGER = 'PROJECT_MANAGER',
   MEMBER = 'MEMBER',
   VIEWER = 'VIEWER',
+  WATCHER = 'WATCHER',
 }

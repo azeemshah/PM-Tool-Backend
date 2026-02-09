@@ -4,8 +4,8 @@ export class InviteMemberDto {
   @IsEmail()
   email: string;
 
-  @IsEnum(['ADMIN', 'TEAM_LEAD', 'PROJECT_MANAGER', 'MEMBER', 'VIEWER'])
-  role: 'ADMIN' | 'TEAM_LEAD' | 'PROJECT_MANAGER' | 'MEMBER' | 'VIEWER';
+  @IsEnum(['ADMIN', 'TEAM_LEAD', 'PROJECT_MANAGER', 'MEMBER', 'VIEWER', 'WATCHER'])
+  role: 'ADMIN' | 'TEAM_LEAD' | 'PROJECT_MANAGER' | 'MEMBER' | 'VIEWER' | 'WATCHER';
 
   @IsNotEmpty({ message: 'workspaceId should not be empty' })
   @IsMongoId({ message: 'workspaceId must be a valid MongoDB ID' })
