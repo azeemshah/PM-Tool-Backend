@@ -303,7 +303,7 @@ export class MemberService {
   // 🔑 Send invitation email
   async sendInvitation(
     email: string,
-    role: 'ADMIN' | 'TEAM_LEAD' | 'PROJECT_MANAGER' | 'MEMBER' | 'VIEWER',
+    role: 'ADMIN' | 'TEAM_LEAD' | 'PROJECT_MANAGER' | 'MEMBER' | 'VIEWER' | 'WATCHER',
     invitedBy: string,
     workspaceId: string,
   ) {

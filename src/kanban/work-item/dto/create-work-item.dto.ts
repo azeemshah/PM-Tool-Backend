@@ -39,6 +39,18 @@ export class CreateWorkItemDto {
   @IsOptional()
   assigneeId?: string; // Assigned user
 
+  @IsMongoId()
+  @IsOptional()
+  assignee?: string; // Assigned user (Alias for assigneeId to support frontend payload)
+
+  @IsMongoId()
+  @IsOptional()
+  reporterId?: string; // Reporter user
+
+  @IsMongoId()
+  @IsOptional()
+  reporter?: string; // Reporter user (Alias for reporterId to support frontend payload)
+
   @IsString()
   @IsOptional()
   status?: string; // e.g., 'To Do', 'In Progress', 'Done'

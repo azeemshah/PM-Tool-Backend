@@ -32,6 +32,8 @@ export class ItemService {
     private readonly workspaceModel: Model<Workspace>,
     @InjectModel(TimeLog.name)
     private readonly timeLogModel: Model<TimeLog>,
+    @InjectModel('Member')
+    private readonly memberModel: Model<any>,
     private readonly notificationService: NotificationService,
     private readonly usersService: UsersService,
     private readonly historyService: HistoryService,
@@ -583,6 +585,7 @@ export class ItemService {
 
     const oldStatus = item.status;
     const oldColumn = item.column;
+    const oldAssignee = item.assignedTo ? item.assignedTo.toString() : null;
 
     // Prevent path corruption
     if ('path' in dto) {
@@ -628,7 +631,7 @@ export class ItemService {
       console.error('History log error:', e);
     }
 
-    await this.notifyUsers(saved, 'updated', actorId);
+    await this.notifyUsers(saved, 'updated', actorId, oldAssignee || undefined);
     return saved;
   }
 
@@ -677,34 +680,56 @@ export class ItemService {
     item: Item,
     action: 'created' | 'updated' | 'deleted',
     actorId?: string,
+    oldAssigneeId?: string,
   ): Promise<void> {
     const ids: string[] = [];
 
-    // Explicitly add actor to ensure they get notified -> DISABLED
-    // if (actorId) {
-    //   ids.push(actorId);
-    // }
-
-    if (item.assignedTo) ids.push((item.assignedTo as unknown as Types.ObjectId).toString());
-    if (item.reporter) ids.push((item.reporter as unknown as Types.ObjectId).toString());
+    // NOTE: We do NOT blindly add assignee or reporter anymore.
+    // We filter based on roles below.
+    // However, if they are not found in Members list for some reason, they might be missed.
+    // But for "Member" role restrictions, we must rely on the Member collection.
 
     // Fetch workspace members to notify everyone
     if (item.workspace) {
       try {
         const workspace = await this.workspaceModel.findById(item.workspace).exec();
         if (workspace) {
-          console.log(
-            'WorkItemService: Workspace found:',
-            workspace._id,
-            'Members:',
-            workspace.members?.length,
-            'Owner:',
-            workspace.OwnedBy,
-          );
-          if (workspace.OwnedBy) ids.push(workspace.OwnedBy.toString());
-          if (workspace.members) {
-            workspace.members.forEach((m) => ids.push(m.toString()));
-          }
+           // Always notify Owner
+           if (workspace.OwnedBy) ids.push(workspace.OwnedBy.toString());
+
+           // Fetch members with roles
+           const members = await this.memberModel.find({ workspaceId: workspace._id }).populate('userId').exec();
+           
+           const assigneeId = item.assignedTo ? (item.assignedTo as any).toString() : null;
+
+           for (const member of members) {
+             if (!member.userId) continue;
+             const uid = member.userId._id ? member.userId._id.toString() : member.userId.toString();
+             const role = member.role;
+             const isMember = role && role.toLowerCase() === 'member';
+
+             if (isMember) {
+                console.log(`[Notification Legacy] Member Found - ID: ${uid}, Match Assignee: ${assigneeId && uid === assigneeId}`);
+             }
+
+             if (!isMember) {
+                 // Non-members (Admin, PM, etc) get all notifications
+                 ids.push(uid);
+             } else {
+                 // Members ONLY get notification if they are the assignee or old assignee
+                 if ((assigneeId && uid === assigneeId) || (oldAssigneeId && uid === oldAssigneeId)) {
+                     ids.push(uid);
+                     console.log(`[Notification Legacy] Member Added: ${uid}`);
+                 }
+             }
+           }
+           
+           // Force include assignee if missed
+           if (assigneeId && !ids.includes(assigneeId)) {
+               ids.push(assigneeId);
+               console.log(`[Notification Legacy] Force Added Assignee: ${assigneeId}`);
+           }
+
         } else {
           console.warn('WorkItemService: Workspace not found during notification', item.workspace);
         }
@@ -713,6 +738,13 @@ export class ItemService {
       }
     } else {
       console.warn('WorkItemService: Item has no workspace defined', item._id);
+    }
+
+    // FALLBACK: Ensure Assignee is ALWAYS notified, even if workspace lookup failed or member lookup failed
+    const finalAssigneeId = item.assignedTo ? (item.assignedTo as any).toString() : null;
+    if (finalAssigneeId && !ids.includes(finalAssigneeId)) {
+         ids.push(finalAssigneeId);
+         console.log(`[Notification Legacy] Force Added Assignee (Fallback): ${finalAssigneeId}`);
     }
 
     // Get actor details
@@ -747,8 +779,22 @@ export class ItemService {
     for (const recipientId of recipients) {
       try {
         let type = NotificationType.WORK_ITEM_UPDATED;
+        let message = recipientId === actorId
+              ? `You ${action} work item "${item.title || 'work item'}"`
+              : `${actorName} ${action} work item "${item.title || 'work item'}"`;
+
         if (action === 'created') type = NotificationType.WORK_ITEM_CREATED;
         else if (action === 'deleted') type = NotificationType.WORK_ITEM_DELETED;
+
+        // Special case for Assignee
+        const assigneeId = item.assignedTo ? (item.assignedTo as any).toString() : null;
+        if (assigneeId && recipientId === assigneeId && recipientId !== actorId) {
+             const isNewAssignment = action === 'created' || (action === 'updated' && oldAssigneeId !== assigneeId);
+             if (isNewAssignment) {
+                 type = NotificationType.TASK_ASSIGNED;
+                 message = `${actorName} assigned you to work item "${item.title || 'work item'}"`;
+             }
+        }
 
         // Ensure recipientId is valid
         if (!Types.ObjectId.isValid(recipientId)) {
@@ -760,10 +806,7 @@ export class ItemService {
           recipient: new Types.ObjectId(recipientId),
           sender: sender,
           type: type,
-          message:
-            recipientId === actorId
-              ? `You ${action} work item "${item.title || 'work item'}"`
-              : `${actorName} ${action} work item "${item.title || 'work item'}"`,
+          message: message,
           workspace: item.workspace,
           workItem: action === 'deleted' ? undefined : (item._id as any),
         });

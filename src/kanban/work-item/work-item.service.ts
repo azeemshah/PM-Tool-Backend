@@ -24,12 +24,19 @@ export class WorkItemService {
     @InjectModel(KanbanBoard.name) private boardModel: Model<KanbanBoard>,
     @InjectModel(Workspace.name) private workspaceModel: Model<Workspace>,
     @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel('Member') private memberModel: Model<any>,
     private readonly emailService: EmailService,
     private readonly historyService: HistoryService,
     private readonly notificationService: NotificationService,
   ) {}
 
-  private async getRecipientsByBoard(boardId?: Types.ObjectId | string, actorId?: string, workspaceId?: Types.ObjectId | string): Promise<Types.ObjectId[]> {
+  private async getRecipientsByBoard(
+    boardId?: Types.ObjectId | string, 
+    actorId?: string, 
+    workspaceId?: Types.ObjectId | string,
+    assigneeId?: string,
+    reporterId?: string
+  ): Promise<Types.ObjectId[]> {
     let workspace;
 
     if (boardId) {
@@ -44,17 +51,83 @@ export class WorkItemService {
       workspace = await this.workspaceModel.findById(workspaceId).exec();
     }
 
-    const ids = workspace ? [
-      workspace.OwnedBy?.toString(),
-      ...(workspace.members || []).map((m) => m.toString()),
-    ].filter(Boolean) as string[] : [];
-
-    // Explicitly add actorId to ensure they get notified
-    if (actorId && !ids.includes(actorId)) {
-        ids.push(actorId);
+    if (!workspace) {
+        console.warn(`[Notification] Workspace not found for board ${boardId} or workspace ${workspaceId}`);
+        // If assigneeId is present, we still want to notify them, even if workspace is missing (best effort)
+        const fallback: Types.ObjectId[] = [];
+        if (assigneeId) fallback.push(new Types.ObjectId(assigneeId));
+        if (reporterId) fallback.push(new Types.ObjectId(reporterId));
+        return fallback;
     }
+
+    const members = await this.memberModel.find({ workspaceId: workspace._id }).populate('userId').exec();
+    // console.log(`[Notification] Recipient candidates: ${members.length}`);
+    console.log(`[Notification] Debug - WorkspaceId: ${workspace._id}, AssigneeId: ${assigneeId}, ReporterId: ${reporterId}`);
     
-    const unique = Array.from(new Set(ids));
+    // Check if actor is a Member (to broadcast their actions to everyone)
+    let isActorMember = false;
+    if (actorId) {
+         const actorMember = members.find(m => {
+              if (!m.userId) return false;
+              const uid = m.userId._id ? m.userId._id.toString() : m.userId.toString();
+              return uid === actorId.toString();
+         });
+         if (actorMember && actorMember.role && actorMember.role.toLowerCase() === 'member') {
+              isActorMember = true;
+              console.log(`[Notification] Actor ${actorId} is a Member. Broadcasting to all.`);
+         }
+     }
+
+    const recipientIds: string[] = [];
+
+    // Add Workspace Owner (Always notify)
+    if (workspace.OwnedBy) {
+      // console.log(`[Notification] Adding Owner: ${workspace.OwnedBy}`);
+      recipientIds.push(workspace.OwnedBy.toString());
+    }
+
+    for (const member of members) {
+      if (!member.userId) continue;
+      const uid = member.userId._id ? member.userId._id.toString() : member.userId.toString();
+       const role = member.role;
+       const isMember = role && role.toLowerCase() === 'member';
+
+       // console.log(`[Notification] Checking member: ${uid}, Role: ${role}, IsMember: ${isMember}, AssigneeId: ${assigneeId}`);
+       
+       if (isMember) {
+           console.log(`[Notification] Member Found - ID: ${uid}, Role: ${role}, Match Assignee: ${assigneeId && uid === assigneeId}, Match Reporter: ${reporterId && uid === reporterId}`);
+       }
+
+       // Logic:
+       // 1. If role is NOT 'Member', always notify.
+       // 2. If actor IS 'Member', notify everyone (broadcast).
+       // 3. If role IS 'Member' AND actor is NOT 'Member', only notify if they are the assignee OR the reporter.
+       
+       if (!isMember || isActorMember) {
+         recipientIds.push(uid);
+       } else {
+         // Role is Member
+         // Notify if they are assigned OR they are the reporter
+         if ((assigneeId && uid === assigneeId) || (reporterId && uid === reporterId)) {
+           recipientIds.push(uid);
+           console.log(`[Notification] Member Added to Recipients: ${uid}`);
+         }
+       }
+     }
+
+    // Force include assignee if they were missed (e.g. Member lookup issue, or just to be safe)
+    if (assigneeId && !recipientIds.includes(assigneeId)) {
+        console.log(`[Notification] Force adding Assignee: ${assigneeId}`);
+        recipientIds.push(assigneeId);
+    }
+
+    // Force include reporter if they were missed
+    if (reporterId && !recipientIds.includes(reporterId)) {
+        console.log(`[Notification] Force adding Reporter: ${reporterId}`);
+        recipientIds.push(reporterId);
+    }
+     
+     const unique = Array.from(new Set(recipientIds));
     
     return unique.map(id => new Types.ObjectId(id));
   }
@@ -69,47 +142,69 @@ export class WorkItemService {
 
   /* ================= Create Work Item ================= */
   async create(createDto: CreateWorkItemDto, actorId?: string): Promise<WorkItem> {
-    // Map incoming DTO fields to schema fields (boardId -> board, etc.)
-    const payload: any = { ...createDto };
-    if ((createDto as any).boardId) {
-      payload.board = (createDto as any).boardId;
-      delete payload.boardId;
-    }
-    // If a columnId is provided, set the WorkItem.status to that column ID
-    if ((createDto as any).columnId) {
-      payload.status = (createDto as any).columnId;
-    }
-    if ((createDto as any).parentId) {
-      payload.parent = (createDto as any).parentId;
-      delete payload.parentId;
-    }
-    if ((createDto as any).assigneeId) {
-      payload.assignee = (createDto as any).assigneeId;
-      delete payload.assigneeId;
-    }
-    if ((createDto as any).dueDate) {
-      payload.metadata = payload.metadata || {};
-      payload.metadata.dueDate = (createDto as any).dueDate;
-      delete payload.dueDate;
-    }
+    console.log('KanbanWorkItemService: creating item', createDto);
+    console.log('KanbanWorkItemService: payload keys', Object.keys(createDto));
+    let savedItem: WorkItem;
+    try {
+      // Map incoming DTO fields to schema fields (boardId -> board, etc.)
+      const payload: any = { ...createDto };
+      if ((createDto as any).boardId) {
+        payload.board = (createDto as any).boardId;
+        delete payload.boardId;
+      }
+      // If a columnId is provided, set the WorkItem.status to that column ID
+      if ((createDto as any).columnId) {
+        payload.status = (createDto as any).columnId;
+      }
+      if ((createDto as any).parentId) {
+        payload.parent = (createDto as any).parentId;
+        delete payload.parentId;
+      }
+      if ((createDto as any).assigneeId) {
+        payload.assignee = (createDto as any).assigneeId;
+        delete payload.assigneeId;
+      }
+      if ((createDto as any).reporterId) {
+        payload.reporter = (createDto as any).reporterId;
+        delete payload.reporterId;
+      }
+      if ((createDto as any).dueDate) {
+        payload.metadata = payload.metadata || {};
+        payload.metadata.dueDate = (createDto as any).dueDate;
+        delete payload.dueDate;
+      }
 
-    const createdItem = new this.workItemModel(payload);
-    const savedItem = await createdItem.save();
+      const createdItem = new this.workItemModel(payload);
+      savedItem = await createdItem.save();
 
-    // Automatically add to column's workItems array if columnId/column is provided
-    if ((createDto as any).columnId) {
-      const columnId = (createDto as any).columnId;
-      await this.columnModel
-        .findByIdAndUpdate(columnId, { $push: { workItems: savedItem._id } }, { new: true })
-        .exec();
+      // Automatically add to column's workItems array if columnId/column is provided
+      if ((createDto as any).columnId) {
+        const columnId = (createDto as any).columnId;
+        await this.columnModel
+          .findByIdAndUpdate(columnId, { $push: { workItems: savedItem._id } }, { new: true })
+          .exec();
+      }
+    } catch (err) {
+      console.error('[WorkItemService] Create failed during save/initialization:', err);
+      throw err;
     }
 
     let recipients: Types.ObjectId[] = [];
     let actorName: string | undefined;
 
     try {
-      console.log('KanbanWorkItemService: notifying users for create', payload.board);
-      recipients = await this.getRecipientsByBoard(payload.board, actorId, (savedItem as any)?.workspace);
+      console.log('KanbanWorkItemService: notifying users for create', (savedItem as any).board);
+      const assigneeId = (savedItem as any)?.assignee?.toString();
+      const reporterId = (savedItem as any)?.reporter?.toString();
+
+      recipients = await this.getRecipientsByBoard(
+        (savedItem as any).board, 
+        actorId, 
+        (savedItem as any)?.workspace, 
+        assigneeId, 
+        reporterId
+      );
+      
       console.log('KanbanWorkItemService: recipients found', recipients.length, recipients);
       actorName = await this.getActorName(actorId);
       const subject = `New ${savedItem.type} created: ${savedItem.title}`;
@@ -119,9 +214,20 @@ export class WorkItemService {
         actorName,
         details: '',
       });
-      // emailService may expect a different recipient shape; cast to any to avoid type mismatch here
-      await this.emailService.sendActivityEmail(recipients as any, subject, html);
-    } catch (_) {}
+
+      // Fetch emails for recipients
+      if (recipients.length > 0) {
+        const users = await this.userModel.find({ _id: { $in: recipients } }).select('email firstName lastName').exec();
+        const emailRecipients = users.map(u => ({
+          email: u.email,
+          name: `${u.firstName || ''} ${u.lastName || ''}`.trim()
+        })).filter(r => r.email);
+        
+        await this.emailService.sendActivityEmail(emailRecipients, subject, html);
+      }
+    } catch (err) {
+      console.error('[WorkItemService] Notification failed (non-fatal):', err);
+    }
 
     // Log activity
     try {
@@ -140,17 +246,33 @@ export class WorkItemService {
 
     // Notify via notificationService
     try {
+      const assigneeId = (savedItem as any)?.assignee?.toString();
+
       for (const recipientId of recipients) {
         // Ensure recipientId is valid string or ObjectId
         const rid = recipientId instanceof Types.ObjectId ? recipientId : new Types.ObjectId(String(recipientId));
+        const ridStr = rid.toString();
+
+        let notifType = NotificationType.WORK_ITEM_CREATED;
+        let message = ridStr === actorId
+              ? `You created ${savedItem.type}: ${savedItem.title}`
+              : `${actorName || 'Someone'} created ${savedItem.type}: ${savedItem.title}`;
+
+        // Special case: If this recipient is the assignee, send TASK_ASSIGNED
+        // But only if they are not the creator (unless they assigned themselves, then "You assigned yourself"?)
+        // If I create and assign to myself: "You created..." is fine? Or "You assigned yourself"?
+        // Let's stick to "You were assigned" for clarity if they are the assignee.
+        
+        if (assigneeId && ridStr === assigneeId && ridStr !== actorId) {
+             notifType = NotificationType.TASK_ASSIGNED;
+             message = `${actorName || 'Someone'} assigned you to ${savedItem.type}: ${savedItem.title}`;
+        }
+
         await this.notificationService.create({
           recipient: rid,
           sender: actorId ? new Types.ObjectId(actorId) : undefined,
-          type: NotificationType.WORK_ITEM_CREATED,
-          message:
-            rid.toString() === actorId
-              ? `You created ${savedItem.type}: ${savedItem.title}`
-              : `${actorName || 'Someone'} created ${savedItem.type}: ${savedItem.title}`,
+          type: notifType,
+          message: message,
           workspace: (savedItem as any)?.workspace,
           workItem: savedItem._id,
         });
@@ -209,6 +331,10 @@ export class WorkItemService {
       updatePayload.assignee = (updateDto as any).assigneeId;
       delete updatePayload.assigneeId;
     }
+    if ((updateDto as any).reporterId) {
+      updatePayload.reporter = (updateDto as any).reporterId;
+      delete updatePayload.reporterId;
+    }
     if ((updateDto as any).dueDate) {
       updatePayload.metadata = updatePayload.metadata || {};
       updatePayload.metadata.dueDate = (updateDto as any).dueDate;
@@ -223,19 +349,35 @@ export class WorkItemService {
       const recipients = await this.getRecipientsByBoard(
         updatePayload.board || updatedItem.board,
         actorId,
-        (updatedItem as any)?.workspace
+        (updatedItem as any)?.workspace,
+        (updatedItem as any)?.assignee?.toString(),
+        (updatedItem as any)?.reporter?.toString()
       );
       const actorName = await this.getActorName(actorId);
       
+      const newAssigneeId = (updatedItem as any)?.assignee?.toString();
+      const oldAssigneeId = (originalItem as any)?.assignee?.toString();
+      const isAssigneeChanged = newAssigneeId && newAssigneeId !== oldAssigneeId;
+
       for (const recipientId of recipients) {
           if (!Types.ObjectId.isValid(recipientId)) continue;
+          
+          const ridStr = recipientId.toString();
+          let notifType = NotificationType.WORK_ITEM_UPDATED;
+          let message = ridStr === actorId
+                ? `You updated ${updatedItem.type}: ${updatedItem.title}`
+                : `${actorName || 'Someone'} updated ${updatedItem.type}: ${updatedItem.title}`;
+
+          if (isAssigneeChanged && ridStr === newAssigneeId && ridStr !== actorId) {
+               notifType = NotificationType.TASK_ASSIGNED;
+               message = `${actorName || 'Someone'} assigned you to ${updatedItem.type}: ${updatedItem.title}`;
+          }
+
           await this.notificationService.create({
               recipient: recipientId,
               sender: actorId ? new Types.ObjectId(actorId) : undefined,
-              type: NotificationType.WORK_ITEM_UPDATED,
-              message: recipientId.toString() === actorId
-                ? `You updated ${updatedItem.type}: ${updatedItem.title}`
-                : `${actorName || 'Someone'} updated ${updatedItem.type}: ${updatedItem.title}`,
+              type: notifType,
+              message: message,
               workspace: (updatedItem as any)?.workspace,
               workItem: updatedItem._id,
           });
@@ -285,7 +427,8 @@ export class WorkItemService {
       const recipients = await this.getRecipientsByBoard(
           (existing as any)?.board, 
           actorId,
-          (existing as any)?.workspace
+          (existing as any)?.workspace,
+          (existing as any)?.assignee?.toString()
       );
       const actorName = await this.getActorName(actorId);
       
@@ -367,22 +510,45 @@ export class WorkItemService {
     item.assignee = new Types.ObjectId(userId);
     const saved = await item.save();
     try {
-      const recipients = await this.getRecipientsByBoard(saved.board, actorId);
+      // Pass userId as assigneeId to ensure Member role logic works
+      const recipients = await this.getRecipientsByBoard(
+          saved.board, 
+          actorId, 
+          (saved as any).spaceid || (saved as any).workspace, 
+          userId
+      );
+
+      // Safety check: Ensure assignee is in the list
+      const recipientStrings = recipients.map(r => r.toString());
+      if (!recipientStrings.includes(userId)) {
+          console.warn(`[AssignUser] Assignee ${userId} was not returned by getRecipientsByBoard. Force adding.`);
+          recipients.push(new Types.ObjectId(userId));
+      }
+
       const actorName = await this.getActorName(actorId);
       
       for (const recipientId of recipients) {
+          const ridStr = recipientId.toString();
+          let message = `${actorName || 'Someone'} assigned ${saved.title} to a user`;
+
+          if (ridStr === actorId) {
+             message = `You assigned ${saved.title} to a user`;
+          } else if (ridStr === userId) {
+             message = `${actorName || 'Someone'} assigned you to ${saved.title}`;
+          }
+
           await this.notificationService.create({
               recipient: recipientId,
               sender: actorId ? new Types.ObjectId(actorId) : undefined,
               type: NotificationType.TASK_ASSIGNED,
-              message: recipientId.toString() === actorId
-                ? `You assigned ${saved.title} to a user`
-                : `${actorName || 'Someone'} assigned ${saved.title} to a user`,
-              workspace: (saved as any)?.workspace,
+              message: message,
+              workspace: (saved as any)?.spaceid || (saved as any)?.workspace,
               workItem: saved._id,
           });
       }
-    } catch (_) {}
+    } catch (err) {
+        console.error('[AssignUser] Failed to send notifications:', err);
+    }
     // Log activity
     try {
       const board = await this.boardModel.findById((saved as any).board).exec();

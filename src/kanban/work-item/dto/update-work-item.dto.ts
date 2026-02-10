@@ -33,6 +33,18 @@ export class UpdateWorkItemDto extends PartialType(CreateWorkItemDto) {
   @IsOptional()
   assigneeId?: string;
 
+  @IsMongoId()
+  @IsOptional()
+  assignee?: string;
+
+  @IsMongoId()
+  @IsOptional()
+  reporterId?: string;
+
+  @IsMongoId()
+  @IsOptional()
+  reporter?: string;
+
   @IsString()
   @IsOptional()
   status?: string;

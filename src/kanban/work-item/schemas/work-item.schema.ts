@@ -34,6 +34,9 @@ export class WorkItem extends Document {
   @Prop({ type: Types.ObjectId, ref: 'User' })
   assignee?: Types.ObjectId;
 
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  reporter?: Types.ObjectId;
+
   @Prop({ default: 'To Do' })
   status: string;
 

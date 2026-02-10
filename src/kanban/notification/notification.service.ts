@@ -28,8 +28,13 @@ export class NotificationService {
     
     // Emit real-time notification
     if (savedNotification.recipient) {
-        console.log('NotificationService: Emitting to gateway for recipient', savedNotification.recipient.toString());
-        this.notificationGateway.sendNotification(savedNotification.recipient.toString(), savedNotification);
+        const recipientId = savedNotification.recipient.toString();
+        console.log(`NotificationService: Emitting to gateway for recipient: ${recipientId}`);
+        try {
+          this.notificationGateway.sendNotification(recipientId, savedNotification);
+        } catch (error) {
+          console.error(`NotificationService: Failed to emit notification to ${recipientId}`, error);
+        }
     }
     
     return savedNotification;

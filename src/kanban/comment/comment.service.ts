@@ -25,6 +25,7 @@ export class CommentService {
     @InjectModel(KanbanColumn.name) private readonly columnModel: Model<ColumnDocument>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(Workspace.name) private readonly workspaceModel: Model<Workspace>,
+    @InjectModel('Member') private readonly memberModel: Model<any>,
     private readonly historyService: HistoryService,
     private readonly notificationService: NotificationService,
   ) {}
@@ -110,45 +111,75 @@ export class CommentService {
       if (workItem) {
         const actor = dto.userId || actorId;
         const actorName = await this.getActorName(actor);
-        const recipients = new Set<string>();
+        
+        let workspaceId = (workItem as any).workspace || (workItem as any).spaceid;
+        
+        if (!workspaceId && workItem.board) {
+             const board = await this.boardModel.findById(workItem.board).select('workspaceId').exec();
+             if (board) workspaceId = board.workspaceId;
+        }
 
-        // Notify Assignee (even if commenter)
-        if (workItem.assignee) recipients.add(String(workItem.assignee));
-
-        // Notify Reporter/Creator
-        const reporter = (workItem as any).reporter;
-        if (reporter) recipients.add(String(reporter));
-
-        // Fetch workspace members to notify everyone
-        const workspaceId = (workItem as any).workspace || (workItem as any).spaceid;
         if (workspaceId) {
-          const workspace = await this.workspaceModel.findById(workspaceId).exec();
-          if (workspace) {
-            if (workspace.OwnedBy) recipients.add(String(workspace.OwnedBy));
-            if (workspace.members) workspace.members.forEach((m) => recipients.add(String(m)));
-          }
-        }
+            const members = await this.memberModel.find({ workspaceId }).populate('userId').exec();
+            const recipients = new Set<string>();
+            const content = dto.content || '';
+            const assigneeId = workItem.assignee ? workItem.assignee.toString() : null;
 
-        // If it's a reply to a comment, notify the parent comment author
-        if (dto.parentCommentId) {
-          const parent = await this.commentModel.findById(dto.parentCommentId).exec();
-          if (parent && (parent as any).userId) recipients.add(String((parent as any).userId));
-        }
+            // Check if actor is a Member
+            let isActorMember = false;
+            if (actor) {
+                const actorMember = members.find(m => {
+                     if (!m.userId) return false;
+                     const uid = m.userId._id ? m.userId._id.toString() : m.userId.toString();
+                     return uid === actor.toString();
+                });
+                if (actorMember && actorMember.role && actorMember.role.toLowerCase() === 'member') {
+                     isActorMember = true;
+                }
+            }
 
-        for (const recipientId of Array.from(recipients)) {
-          try {
-            if (!Types.ObjectId.isValid(recipientId)) continue;
-            await this.notificationService.create({
-              recipient: new Types.ObjectId(recipientId),
-              sender: actor ? new Types.ObjectId(actor) : undefined,
-              type: NotificationType.COMMENT_ADDED,
-              message: `${actorName || 'Someone'} commented on ${workItem.title || 'work item'}`,
-              workspace: workspaceId,
-              workItem: workItem._id,
-            });
-          } catch (err) {
-            console.error('Failed to send comment notification to', recipientId, err);
-          }
+            for (const member of members) {
+                if (!member.userId) continue;
+                const uid = member.userId._id ? member.userId._id.toString() : member.userId.toString();
+                
+                // Don't notify the actor
+                if (uid === actor) continue;
+
+                const role = member.role;
+                const user = member.userId;
+                const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+                const isMember = role && role.toLowerCase() === 'member';
+
+                // console.log(`[Comment Notification] User: ${uid}, Role: ${role}, IsMember: ${isMember}, Tagged: ${content.includes('@' + fullName)}`);
+
+                if (!isMember || isActorMember) {
+                    recipients.add(uid);
+                } else {
+                    // For Members: Notify if they are the assignee OR if they are tagged
+                    const isAssignee = assigneeId && uid === assigneeId;
+                    const isTagged = fullName && content.includes(`@${fullName}`);
+                    
+                    if (isAssignee || isTagged) {
+                        recipients.add(uid);
+                    }
+                }
+            }
+
+            for (const recipientId of Array.from(recipients)) {
+              try {
+                if (!Types.ObjectId.isValid(recipientId)) continue;
+                await this.notificationService.create({
+                  recipient: new Types.ObjectId(recipientId),
+                  sender: actor ? new Types.ObjectId(actor) : undefined,
+                  type: NotificationType.COMMENT_ADDED,
+                  message: `${actorName || 'Someone'} commented on ${workItem.title || 'work item'}`,
+                  workspace: workspaceId,
+                  workItem: workItem._id,
+                });
+              } catch (err) {
+                console.error('Failed to send comment notification to', recipientId, err);
+              }
+            }
         }
       }
     } catch (err) {
