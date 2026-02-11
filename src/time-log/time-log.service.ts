@@ -97,39 +97,25 @@ export class TimeLogService {
       throw new NotFoundException('Issue not found');
     }
 
-    // Check if user already has an active timer on this issue
-    const existingActive = await this.timeLogModel.findOne({
-      workItemId: new Types.ObjectId(issueId),
+    // Check if user has ANY active timer
+    const activeTimer = await this.timeLogModel.findOne({
       userId: new Types.ObjectId(userId),
       isActive: true,
     });
 
-    if (existingActive) {
-      throw new BadRequestException('Timer already running for this issue');
-    }
+    if (activeTimer) {
+      const activeIssueId = (activeTimer.workItemId as any)._id
+        ? (activeTimer.workItemId as any)._id.toString()
+        : activeTimer.workItemId.toString();
 
-    // Check if user has active timers on OTHER issues (optional: prevent multitasking)
-    const otherActive = await this.timeLogModel.findOne({
-      userId: new Types.ObjectId(userId),
-      isActive: true,
-      workItemId: { $ne: new Types.ObjectId(issueId) },
-    });
-
-    if (otherActive) {
-      // Auto-stop the previous timer instead of throwing error
-      try {
-        const otherIssueId = (otherActive.workItemId as any)._id
-          ? (otherActive.workItemId as any)._id.toString()
-          : otherActive.workItemId.toString();
-
-        console.log(`Auto-stopping active timer for issue ${otherIssueId}`);
-        await this.stopTimer(otherIssueId, userId);
-      } catch (err) {
-        console.error('Failed to auto-stop previous timer:', err);
-        // Force deactivate if stopTimer fails
-        otherActive.isActive = false;
-        await otherActive.save();
+      if (activeIssueId === issueId) {
+        return { timer: activeTimer, message: 'Timer already running for this issue' };
       }
+
+      const otherIssue = await this.itemModel.findById(activeIssueId);
+      const issueName = otherIssue ? otherIssue.title : 'another task';
+
+      throw new BadRequestException(`A timer is already running for "${issueName}". Please stop it before starting a new one.`);
     }
 
     const now = new Date();
@@ -382,6 +368,7 @@ export class TimeLogService {
     }
     return this.timeLogModel
       .findOne({ userId: new Types.ObjectId(userId), isActive: true })
+      .sort({ startedAt: -1 })
       .populate({ path: 'workItemId', select: '_id title key' });
   }
 
