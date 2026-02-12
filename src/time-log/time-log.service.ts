@@ -4,6 +4,7 @@ import { Model, Types } from 'mongoose';
 import { TimeLog } from './schemas/time-log.schema';
 import { Item } from '../work-items/schemas/work-item.schema';
 import { HistoryService } from '../kanban/history/history.service';
+import { MemberService } from '../member/member.service';
 
 @Injectable()
 export class TimeLogService {
@@ -13,6 +14,7 @@ export class TimeLogService {
     @InjectModel(Item.name)
     private itemModel: Model<Item>,
     private historyService: HistoryService,
+    private memberService: MemberService,
   ) { }
 
   // ============ MANUAL TIME LOGGING ============
@@ -39,6 +41,9 @@ export class TimeLogService {
     if (!issue) {
       throw new NotFoundException('Issue not found');
     }
+
+    // Permission check: Member can only log time for tasks assigned to them
+    await this.checkLoggingPermission(issue, data.userId);
 
     const timeLog = await this.timeLogModel.create({
       userId: new Types.ObjectId(data.userId),
@@ -96,6 +101,9 @@ export class TimeLogService {
     if (!issue) {
       throw new NotFoundException('Issue not found');
     }
+
+    // Permission check: Member can only start timer for tasks assigned to them
+    await this.checkLoggingPermission(issue, userId);
 
     // Check if user has ANY active timer
     const activeTimer = await this.timeLogModel.findOne({
@@ -472,5 +480,44 @@ export class TimeLogService {
 
     // Recurse upwards
     if (parent.parent) await this.recalculateParentTime(parent.parent.toString());
+  }
+
+  /**
+   * Helper to check if a user has permission to log time or start a timer.
+   * Members can only log time for issues assigned to them.
+   */
+  private async checkLoggingPermission(issue: any, userId: string) {
+    if (!issue.workspace) return;
+
+    try {
+      const currentUserId = userId.toString();
+      const member = await this.memberService.getUserRoleInWorkspace(currentUserId, issue.workspace.toString());
+      
+      if (member) {
+        // Watchers and Viewers are not allowed to log time at all
+        if (member.role === 'Watcher' || member.role === 'Viewer') {
+          throw new ForbiddenException(`${member.role}s are not allowed to log time.`);
+        }
+
+        // Only Owner can log time for anyone. Everyone else can only log for themselves.
+        if (member.role !== 'Owner') {
+          const assignedToId = issue.assignedTo?._id 
+            ? issue.assignedTo._id.toString() 
+            : (issue.assignedTo ? issue.assignedTo.toString() : null);
+          
+          const reporterId = issue.reporter?._id 
+            ? issue.reporter._id.toString() 
+            : (issue.reporter ? issue.reporter.toString() : null);
+          
+          const isAuthorized = assignedToId === currentUserId || reporterId === currentUserId;
+          
+          if (!isAuthorized) {
+            throw new ForbiddenException('Only the Owner can log time for other members. You can only log time for tasks assigned to you.');
+          }
+        }
+      }
+    } catch (err) {
+      if (err instanceof ForbiddenException) throw err;
+    }
   }
 }

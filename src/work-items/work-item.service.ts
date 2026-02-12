@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   InternalServerErrorException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -79,6 +80,34 @@ export class ItemService {
 
     const item = await this.itemModel.findById(itemId);
     if (!item) throw new NotFoundException('Item not found');
+
+    // Permission check: Only Owner can log time for anyone. Others can only log for themselves. Watcher/Viewer cannot log time.
+    if (userId) {
+      const workspaceId = item.workspace;
+      if (workspaceId) {
+        const currentUserId = userId.toString();
+        const member = await this.memberModel.findOne({ userId: currentUserId, workspaceId });
+        if (member) {
+          if (member.role === 'Watcher' || member.role === 'Viewer') {
+            throw new ForbiddenException(`${member.role}s are not allowed to log time.`);
+          }
+
+          if (member.role !== 'Owner') {
+            const assignedToId = item.assignedTo?._id 
+              ? item.assignedTo._id.toString() 
+              : (item.assignedTo ? item.assignedTo.toString() : null);
+            
+            const reporterId = item.reporter?._id 
+              ? item.reporter._id.toString() 
+              : (item.reporter ? item.reporter.toString() : null);
+            
+            if (assignedToId !== currentUserId && reporterId !== currentUserId) {
+              throw new ForbiddenException('Only the Owner can log time for other members. You can only log time for tasks assigned to you.');
+            }
+          }
+        }
+      }
+    }
 
     // Create time log
     const tl = await this.timeLogModel.create({ userId: new Types.ObjectId(userId), workItemId: item._id, timeSpent, logDate: new Date() });
