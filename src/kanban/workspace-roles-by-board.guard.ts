@@ -32,7 +32,7 @@ export class WorkspaceRolesByBoardGuard implements CanActivate {
     let workspaceId = request.params.workspaceId;
 
     // Resolve workspaceId from boardId if not present
-    let boardIdRaw = request.params.boardId || request.body.board;
+    const boardIdRaw = request.params.boardId || request.body.board;
     if (!workspaceId && boardIdRaw) {
       let boardId: Types.ObjectId;
       try {
@@ -41,10 +41,7 @@ export class WorkspaceRolesByBoardGuard implements CanActivate {
         throw new ForbiddenException('Invalid board ID');
       }
 
-      const board = await this.boardModel
-        .findById(boardId)
-        .select('workspaceId')
-        .lean();
+      const board = await this.boardModel.findById(boardId).select('workspaceId').lean();
       if (!board) throw new ForbiddenException('Board not found');
 
       workspaceId = board.workspaceId.toString();
@@ -60,16 +57,10 @@ export class WorkspaceRolesByBoardGuard implements CanActivate {
         throw new ForbiddenException('Invalid column ID');
       }
 
-      const column = await this.columnModel
-        .findById(columnId)
-        .select('BoardId')
-        .lean();
+      const column = await this.columnModel.findById(columnId).select('BoardId').lean();
       if (!column) throw new ForbiddenException('Column not found');
 
-      const board = await this.boardModel
-        .findById(column.BoardId)
-        .select('workspaceId')
-        .lean();
+      const board = await this.boardModel.findById(column.BoardId).select('workspaceId').lean();
       if (!board) throw new ForbiddenException('Board not found');
 
       workspaceId = board.workspaceId.toString();

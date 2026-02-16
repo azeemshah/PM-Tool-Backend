@@ -1,11 +1,11 @@
 import { IsString, IsOptional, IsArray } from 'class-validator';
 
 export class UpdateCommentDto {
-    @IsString()
-    @IsOptional()
-    readonly content?: string;
+  @IsString()
+  @IsOptional()
+  readonly content?: string;
 
-    @IsArray()
-    @IsOptional()
-    readonly attachments?: { fileName: string; fileUrl: string; fileType?: string }[];
+  @IsArray()
+  @IsOptional()
+  readonly attachments?: { fileName: string; fileUrl: string; fileType?: string }[];
 }

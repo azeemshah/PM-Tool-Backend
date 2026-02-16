@@ -7,18 +7,13 @@ import { UpdateTagDto } from './dto/update-tag.dto';
 
 @Injectable()
 export class TagService {
-  constructor(
-    @InjectModel(Tag.name) private tagModel: Model<TagDocument>,
-  ) {}
+  constructor(@InjectModel(Tag.name) private tagModel: Model<TagDocument>) {}
 
   /**
    * Create a new tag for a workspace
    * Ensures uniqueness per workspace (case-insensitive)
    */
-  async create(
-    createTagDto: CreateTagDto,
-    userId: string,
-  ): Promise<Tag> {
+  async create(createTagDto: CreateTagDto, userId: string): Promise<Tag> {
     const { name, workspaceId } = createTagDto;
 
     // Validate workspaceId
@@ -33,9 +28,7 @@ export class TagService {
     });
 
     if (existingTag) {
-      throw new BadRequestException(
-        `Tag '${name}' already exists in this workspace`,
-      );
+      throw new BadRequestException(`Tag '${name}' already exists in this workspace`);
     }
 
     // Create new tag
@@ -70,7 +63,7 @@ export class TagService {
       throw new BadRequestException('Invalid tag ID');
     }
 
-    const tag = await this.tagModel.findById(new Types.ObjectId(id)).exec() as TagDocument | null;
+    const tag = (await this.tagModel.findById(new Types.ObjectId(id)).exec()) as TagDocument | null;
 
     if (!tag) {
       throw new NotFoundException(`Tag with ID ${id} not found`);
@@ -102,7 +95,7 @@ export class TagService {
       throw new BadRequestException('Invalid tag ID');
     }
 
-    const tag = await this.tagModel.findById(new Types.ObjectId(id)).exec() as TagDocument | null;
+    const tag = (await this.tagModel.findById(new Types.ObjectId(id)).exec()) as TagDocument | null;
 
     if (!tag) {
       throw new NotFoundException(`Tag with ID ${id} not found`);
@@ -111,7 +104,7 @@ export class TagService {
     // If name is being updated, check for duplicates
     if (updateTagDto.name?.trim().length) {
       const normalizedName = updateTagDto.name.toLowerCase().trim();
-      
+
       const existingTag = await this.tagModel.findOne({
         workspaceId: tag.workspaceId,
         name: normalizedName,
@@ -139,7 +132,9 @@ export class TagService {
       throw new BadRequestException('Invalid tag ID');
     }
 
-    const result = await this.tagModel.findByIdAndDelete(new Types.ObjectId(id)).exec() as TagDocument | null;
+    const result = (await this.tagModel
+      .findByIdAndDelete(new Types.ObjectId(id))
+      .exec()) as TagDocument | null;
 
     if (!result) {
       throw new NotFoundException(`Tag with ID ${id} not found`);
@@ -150,7 +145,11 @@ export class TagService {
    * Search tags by name pattern (for auto-suggest)
    * Returns tags matching the search pattern in a workspace
    */
-  async searchTags(workspaceId: string, searchTerm: string = '', limit: number = 10): Promise<Tag[]> {
+  async searchTags(
+    workspaceId: string,
+    searchTerm: string = '',
+    limit: number = 10,
+  ): Promise<Tag[]> {
     if (!Types.ObjectId.isValid(workspaceId)) {
       return [];
     }
@@ -183,10 +182,10 @@ export class TagService {
       return false;
     }
 
-    const tag = await this.tagModel.findOne({
+    const tag = (await this.tagModel.findOne({
       workspaceId: new Types.ObjectId(workspaceId),
       name: tagName.toLowerCase().trim(),
-    }) as TagDocument | null;
+    })) as TagDocument | null;
 
     return !!tag;
   }
@@ -207,20 +206,16 @@ export class TagService {
   /**
    * Get multiple tags by name pattern for a workspace
    */
-  async findOrCreateTags(
-    workspaceId: string,
-    tagNames: string[],
-    userId: string,
-  ): Promise<Tag[]> {
+  async findOrCreateTags(workspaceId: string, tagNames: string[], userId: string): Promise<Tag[]> {
     const createdTags: Tag[] = [];
 
     for (const tagName of tagNames) {
       const normalizedName = tagName.toLowerCase().trim();
 
-      let tag = await this.tagModel.findOne({
+      let tag = (await this.tagModel.findOne({
         workspaceId: new Types.ObjectId(workspaceId),
         name: normalizedName,
-      }) as TagDocument | null;
+      })) as TagDocument | null;
 
       if (!tag) {
         tag = await this.create(

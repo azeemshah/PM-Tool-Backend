@@ -1,16 +1,18 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
-import { Delete } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards, Delete } from '@nestjs/common';
 import { SprintService } from './sprint.service';
 import { CreateSprintDto } from './dto/create-sprint.dto';
 import { AddWorkItemsToSprintDto } from './dto/add-workitems-to-sprint.dto';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('sprints')
+@UseGuards(JwtAuthGuard)
 export class SprintController {
   constructor(private readonly sprintService: SprintService) {}
 
   @Post()
-  createSprint(@Body() dto: CreateSprintDto) {
-    return this.sprintService.createSprint(dto);
+  createSprint(@Body() dto: CreateSprintDto, @CurrentUser('userId') userId?: string) {
+    return this.sprintService.createSprint(dto, userId);
   }
 
   @Get('workspace/:workspaceId')
@@ -19,13 +21,17 @@ export class SprintController {
   }
 
   @Patch(':id/start')
-  startSprint(@Param('id') id: string) {
-    return this.sprintService.startSprint(id);
+  startSprint(@Param('id') id: string, @CurrentUser('userId') userId?: string) {
+    return this.sprintService.startSprint(id, userId);
   }
 
   @Patch(':id/complete')
-  complete(@Param('id') id: string, @Body('targetSprintId') targetSprintId?: string) {
-    return this.sprintService.completeSprint(id, targetSprintId);
+  complete(
+    @Param('id') id: string,
+    @Body('targetSprintId') targetSprintId?: string,
+    @CurrentUser('userId') userId?: string,
+  ) {
+    return this.sprintService.completeSprint(id, targetSprintId, userId);
   }
 
   @Patch(':id/reopen')

@@ -31,11 +31,11 @@ export class WorkItemService {
   ) {}
 
   private async getRecipientsByBoard(
-    boardId?: Types.ObjectId | string, 
-    actorId?: string, 
+    boardId?: Types.ObjectId | string,
+    actorId?: string,
     workspaceId?: Types.ObjectId | string,
     assigneeId?: string,
-    reporterId?: string
+    reporterId?: string,
   ): Promise<Types.ObjectId[]> {
     let workspace;
 
@@ -52,31 +52,38 @@ export class WorkItemService {
     }
 
     if (!workspace) {
-        console.warn(`[Notification] Workspace not found for board ${boardId} or workspace ${workspaceId}`);
-        // If assigneeId is present, we still want to notify them, even if workspace is missing (best effort)
-        const fallback: Types.ObjectId[] = [];
-        if (assigneeId) fallback.push(new Types.ObjectId(assigneeId));
-        if (reporterId) fallback.push(new Types.ObjectId(reporterId));
-        return fallback;
+      console.warn(
+        `[Notification] Workspace not found for board ${boardId} or workspace ${workspaceId}`,
+      );
+      // If assigneeId is present, we still want to notify them, even if workspace is missing (best effort)
+      const fallback: Types.ObjectId[] = [];
+      if (assigneeId) fallback.push(new Types.ObjectId(assigneeId));
+      if (reporterId) fallback.push(new Types.ObjectId(reporterId));
+      return fallback;
     }
 
-    const members = await this.memberModel.find({ workspaceId: workspace._id }).populate('userId').exec();
+    const members = await this.memberModel
+      .find({ workspaceId: workspace._id })
+      .populate('userId')
+      .exec();
     // console.log(`[Notification] Recipient candidates: ${members.length}`);
-    console.log(`[Notification] Debug - WorkspaceId: ${workspace._id}, AssigneeId: ${assigneeId}, ReporterId: ${reporterId}`);
-    
+    console.log(
+      `[Notification] Debug - WorkspaceId: ${workspace._id}, AssigneeId: ${assigneeId}, ReporterId: ${reporterId}`,
+    );
+
     // Check if actor is a Member (to broadcast their actions to everyone)
     let isActorMember = false;
     if (actorId) {
-         const actorMember = members.find(m => {
-              if (!m.userId) return false;
-              const uid = m.userId._id ? m.userId._id.toString() : m.userId.toString();
-              return uid === actorId.toString();
-         });
-         if (actorMember && actorMember.role && actorMember.role.toLowerCase() === 'member') {
-              isActorMember = true;
-              console.log(`[Notification] Actor ${actorId} is a Member. Broadcasting to all.`);
-         }
-     }
+      const actorMember = members.find((m) => {
+        if (!m.userId) return false;
+        const uid = m.userId._id ? m.userId._id.toString() : m.userId.toString();
+        return uid === actorId.toString();
+      });
+      if (actorMember && actorMember.role && actorMember.role.toLowerCase() === 'member') {
+        isActorMember = true;
+        console.log(`[Notification] Actor ${actorId} is a Member. Broadcasting to all.`);
+      }
+    }
 
     const recipientIds: string[] = [];
 
@@ -89,47 +96,49 @@ export class WorkItemService {
     for (const member of members) {
       if (!member.userId) continue;
       const uid = member.userId._id ? member.userId._id.toString() : member.userId.toString();
-       const role = member.role;
-       const isMember = role && role.toLowerCase() === 'member';
+      const role = member.role;
+      const isMember = role && role.toLowerCase() === 'member';
 
-       // console.log(`[Notification] Checking member: ${uid}, Role: ${role}, IsMember: ${isMember}, AssigneeId: ${assigneeId}`);
-       
-       if (isMember) {
-           console.log(`[Notification] Member Found - ID: ${uid}, Role: ${role}, Match Assignee: ${assigneeId && uid === assigneeId}, Match Reporter: ${reporterId && uid === reporterId}`);
-       }
+      // console.log(`[Notification] Checking member: ${uid}, Role: ${role}, IsMember: ${isMember}, AssigneeId: ${assigneeId}`);
 
-       // Logic:
-       // 1. If role is NOT 'Member', always notify.
-       // 2. If actor IS 'Member', notify everyone (broadcast).
-       // 3. If role IS 'Member' AND actor is NOT 'Member', only notify if they are the assignee OR the reporter.
-       
-       if (!isMember || isActorMember) {
-         recipientIds.push(uid);
-       } else {
-         // Role is Member
-         // Notify if they are assigned OR they are the reporter
-         if ((assigneeId && uid === assigneeId) || (reporterId && uid === reporterId)) {
-           recipientIds.push(uid);
-           console.log(`[Notification] Member Added to Recipients: ${uid}`);
-         }
-       }
-     }
+      if (isMember) {
+        console.log(
+          `[Notification] Member Found - ID: ${uid}, Role: ${role}, Match Assignee: ${assigneeId && uid === assigneeId}, Match Reporter: ${reporterId && uid === reporterId}`,
+        );
+      }
+
+      // Logic:
+      // 1. If role is NOT 'Member', always notify.
+      // 2. If actor IS 'Member', notify everyone (broadcast).
+      // 3. If role IS 'Member' AND actor is NOT 'Member', only notify if they are the assignee OR the reporter.
+
+      if (!isMember || isActorMember) {
+        recipientIds.push(uid);
+      } else {
+        // Role is Member
+        // Notify if they are assigned OR they are the reporter
+        if ((assigneeId && uid === assigneeId) || (reporterId && uid === reporterId)) {
+          recipientIds.push(uid);
+          console.log(`[Notification] Member Added to Recipients: ${uid}`);
+        }
+      }
+    }
 
     // Force include assignee if they were missed (e.g. Member lookup issue, or just to be safe)
     if (assigneeId && !recipientIds.includes(assigneeId)) {
-        console.log(`[Notification] Force adding Assignee: ${assigneeId}`);
-        recipientIds.push(assigneeId);
+      console.log(`[Notification] Force adding Assignee: ${assigneeId}`);
+      recipientIds.push(assigneeId);
     }
 
     // Force include reporter if they were missed
     if (reporterId && !recipientIds.includes(reporterId)) {
-        console.log(`[Notification] Force adding Reporter: ${reporterId}`);
-        recipientIds.push(reporterId);
+      console.log(`[Notification] Force adding Reporter: ${reporterId}`);
+      recipientIds.push(reporterId);
     }
-     
-     const unique = Array.from(new Set(recipientIds));
-    
-    return unique.map(id => new Types.ObjectId(id));
+
+    const unique = Array.from(new Set(recipientIds));
+
+    return unique.map((id) => new Types.ObjectId(id));
   }
 
   private async getActorName(actorId?: string) {
@@ -198,13 +207,13 @@ export class WorkItemService {
       const reporterId = (savedItem as any)?.reporter?.toString();
 
       recipients = await this.getRecipientsByBoard(
-        (savedItem as any).board, 
-        actorId, 
-        (savedItem as any)?.workspace, 
-        assigneeId, 
-        reporterId
+        (savedItem as any).board,
+        actorId,
+        (savedItem as any)?.workspace,
+        assigneeId,
+        reporterId,
       );
-      
+
       console.log('KanbanWorkItemService: recipients found', recipients.length, recipients);
       actorName = await this.getActorName(actorId);
       const subject = `New ${savedItem.type} created: ${savedItem.title}`;
@@ -217,12 +226,17 @@ export class WorkItemService {
 
       // Fetch emails for recipients
       if (recipients.length > 0) {
-        const users = await this.userModel.find({ _id: { $in: recipients } }).select('email firstName lastName').exec();
-        const emailRecipients = users.map(u => ({
-          email: u.email,
-          name: `${u.firstName || ''} ${u.lastName || ''}`.trim()
-        })).filter(r => r.email);
-        
+        const users = await this.userModel
+          .find({ _id: { $in: recipients } })
+          .select('email firstName lastName')
+          .exec();
+        const emailRecipients = users
+          .map((u) => ({
+            email: u.email,
+            name: `${u.firstName || ''} ${u.lastName || ''}`.trim(),
+          }))
+          .filter((r) => r.email);
+
         await this.emailService.sendActivityEmail(emailRecipients, subject, html);
       }
     } catch (err) {
@@ -250,22 +264,27 @@ export class WorkItemService {
 
       for (const recipientId of recipients) {
         // Ensure recipientId is valid string or ObjectId
-        const rid = recipientId instanceof Types.ObjectId ? recipientId : new Types.ObjectId(String(recipientId));
+        const rid =
+          recipientId instanceof Types.ObjectId
+            ? recipientId
+            : new Types.ObjectId(String(recipientId));
         const ridStr = rid.toString();
 
+        if (actorId && ridStr === actorId) {
+          continue;
+        }
+
         let notifType = NotificationType.WORK_ITEM_CREATED;
-        let message = ridStr === actorId
-              ? `You created ${savedItem.type}: ${savedItem.title}`
-              : `${actorName || 'Someone'} created ${savedItem.type}: ${savedItem.title}`;
+        let message = `${actorName || 'Someone'} created ${savedItem.type}: ${savedItem.title}`;
 
         // Special case: If this recipient is the assignee, send TASK_ASSIGNED
         // But only if they are not the creator (unless they assigned themselves, then "You assigned yourself"?)
         // If I create and assign to myself: "You created..." is fine? Or "You assigned yourself"?
         // Let's stick to "You were assigned" for clarity if they are the assignee.
-        
+
         if (assigneeId && ridStr === assigneeId && ridStr !== actorId) {
-             notifType = NotificationType.TASK_ASSIGNED;
-             message = `${actorName || 'Someone'} assigned you to ${savedItem.type}: ${savedItem.title}`;
+          notifType = NotificationType.TASK_ASSIGNED;
+          message = `${actorName || 'Someone'} assigned you to ${savedItem.type}: ${savedItem.title}`;
         }
 
         await this.notificationService.create({
@@ -290,21 +309,22 @@ export class WorkItemService {
 
   /* ================= Find Work Item by ID ================= */
   async findById(id: string): Promise<WorkItem> {
-    const item = await this.workItemModel.findById(id)
+    const item = await this.workItemModel
+      .findById(id)
       .populate('parent')
       .populate('assignee')
       .populate('reporter')
       .populate('labels')
       .populate('tags')
       .exec();
-    
+
     if (item) {
-        console.log(`[WorkItemService] findById(${id}):`, {
-            labels: item.labels,
-            tags: item.tags,
-            labelsType: Array.isArray(item.labels) ? 'array' : typeof item.labels,
-            tagsType: Array.isArray(item.tags) ? 'array' : typeof item.tags
-        });
+      console.log(`[WorkItemService] findById(${id}):`, {
+        labels: item.labels,
+        tags: item.tags,
+        labelsType: Array.isArray(item.labels) ? 'array' : typeof item.labels,
+        tagsType: Array.isArray(item.tags) ? 'array' : typeof item.tags,
+      });
     }
 
     if (!item) throw new NotFoundException('Work item not found');
@@ -351,47 +371,49 @@ export class WorkItemService {
         actorId,
         (updatedItem as any)?.workspace,
         (updatedItem as any)?.assignee?.toString(),
-        (updatedItem as any)?.reporter?.toString()
+        (updatedItem as any)?.reporter?.toString(),
       );
       const actorName = await this.getActorName(actorId);
-      
+
       const newAssigneeId = (updatedItem as any)?.assignee?.toString();
       const oldAssigneeId = (originalItem as any)?.assignee?.toString();
       const isAssigneeChanged = newAssigneeId && newAssigneeId !== oldAssigneeId;
 
       for (const recipientId of recipients) {
-          if (!Types.ObjectId.isValid(recipientId)) continue;
-          
-          const ridStr = recipientId.toString();
-          let notifType = NotificationType.WORK_ITEM_UPDATED;
-          let message = ridStr === actorId
-                ? `You updated ${updatedItem.type}: ${updatedItem.title}`
-                : `${actorName || 'Someone'} updated ${updatedItem.type}: ${updatedItem.title}`;
+        if (!Types.ObjectId.isValid(recipientId)) continue;
 
-          if (isAssigneeChanged && ridStr === newAssigneeId && ridStr !== actorId) {
-               notifType = NotificationType.TASK_ASSIGNED;
-               message = `${actorName || 'Someone'} assigned you to ${updatedItem.type}: ${updatedItem.title}`;
-          }
+        const ridStr = recipientId.toString();
+        if (actorId && ridStr === actorId) {
+          continue;
+        }
 
-          await this.notificationService.create({
-              recipient: recipientId,
-              sender: actorId ? new Types.ObjectId(actorId) : undefined,
-              type: notifType,
-              message: message,
-              workspace: (updatedItem as any)?.workspace,
-              workItem: updatedItem._id,
-          });
+        let notifType = NotificationType.WORK_ITEM_UPDATED;
+        let message = `${actorName || 'Someone'} updated ${updatedItem.type}: ${updatedItem.title}`;
+
+        if (isAssigneeChanged && ridStr === newAssigneeId) {
+          notifType = NotificationType.TASK_ASSIGNED;
+          message = `${actorName || 'Someone'} assigned you to ${updatedItem.type}: ${updatedItem.title}`;
+        }
+
+        await this.notificationService.create({
+          recipient: recipientId,
+          sender: actorId ? new Types.ObjectId(actorId) : undefined,
+          type: notifType,
+          message: message,
+          workspace: (updatedItem as any)?.workspace,
+          workItem: updatedItem._id,
+        });
       }
     } catch (_) {}
-    
+
     // Log activity - distinguish between status change and edit
     try {
       const board = await this.boardModel.findById((updatedItem as any).board).exec();
       const workspaceId = (board as any)?.workspaceId;
-      
+
       // Check if status changed
       const statusChanged = updateDto.status && updateDto.status !== originalItem.status;
-      
+
       if (statusChanged) {
         // Log status change
         await this.historyService.log({
@@ -414,7 +436,7 @@ export class WorkItemService {
         } as any);
       }
     } catch (e) {}
-    
+
     return updatedItem;
   }
 
@@ -425,24 +447,27 @@ export class WorkItemService {
     if (!deleted) throw new NotFoundException('Work item not found');
     try {
       const recipients = await this.getRecipientsByBoard(
-          (existing as any)?.board, 
-          actorId,
-          (existing as any)?.workspace,
-          (existing as any)?.assignee?.toString()
+        (existing as any)?.board,
+        actorId,
+        (existing as any)?.workspace,
+        (existing as any)?.assignee?.toString(),
       );
       const actorName = await this.getActorName(actorId);
-      
+
       for (const recipientId of recipients) {
-          await this.notificationService.create({
-              recipient: recipientId,
-              sender: actorId ? new Types.ObjectId(actorId) : undefined,
-              type: NotificationType.WORK_ITEM_DELETED,
-              message: recipientId.toString() === actorId
-                ? `You deleted ${existing?.type}: ${existing?.title}`
-                : `${actorName || 'Someone'} deleted ${existing?.type}: ${existing?.title}`,
-              workspace: (existing as any)?.workspace,
-              workItem: existing?._id,
-          });
+        const ridStr = recipientId.toString();
+        if (actorId && ridStr === actorId) {
+          continue;
+        }
+
+        await this.notificationService.create({
+          recipient: recipientId,
+          sender: actorId ? new Types.ObjectId(actorId) : undefined,
+          type: NotificationType.WORK_ITEM_DELETED,
+          message: `${actorName || 'Someone'} deleted ${existing?.type}: ${existing?.title}`,
+          workspace: (existing as any)?.workspace,
+          workItem: existing?._id,
+        });
       }
     } catch (_) {}
     // Log activity
@@ -472,16 +497,21 @@ export class WorkItemService {
     try {
       const recipients = await this.getRecipientsByBoard(saved.board, actorId);
       const actorName = await this.getActorName(actorId);
-      
+
       for (const recipientId of recipients) {
-          await this.notificationService.create({
-              recipient: recipientId,
-              sender: actorId ? new Types.ObjectId(actorId) : undefined,
-              type: NotificationType.STATUS_CHANGED,
-              message: `${actorName || 'Someone'} moved ${saved.title} to ${toStatus}`,
-              workspace: (saved as any)?.workspace,
-              workItem: saved._id,
-          });
+        const ridStr = recipientId.toString();
+        if (actorId && ridStr === actorId) {
+          continue;
+        }
+
+        await this.notificationService.create({
+          recipient: recipientId,
+          sender: actorId ? new Types.ObjectId(actorId) : undefined,
+          type: NotificationType.STATUS_CHANGED,
+          message: `${actorName || 'Someone'} moved ${saved.title} to ${toStatus}`,
+          workspace: (saved as any)?.workspace,
+          workItem: saved._id,
+        });
       }
     } catch (_) {}
     // Log activity
@@ -512,42 +542,46 @@ export class WorkItemService {
     try {
       // Pass userId as assigneeId to ensure Member role logic works
       const recipients = await this.getRecipientsByBoard(
-          saved.board, 
-          actorId, 
-          (saved as any).spaceid || (saved as any).workspace, 
-          userId
+        saved.board,
+        actorId,
+        (saved as any).spaceid || (saved as any).workspace,
+        userId,
       );
 
       // Safety check: Ensure assignee is in the list
-      const recipientStrings = recipients.map(r => r.toString());
+      const recipientStrings = recipients.map((r) => r.toString());
       if (!recipientStrings.includes(userId)) {
-          console.warn(`[AssignUser] Assignee ${userId} was not returned by getRecipientsByBoard. Force adding.`);
-          recipients.push(new Types.ObjectId(userId));
+        console.warn(
+          `[AssignUser] Assignee ${userId} was not returned by getRecipientsByBoard. Force adding.`,
+        );
+        recipients.push(new Types.ObjectId(userId));
       }
 
       const actorName = await this.getActorName(actorId);
-      
+
       for (const recipientId of recipients) {
-          const ridStr = recipientId.toString();
-          let message = `${actorName || 'Someone'} assigned ${saved.title} to a user`;
+        const ridStr = recipientId.toString();
+        if (actorId && ridStr === actorId) {
+          continue;
+        }
 
-          if (ridStr === actorId) {
-             message = `You assigned ${saved.title} to a user`;
-          } else if (ridStr === userId) {
-             message = `${actorName || 'Someone'} assigned you to ${saved.title}`;
-          }
+        let message = `${actorName || 'Someone'} assigned ${saved.title} to a user`;
 
-          await this.notificationService.create({
-              recipient: recipientId,
-              sender: actorId ? new Types.ObjectId(actorId) : undefined,
-              type: NotificationType.TASK_ASSIGNED,
-              message: message,
-              workspace: (saved as any)?.spaceid || (saved as any)?.workspace,
-              workItem: saved._id,
-          });
+        if (ridStr === userId) {
+          message = `${actorName || 'Someone'} assigned you to ${saved.title}`;
+        }
+
+        await this.notificationService.create({
+          recipient: recipientId,
+          sender: actorId ? new Types.ObjectId(actorId) : undefined,
+          type: NotificationType.TASK_ASSIGNED,
+          message: message,
+          workspace: (saved as any)?.spaceid || (saved as any)?.workspace,
+          workItem: saved._id,
+        });
       }
     } catch (err) {
-        console.error('[AssignUser] Failed to send notifications:', err);
+      console.error('[AssignUser] Failed to send notifications:', err);
     }
     // Log activity
     try {

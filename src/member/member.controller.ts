@@ -36,8 +36,8 @@ export class MemberController {
   }
 
   // 🔐 ADMIN ONLY
-    @Roles('Owner', 'Admin')
-    @UseGuards(WorkspaceRolesGuard)
+  @Roles('Owner', 'Admin')
+  @UseGuards(WorkspaceRolesGuard)
   @Post('invite')
   async inviteMember(@Body() dto: InviteMemberDto, @Request() req: any) {
     await this.memberService.sendInvitation(dto.email, dto.role, req.user.userId, dto.workspaceId);

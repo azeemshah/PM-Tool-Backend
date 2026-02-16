@@ -54,7 +54,10 @@ export class ItemService {
 
     item.originalEstimate = Math.max(0, Number(originalEstimate || 0));
     // initialize remainingEstimate if not present or reset to original
-    item.remainingEstimate = Math.max(0, Number(item.originalEstimate) - Number(item.timeSpent || 0));
+    item.remainingEstimate = Math.max(
+      0,
+      Number(item.originalEstimate) - Number(item.timeSpent || 0),
+    );
     await item.save();
 
     try {
@@ -63,7 +66,10 @@ export class ItemService {
         projectId: item.workspace?.toString(),
         taskId: item._id,
         type: 'estimate',
-        details: { originalEstimate: item.originalEstimate, remainingEstimate: item.remainingEstimate },
+        details: {
+          originalEstimate: item.originalEstimate,
+          remainingEstimate: item.remainingEstimate,
+        },
       } as any);
     } catch (_) {}
 
@@ -73,10 +79,15 @@ export class ItemService {
     return item;
   }
 
-  async logWork(itemId: string, opts: { timeSpent: number; comment?: string; adjustRemaining?: boolean }, userId?: string) {
+  async logWork(
+    itemId: string,
+    opts: { timeSpent: number; comment?: string; adjustRemaining?: boolean },
+    userId?: string,
+  ) {
     const { timeSpent, comment, adjustRemaining = true } = opts;
     if (!Types.ObjectId.isValid(itemId)) throw new BadRequestException('Invalid item id');
-    if (!timeSpent || Number(timeSpent) <= 0) throw new BadRequestException('timeSpent must be a positive number (minutes)');
+    if (!timeSpent || Number(timeSpent) <= 0)
+      throw new BadRequestException('timeSpent must be a positive number (minutes)');
 
     const item = await this.itemModel.findById(itemId);
     if (!item) throw new NotFoundException('Item not found');
@@ -93,16 +104,22 @@ export class ItemService {
           }
 
           if (member.role !== 'Owner') {
-            const assignedToId = item.assignedTo?._id 
-              ? item.assignedTo._id.toString() 
-              : (item.assignedTo ? item.assignedTo.toString() : null);
-            
-            const reporterId = item.reporter?._id 
-              ? item.reporter._id.toString() 
-              : (item.reporter ? item.reporter.toString() : null);
-            
+            const assignedToId = item.assignedTo?._id
+              ? item.assignedTo._id.toString()
+              : item.assignedTo
+                ? item.assignedTo.toString()
+                : null;
+
+            const reporterId = item.reporter?._id
+              ? item.reporter._id.toString()
+              : item.reporter
+                ? item.reporter.toString()
+                : null;
+
             if (assignedToId !== currentUserId && reporterId !== currentUserId) {
-              throw new ForbiddenException('Only the Owner can log time for other members. You can only log time for tasks assigned to you.');
+              throw new ForbiddenException(
+                'Only the Owner can log time for other members. You can only log time for tasks assigned to you.',
+              );
             }
           }
         }
@@ -110,7 +127,12 @@ export class ItemService {
     }
 
     // Create time log
-    const tl = await this.timeLogModel.create({ userId: new Types.ObjectId(userId), workItemId: item._id, timeSpent, logDate: new Date() });
+    const tl = await this.timeLogModel.create({
+      userId: new Types.ObjectId(userId),
+      workItemId: item._id,
+      timeSpent,
+      logDate: new Date(),
+    });
 
     // Update item's cached timeSpent
     item.timeSpent = (item.timeSpent || 0) + Number(timeSpent);
@@ -143,7 +165,10 @@ export class ItemService {
     const item = await this.itemModel.findById(itemId).lean();
     if (!item) throw new NotFoundException('Item not found');
 
-    const logs = await this.timeLogModel.find({ workItemId: item._id }).sort({ createdAt: -1 }).lean();
+    const logs = await this.timeLogModel
+      .find({ workItemId: item._id })
+      .sort({ createdAt: -1 })
+      .lean();
 
     const totalTimeSpent = logs.reduce((s, l: any) => s + (Number(l.timeSpent) || 0), 0);
 
@@ -151,7 +176,8 @@ export class ItemService {
       item: {
         _id: item._id,
         originalEstimate: item.originalEstimate || 0,
-        remainingEstimate: item.remainingEstimate || Math.max(0, (item.originalEstimate || 0) - totalTimeSpent),
+        remainingEstimate:
+          item.remainingEstimate || Math.max(0, (item.originalEstimate || 0) - totalTimeSpent),
         timeSpent: item.timeSpent || totalTimeSpent,
       },
       logs,
@@ -169,7 +195,9 @@ export class ItemService {
     const sums = children.reduce(
       (acc: any, c: any) => {
         acc.original += Number(c.originalEstimate || 0);
-        acc.remaining += Number(c.remainingEstimate || Math.max(0, (c.originalEstimate || 0) - (c.timeSpent || 0)));
+        acc.remaining += Number(
+          c.remainingEstimate || Math.max(0, (c.originalEstimate || 0) - (c.timeSpent || 0)),
+        );
         acc.spent += Number(c.timeSpent || 0);
         return acc;
       },
@@ -218,7 +246,9 @@ export class ItemService {
           parent.type !== ItemType.BUG &&
           parent.type !== ItemType.IMPROVEMENT
         ) {
-          throw new BadRequestException('Parent issue must be of type story, task, bug, or improvement');
+          throw new BadRequestException(
+            'Parent issue must be of type story, task, bug, or improvement',
+          );
         }
         break;
       }
@@ -367,15 +397,15 @@ export class ItemService {
         { workspace: workspaceId },
         { spaceid: workspaceId },
         { workspaceId: workspaceId },
-      ].filter(f => Object.values(f)[0] !== null),
+      ].filter((f) => Object.values(f)[0] !== null),
     };
 
     // Apply filters only if present
     if (status) {
       const statuses = status.split(',').filter(Boolean);
       if (statuses.length > 1) {
-        filter.status = { 
-          $in: statuses.map(s => new RegExp(`^${s.trim()}$`, 'i')) 
+        filter.status = {
+          $in: statuses.map((s) => new RegExp(`^${s.trim()}$`, 'i')),
         };
       } else {
         filter.status = { $regex: new RegExp(`^${status}$`, 'i') };
@@ -383,7 +413,7 @@ export class ItemService {
     }
     if (priority) filter.priority = priority;
     if (type) filter.type = type;
-    
+
     if (reporter) {
       const userFilter = {
         $or: [
@@ -392,14 +422,14 @@ export class ItemService {
           { assignee: reporter },
           { assignedToId: reporter },
           { assigneeId: reporter },
-          { reporterId: reporter }
-        ]
+          { reporterId: reporter },
+        ],
       };
-      
+
       // Combine with existing filter (workspace $or)
       const currentFilter = { ...filter };
       // Reset filter to use $and for combining workspace and user filters
-      Object.keys(filter).forEach(key => delete filter[key]);
+      Object.keys(filter).forEach((key) => delete filter[key]);
       filter.$and = [currentFilter, userFilter];
     }
 
@@ -473,87 +503,89 @@ export class ItemService {
 
   async findOne(id: string): Promise<Item> {
     if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid item id');
-    
-    const result = await this.itemModel.aggregate([
-      { $match: { _id: new Types.ObjectId(id) } },
-      {
-        $addFields: {
-          tagsObjectIds: {
-            $map: {
-              input: '$tags',
-              as: 'tag',
-              in: {
-                $cond: [
-                  { $eq: [{ $type: '$$tag' }, 'objectId'] },
-                  '$$tag',
-                  { $toObjectId: '$$tag' }
-                ]
-              }
-            }
+
+    const result = await this.itemModel
+      .aggregate([
+        { $match: { _id: new Types.ObjectId(id) } },
+        {
+          $addFields: {
+            tagsObjectIds: {
+              $map: {
+                input: '$tags',
+                as: 'tag',
+                in: {
+                  $cond: [
+                    { $eq: [{ $type: '$$tag' }, 'objectId'] },
+                    '$$tag',
+                    { $toObjectId: '$$tag' },
+                  ],
+                },
+              },
+            },
+            labelsObjectIds: {
+              $map: {
+                input: '$labels',
+                as: 'label',
+                in: {
+                  $cond: [
+                    { $eq: [{ $type: '$$label' }, 'objectId'] },
+                    '$$label',
+                    { $toObjectId: '$$label' },
+                  ],
+                },
+              },
+            },
           },
-          labelsObjectIds: {
-            $map: {
-              input: '$labels',
-              as: 'label',
-              in: {
-                $cond: [
-                  { $eq: [{ $type: '$$label' }, 'objectId'] },
-                  '$$label',
-                  { $toObjectId: '$$label' }
-                ]
-              }
-            }
-          }
-        }
-      },
-      {
-        $lookup: {
-          from: 'tags',
-          localField: 'tagsObjectIds',
-          foreignField: '_id',
-          as: 'tags'
-        }
-      },
-      {
-        $lookup: {
-          from: 'kanbanlabels',
-          localField: 'labelsObjectIds',
-          foreignField: '_id',
-          as: 'labels'
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'assignedTo',
-          foreignField: '_id',
-          as: 'assignedToData'
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'reporter',
-          foreignField: '_id',
-          as: 'reporterData'
-        }
-      },
-      {
-        $lookup: {
-          from: 'items',
-          localField: 'parent',
-          foreignField: '_id',
-          as: 'parentData'
-        }
-      },
-      {
-        $addFields: {
-          assignedTo: { $arrayElemAt: ['$assignedToData', 0] },
-          reporter: { $arrayElemAt: ['$reporterData', 0] },
-          parent: { $arrayElemAt: ['$parentData', 0] }
-        }
-      }
-    ]).exec();
+        },
+        {
+          $lookup: {
+            from: 'tags',
+            localField: 'tagsObjectIds',
+            foreignField: '_id',
+            as: 'tags',
+          },
+        },
+        {
+          $lookup: {
+            from: 'kanbanlabels',
+            localField: 'labelsObjectIds',
+            foreignField: '_id',
+            as: 'labels',
+          },
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'assignedTo',
+            foreignField: '_id',
+            as: 'assignedToData',
+          },
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'reporter',
+            foreignField: '_id',
+            as: 'reporterData',
+          },
+        },
+        {
+          $lookup: {
+            from: 'items',
+            localField: 'parent',
+            foreignField: '_id',
+            as: 'parentData',
+          },
+        },
+        {
+          $addFields: {
+            assignedTo: { $arrayElemAt: ['$assignedToData', 0] },
+            reporter: { $arrayElemAt: ['$reporterData', 0] },
+            parent: { $arrayElemAt: ['$parentData', 0] },
+          },
+        },
+      ])
+      .exec();
 
     if (!result || result.length === 0) {
       throw new NotFoundException('Item not found');
@@ -682,7 +714,7 @@ export class ItemService {
       // Check if status or column actually changed
       const statusChanged = dto.status && dto.status !== oldStatus;
       const columnChanged = dto.column && dto.column !== oldColumn?.toString();
-      
+
       if (statusChanged || columnChanged) {
         // Log move/status change
         await this.historyService.log({
@@ -771,42 +803,46 @@ export class ItemService {
       try {
         const workspace = await this.workspaceModel.findById(item.workspace).exec();
         if (workspace) {
-           // Always notify Owner
-           if (workspace.OwnedBy) ids.push(workspace.OwnedBy.toString());
+          // Always notify Owner
+          if (workspace.OwnedBy) ids.push(workspace.OwnedBy.toString());
 
-           // Fetch members with roles
-           const members = await this.memberModel.find({ workspaceId: workspace._id }).populate('userId').exec();
-           
-           const assigneeId = item.assignedTo ? (item.assignedTo as any).toString() : null;
+          // Fetch members with roles
+          const members = await this.memberModel
+            .find({ workspaceId: workspace._id })
+            .populate('userId')
+            .exec();
 
-           for (const member of members) {
-             if (!member.userId) continue;
-             const uid = member.userId._id ? member.userId._id.toString() : member.userId.toString();
-             const role = member.role;
-             const isMember = role && role.toLowerCase() === 'member';
+          const assigneeId = item.assignedTo ? (item.assignedTo as any).toString() : null;
 
-             if (isMember) {
-                console.log(`[Notification Legacy] Member Found - ID: ${uid}, Match Assignee: ${assigneeId && uid === assigneeId}`);
-             }
+          for (const member of members) {
+            if (!member.userId) continue;
+            const uid = member.userId._id ? member.userId._id.toString() : member.userId.toString();
+            const role = member.role;
+            const isMember = role && role.toLowerCase() === 'member';
 
-             if (!isMember) {
-                 // Non-members (Admin, PM, etc) get all notifications
-                 ids.push(uid);
-             } else {
-                 // Members ONLY get notification if they are the assignee or old assignee
-                 if ((assigneeId && uid === assigneeId) || (oldAssigneeId && uid === oldAssigneeId)) {
-                     ids.push(uid);
-                     console.log(`[Notification Legacy] Member Added: ${uid}`);
-                 }
-             }
-           }
-           
-           // Force include assignee if missed
-           if (assigneeId && !ids.includes(assigneeId)) {
-               ids.push(assigneeId);
-               console.log(`[Notification Legacy] Force Added Assignee: ${assigneeId}`);
-           }
+            if (isMember) {
+              console.log(
+                `[Notification Legacy] Member Found - ID: ${uid}, Match Assignee: ${assigneeId && uid === assigneeId}`,
+              );
+            }
 
+            if (!isMember) {
+              // Non-members (Admin, PM, etc) get all notifications
+              ids.push(uid);
+            } else {
+              // Members ONLY get notification if they are the assignee or old assignee
+              if ((assigneeId && uid === assigneeId) || (oldAssigneeId && uid === oldAssigneeId)) {
+                ids.push(uid);
+                console.log(`[Notification Legacy] Member Added: ${uid}`);
+              }
+            }
+          }
+
+          // Force include assignee if missed
+          if (assigneeId && !ids.includes(assigneeId)) {
+            ids.push(assigneeId);
+            console.log(`[Notification Legacy] Force Added Assignee: ${assigneeId}`);
+          }
         } else {
           console.warn('WorkItemService: Workspace not found during notification', item.workspace);
         }
@@ -820,8 +856,8 @@ export class ItemService {
     // FALLBACK: Ensure Assignee is ALWAYS notified, even if workspace lookup failed or member lookup failed
     const finalAssigneeId = item.assignedTo ? (item.assignedTo as any).toString() : null;
     if (finalAssigneeId && !ids.includes(finalAssigneeId)) {
-         ids.push(finalAssigneeId);
-         console.log(`[Notification Legacy] Force Added Assignee (Fallback): ${finalAssigneeId}`);
+      ids.push(finalAssigneeId);
+      console.log(`[Notification Legacy] Force Added Assignee (Fallback): ${finalAssigneeId}`);
     }
 
     // Get actor details
@@ -840,7 +876,7 @@ export class ItemService {
     const uniqueIds = Array.from(new Set(ids));
 
     // Filter out actor from recipients
-    const recipients = uniqueIds.filter(id => id !== actorId);
+    const recipients = uniqueIds.filter((id) => id !== actorId);
 
     console.log('WorkItemService: NotifyUsers - Actor:', actorName, actorId);
     console.log('WorkItemService: NotifyUsers - Action:', action);
@@ -856,9 +892,10 @@ export class ItemService {
     for (const recipientId of recipients) {
       try {
         let type = NotificationType.WORK_ITEM_UPDATED;
-        let message = recipientId === actorId
-              ? `You ${action} work item "${item.title || 'work item'}"`
-              : `${actorName} ${action} work item "${item.title || 'work item'}"`;
+        let message =
+          recipientId === actorId
+            ? `You ${action} work item "${item.title || 'work item'}"`
+            : `${actorName} ${action} work item "${item.title || 'work item'}"`;
 
         if (action === 'created') type = NotificationType.WORK_ITEM_CREATED;
         else if (action === 'deleted') type = NotificationType.WORK_ITEM_DELETED;
@@ -866,11 +903,12 @@ export class ItemService {
         // Special case for Assignee
         const assigneeId = item.assignedTo ? (item.assignedTo as any).toString() : null;
         if (assigneeId && recipientId === assigneeId && recipientId !== actorId) {
-             const isNewAssignment = action === 'created' || (action === 'updated' && oldAssigneeId !== assigneeId);
-             if (isNewAssignment) {
-                 type = NotificationType.TASK_ASSIGNED;
-                 message = `${actorName} assigned you to work item "${item.title || 'work item'}"`;
-             }
+          const isNewAssignment =
+            action === 'created' || (action === 'updated' && oldAssigneeId !== assigneeId);
+          if (isNewAssignment) {
+            type = NotificationType.TASK_ASSIGNED;
+            message = `${actorName} assigned you to work item "${item.title || 'work item'}"`;
+          }
         }
 
         // Ensure recipientId is valid
@@ -900,17 +938,14 @@ export class ItemService {
       }
 
       // Convert userId to ObjectId if it's a string
-      const userObjectId = Types.ObjectId.isValid(userId) 
-        ? new Types.ObjectId(userId) 
+      const userObjectId = Types.ObjectId.isValid(userId)
+        ? new Types.ObjectId(userId)
         : new Types.ObjectId();
 
       // Get all workspaces where the user is a member or owner
       const userWorkspaces = await this.workspaceModel
         .find({
-          $or: [
-            { OwnedBy: userObjectId },
-            { members: userObjectId },
-          ],
+          $or: [{ OwnedBy: userObjectId }, { members: userObjectId }],
         })
         .select('_id')
         .lean()
@@ -922,15 +957,12 @@ export class ItemService {
 
       const workspaceIds = userWorkspaces.map((ws: any) => ws._id);
       const workspaceStrings = workspaceIds.map((id: any) => id.toString());
-      
+
       console.log('Workspace IDs to search:', workspaceStrings);
 
       // First check: items with matching workspace (no search term)
       const itemsWithWorkspace = await this.itemModel.countDocuments({
-        $or: [
-          { workspace: { $in: workspaceIds } },
-          { workspace: { $in: workspaceStrings } }
-        ]
+        $or: [{ workspace: { $in: workspaceIds } }, { workspace: { $in: workspaceStrings } }],
       });
       console.log('Items with matching workspace:', itemsWithWorkspace);
 
@@ -939,97 +971,96 @@ export class ItemService {
         $or: [
           { title: { $regex: searchTerm, $options: 'i' } },
           { description: { $regex: searchTerm, $options: 'i' } },
-        ]
+        ],
       });
       console.log('Items matching search term "' + searchTerm + '":', itemsWithSearchTerm);
 
       // Search items by workspace ID and search term using aggregation pipeline
-      const workItems = await this.itemModel.aggregate([
-        {
-          $match: {
-            $or: [
-              { workspace: { $in: workspaceIds } },
-              { workspace: { $in: workspaceStrings } }
-            ]
-          }
-        },
-        {
-          $addFields: {
-            tagsObjectIds: {
-              $map: {
-                input: '$tags',
-                as: 'tag',
-                in: {
-                  $cond: [
-                    { $eq: [{ $type: '$$tag' }, 'objectId'] },
-                    '$$tag',
-                    { $toObjectId: '$$tag' }
-                  ]
-                }
-              }
-            }
-          }
-        },
-        {
-          $lookup: {
-            from: 'tags',
-            localField: 'tagsObjectIds',
-            foreignField: '_id',
-            as: 'populatedTags'
-          }
-        },
-        {
-          $match: {
-            $or: [
-              { title: { $regex: searchTerm, $options: 'i' } },
-              { description: { $regex: searchTerm, $options: 'i' } },
-              { 'populatedTags.name': { $regex: searchTerm, $options: 'i' } }
-            ]
-          }
-        },
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'assignedTo',
-            foreignField: '_id',
-            as: 'assignedToData'
-          }
-        },
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'reporter',
-            foreignField: '_id',
-            as: 'reporterData'
-          }
-        },
-        {
-          $lookup: {
-            from: 'workspaces',
-            localField: 'workspace',
-            foreignField: '_id',
-            as: 'workspaceData'
-          }
-        },
-        {
-          $project: {
-            _id: 1,
-            title: 1,
-            description: 1,
-            type: 1,
-            priority: 1,
-            status: 1,
-            createdAt: 1,
-            workspaceId: '$workspace',
-            assignedTo: { $arrayElemAt: ['$assignedToData', 0] },
-            reporter: { $arrayElemAt: ['$reporterData', 0] },
-            workspace: { $arrayElemAt: ['$workspaceData', 0] },
-            tags: '$populatedTags'
-          }
-        },
-        { $sort: { createdAt: -1 } },
-        { $limit: 50 }
-      ]).exec();
+      const workItems = await this.itemModel
+        .aggregate([
+          {
+            $match: {
+              $or: [{ workspace: { $in: workspaceIds } }, { workspace: { $in: workspaceStrings } }],
+            },
+          },
+          {
+            $addFields: {
+              tagsObjectIds: {
+                $map: {
+                  input: '$tags',
+                  as: 'tag',
+                  in: {
+                    $cond: [
+                      { $eq: [{ $type: '$$tag' }, 'objectId'] },
+                      '$$tag',
+                      { $toObjectId: '$$tag' },
+                    ],
+                  },
+                },
+              },
+            },
+          },
+          {
+            $lookup: {
+              from: 'tags',
+              localField: 'tagsObjectIds',
+              foreignField: '_id',
+              as: 'populatedTags',
+            },
+          },
+          {
+            $match: {
+              $or: [
+                { title: { $regex: searchTerm, $options: 'i' } },
+                { description: { $regex: searchTerm, $options: 'i' } },
+                { 'populatedTags.name': { $regex: searchTerm, $options: 'i' } },
+              ],
+            },
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'assignedTo',
+              foreignField: '_id',
+              as: 'assignedToData',
+            },
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'reporter',
+              foreignField: '_id',
+              as: 'reporterData',
+            },
+          },
+          {
+            $lookup: {
+              from: 'workspaces',
+              localField: 'workspace',
+              foreignField: '_id',
+              as: 'workspaceData',
+            },
+          },
+          {
+            $project: {
+              _id: 1,
+              title: 1,
+              description: 1,
+              type: 1,
+              priority: 1,
+              status: 1,
+              createdAt: 1,
+              workspaceId: '$workspace',
+              assignedTo: { $arrayElemAt: ['$assignedToData', 0] },
+              reporter: { $arrayElemAt: ['$reporterData', 0] },
+              workspace: { $arrayElemAt: ['$workspaceData', 0] },
+              tags: '$populatedTags',
+            },
+          },
+          { $sort: { createdAt: -1 } },
+          { $limit: 50 },
+        ])
+        .exec();
 
       console.log('Final search results for term "' + searchTerm + '":', workItems.length);
 
@@ -1037,8 +1068,12 @@ export class ItemService {
         success: true,
         data: workItems.map((item: any) => ({
           ...item,
-          assignedTo: item.assignedTo ? { ...item.assignedTo, profilePicture: item.assignedTo.avatar } : null,
-          reporter: item.reporter ? { ...item.reporter, profilePicture: item.reporter.avatar } : null,
+          assignedTo: item.assignedTo
+            ? { ...item.assignedTo, profilePicture: item.assignedTo.avatar }
+            : null,
+          reporter: item.reporter
+            ? { ...item.reporter, profilePicture: item.reporter.avatar }
+            : null,
         })),
         count: workItems.length,
       };

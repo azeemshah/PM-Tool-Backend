@@ -1,14 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
-  Body,
-  UseGuards,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Query } from '@nestjs/common';
 import { TagService } from './tag.service';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
@@ -26,10 +16,7 @@ export class TagController {
   @Roles('Owner', 'Admin', 'Member')
   @UseGuards(WorkspaceRolesGuard)
   @Post()
-  async createTag(
-    @Body() createTagDto: CreateTagDto,
-    @CurrentUser('userId') userId: string,
-  ) {
+  async createTag(@Body() createTagDto: CreateTagDto, @CurrentUser('userId') userId: string) {
     return this.tagService.create(createTagDto, userId);
   }
 
@@ -76,10 +63,7 @@ export class TagController {
   @Roles('Owner', 'Admin', 'Member')
   @UseGuards(WorkspaceRolesGuard)
   @Put(':id')
-  async updateTag(
-    @Param('id') id: string,
-    @Body() updateTagDto: UpdateTagDto,
-  ) {
+  async updateTag(@Param('id') id: string, @Body() updateTagDto: UpdateTagDto) {
     return this.tagService.update(id, updateTagDto);
   }
 

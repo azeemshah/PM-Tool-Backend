@@ -40,8 +40,11 @@ export class CommentService {
 
   // -------------------- Create Comment --------------------
   async createComment(dto: CreateCommentDto, actorId?: string): Promise<Comment> {
-    if ((!dto.content || !dto.content.trim()) && (!dto.attachments || dto.attachments.length === 0)) {
-        throw new BadRequestException('Comment must have content or attachments.');
+    if (
+      (!dto.content || !dto.content.trim()) &&
+      (!dto.attachments || dto.attachments.length === 0)
+    ) {
+      throw new BadRequestException('Comment must have content or attachments.');
     }
 
     const comment = new this.commentModel({
@@ -111,75 +114,76 @@ export class CommentService {
       if (workItem) {
         const actor = dto.userId || actorId;
         const actorName = await this.getActorName(actor);
-        
+
         let workspaceId = (workItem as any).workspace || (workItem as any).spaceid;
-        
+
         if (!workspaceId && workItem.board) {
-             const board = await this.boardModel.findById(workItem.board).select('workspaceId').exec();
-             if (board) workspaceId = board.workspaceId;
+          const board = await this.boardModel.findById(workItem.board).select('workspaceId').exec();
+          if (board) workspaceId = board.workspaceId;
         }
 
         if (workspaceId) {
-            const members = await this.memberModel.find({ workspaceId }).populate('userId').exec();
-            const recipients = new Set<string>();
-            const content = dto.content || '';
-            const assigneeId = workItem.assignee ? workItem.assignee.toString() : null;
+          const members = await this.memberModel.find({ workspaceId }).populate('userId').exec();
+          const recipients = new Set<string>();
+          const content = dto.content || '';
+          const assigneeId = workItem.assignee ? workItem.assignee.toString() : null;
 
-            // Check if actor is a Member
-            let isActorMember = false;
-            if (actor) {
-                const actorMember = members.find(m => {
-                     if (!m.userId) return false;
-                     const uid = m.userId._id ? m.userId._id.toString() : m.userId.toString();
-                     return uid === actor.toString();
-                });
-                if (actorMember && actorMember.role && actorMember.role.toLowerCase() === 'member') {
-                     isActorMember = true;
-                }
+          // Check if actor is a Member
+          let isActorMember = false;
+          if (actor) {
+            const actorMember = members.find((m) => {
+              if (!m.userId) return false;
+              const uid = m.userId._id ? m.userId._id.toString() : m.userId.toString();
+              return uid === actor.toString();
+            });
+            if (actorMember && actorMember.role && actorMember.role.toLowerCase() === 'member') {
+              isActorMember = true;
             }
+          }
 
-            for (const member of members) {
-                if (!member.userId) continue;
-                const uid = member.userId._id ? member.userId._id.toString() : member.userId.toString();
-                
-                // Don't notify the actor
-                if (uid === actor) continue;
+          for (const member of members) {
+            if (!member.userId) continue;
+            const uid = member.userId._id ? member.userId._id.toString() : member.userId.toString();
 
-                const role = member.role;
-                const user = member.userId;
-                const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
-                const isMember = role && role.toLowerCase() === 'member';
+            // Don't notify the actor
+            if (uid === actor) continue;
 
-                // console.log(`[Comment Notification] User: ${uid}, Role: ${role}, IsMember: ${isMember}, Tagged: ${content.includes('@' + fullName)}`);
+            const role = member.role;
+            const user = member.userId;
+            const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+            const isMember = role && role.toLowerCase() === 'member';
 
-                if (!isMember || isActorMember) {
-                    recipients.add(uid);
-                } else {
-                    // For Members: Notify if they are the assignee OR if they are tagged
-                    const isAssignee = assigneeId && uid === assigneeId;
-                    const isTagged = fullName && content.includes(`@${fullName}`);
-                    
-                    if (isAssignee || isTagged) {
-                        recipients.add(uid);
-                    }
-                }
-            }
+            // console.log(`[Comment Notification] User: ${uid}, Role: ${role}, IsMember: ${isMember}, Tagged: ${content.includes('@' + fullName)}`);
 
-            for (const recipientId of Array.from(recipients)) {
-              try {
-                if (!Types.ObjectId.isValid(recipientId)) continue;
-                await this.notificationService.create({
-                  recipient: new Types.ObjectId(recipientId),
-                  sender: actor ? new Types.ObjectId(actor) : undefined,
-                  type: NotificationType.COMMENT_ADDED,
-                  message: `${actorName || 'Someone'} commented on ${workItem.title || 'work item'}`,
-                  workspace: workspaceId,
-                  workItem: workItem._id,
-                });
-              } catch (err) {
-                console.error('Failed to send comment notification to', recipientId, err);
+            if (!isMember || isActorMember) {
+              recipients.add(uid);
+            } else {
+              // For Members: Notify if they are the assignee OR if they are tagged
+              const isAssignee = assigneeId && uid === assigneeId;
+              const isTagged = fullName && content.includes(`@${fullName}`);
+
+              if (isAssignee || isTagged) {
+                recipients.add(uid);
               }
             }
+          }
+
+          for (const recipientId of Array.from(recipients)) {
+            try {
+              if (!Types.ObjectId.isValid(recipientId)) continue;
+              if (actor && recipientId === actor) continue;
+              await this.notificationService.create({
+                recipient: new Types.ObjectId(recipientId),
+                sender: actor ? new Types.ObjectId(actor) : undefined,
+                type: NotificationType.COMMENT_ADDED,
+                message: `${actorName || 'Someone'} commented on ${workItem.title || 'work item'}`,
+                workspace: workspaceId,
+                workItem: workItem._id,
+              });
+            } catch (err) {
+              console.error('Failed to send comment notification to', recipientId, err);
+            }
+          }
         }
       }
     } catch (err) {

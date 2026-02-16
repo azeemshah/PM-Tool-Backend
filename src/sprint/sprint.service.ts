@@ -27,16 +27,16 @@ export class SprintService {
     actorId?: string,
   ) {
     if (!sprint.workspaceId) return;
-    
+
     try {
       const workspace = await this.workspaceModel.findById(sprint.workspaceId).exec();
       if (!workspace) return;
 
       const recipientIds = new Set<string>();
-      
+
       // Add workspace owner
       if (workspace.OwnedBy) recipientIds.add(workspace.OwnedBy.toString());
-      
+
       // Add workspace members
       if (workspace.members) {
         workspace.members.forEach((m) => recipientIds.add(m.toString()));
@@ -59,9 +59,7 @@ export class SprintService {
       }));
 
       // Send notifications in parallel
-      await Promise.all(
-        notifications.map((n) => this.notificationService.create(n))
-      );
+      await Promise.all(notifications.map((n) => this.notificationService.create(n)));
     } catch (error) {
       console.error('SprintService: Failed to send notifications', error);
     }
@@ -78,7 +76,7 @@ export class SprintService {
       sprint,
       NotificationType.SPRINT_CREATED,
       `New sprint "${sprint.name}" created`,
-      actorId
+      actorId,
     );
 
     return sprint;
@@ -101,7 +99,7 @@ export class SprintService {
       savedSprint,
       NotificationType.SPRINT_STARTED,
       `Sprint "${sprint.name}" has started`,
-      actorId
+      actorId,
     );
 
     return savedSprint;
@@ -127,9 +125,7 @@ export class SprintService {
       if (!targetSprint) throw new NotFoundException('Target sprint not found');
 
       // Add work items to target sprint
-      targetSprint.workItems = [
-        ...new Set([...targetSprint.workItems, ...nonDoneItemIds]),
-      ];
+      targetSprint.workItems = [...new Set([...targetSprint.workItems, ...nonDoneItemIds])];
       await targetSprint.save();
 
       // Update work items to reference the target sprint (keep their current statuses)
@@ -155,7 +151,7 @@ export class SprintService {
       savedSprint,
       NotificationType.SPRINT_COMPLETED,
       `Sprint "${sprint.name}" completed`,
-      actorId
+      actorId,
     );
 
     return savedSprint;

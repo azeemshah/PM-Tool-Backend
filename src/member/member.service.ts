@@ -84,14 +84,14 @@ export class MemberService {
       const allIds = new Set([...memberIds, ownerId].filter(Boolean));
 
       for (const recipientId of allIds) {
-          // if (recipientId === userId) continue;
+        if (recipientId === userId) continue;
 
-          await this.notificationService.create({
-              recipient: new Types.ObjectId(recipientId),
-              type: NotificationType.MEMBER_ADDED,
-              message: `User ${user.firstName} ${user.lastName} joined the workspace ${workspace.name}`,
-              workspace: workspace._id,
-          });
+        await this.notificationService.create({
+          recipient: new Types.ObjectId(recipientId),
+          type: NotificationType.MEMBER_ADDED,
+          message: `User ${user.firstName} ${user.lastName} joined the workspace ${workspace.name}`,
+          workspace: workspace._id,
+        });
       }
     } catch (err) {
       console.error('Failed to update workspace.members or notify:', err);
@@ -200,7 +200,15 @@ export class MemberService {
       finalRole = roleMap[roleId.toLowerCase()];
     }
 
-    const allowed = ['Owner', 'Admin', 'Team Lead', 'Project Manager', 'Member', 'Viewer', 'Watcher'];
+    const allowed = [
+      'Owner',
+      'Admin',
+      'Team Lead',
+      'Project Manager',
+      'Member',
+      'Viewer',
+      'Watcher',
+    ];
 
     if (!finalRole || !allowed.includes(finalRole)) {
       throw new BadRequestException('Invalid or missing role');
@@ -355,17 +363,17 @@ export class MemberService {
       const existingUser = await this.userModel.findOne({ email });
 
       if (existingUser) {
-         // Send in-app notification
-         try {
-             await this.notificationService.create({
-                 recipient: existingUser._id,
-                 type: NotificationType.MEMBER_ADDED, // Using MEMBER_ADDED as proxy for invitation
-                 message: `You have been invited to join workspace "${workspace.name}" as ${role}`,
-                 workspace: workspace._id,
-             });
-         } catch (err) {
-             console.error('Failed to send in-app invitation notification:', err);
-         }
+        // Send in-app notification
+        try {
+          await this.notificationService.create({
+            recipient: existingUser._id,
+            type: NotificationType.MEMBER_ADDED, // Using MEMBER_ADDED as proxy for invitation
+            message: `You have been invited to join workspace "${workspace.name}" as ${role}`,
+            workspace: workspace._id,
+          });
+        } catch (err) {
+          console.error('Failed to send in-app invitation notification:', err);
+        }
       }
 
       // Send invite email with workspace inviteCode
@@ -523,18 +531,18 @@ export class MemberService {
         const allIds = new Set([...memberIds, ownerId].filter(Boolean));
 
         for (const recipientId of allIds) {
-            if (recipientId === user._id.toString()) continue;
+          if (recipientId === user._id.toString()) continue;
 
-            try {
-              await this.notificationService.create({
-                  recipient: new Types.ObjectId(recipientId),
-                  type: NotificationType.MEMBER_ADDED,
-                  message: `User ${user.firstName} ${user.lastName} joined the workspace ${workspace.name}`,
-                  workspace: workspace._id,
-              });
-            } catch (err) {
-              console.error('Failed to notify member about new user:', err);
-            }
+          try {
+            await this.notificationService.create({
+              recipient: new Types.ObjectId(recipientId),
+              type: NotificationType.MEMBER_ADDED,
+              message: `User ${user.firstName} ${user.lastName} joined the workspace ${workspace.name}`,
+              workspace: workspace._id,
+            });
+          } catch (err) {
+            console.error('Failed to notify member about new user:', err);
+          }
         }
       }
 

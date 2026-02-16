@@ -28,7 +28,7 @@ export class WorkItemController {
   }
 
   /* ================= Get All Work Items ================= */
-  
+
   @Get()
   async getAllWorkItems() {
     return this.workItemService.findAll();
@@ -41,7 +41,7 @@ export class WorkItemController {
   }
 
   /* ================= Update Work Item ================= */
-    @Roles('Owner', 'Admin', 'Member')
+  @Roles('Owner', 'Admin', 'Member')
   @UseGuards(WorkspaceRolesGuard)
   @Put(':id')
   async updateWorkItem(
@@ -53,7 +53,7 @@ export class WorkItemController {
   }
 
   /* ================= Delete Work Item ================= */
-    @Roles('Owner', 'Admin')
+  @Roles('Owner', 'Admin')
   @UseGuards(WorkspaceRolesGuard)
   @Delete(':id')
   async deleteWorkItem(@Param('id') id: string, @CurrentUser('userId') userId?: string) {
@@ -61,7 +61,7 @@ export class WorkItemController {
   }
 
   /* ================= Move Work Item Status ================= */
-    @Roles('Owner', 'Admin', 'Member')
+  @Roles('Owner', 'Admin', 'Member')
   @UseGuards(WorkspaceRolesGuard)
   @Put(':id/move-status')
   async moveStatus(@Body() moveDto: MoveStatusDto, @CurrentUser('userId') userId?: string) {
@@ -69,7 +69,7 @@ export class WorkItemController {
   }
 
   /* ================= Assign User to Work Item ================= */
-    @Roles('Owner', 'Admin', 'Member')
+  @Roles('Owner', 'Admin', 'Member')
   @UseGuards(WorkspaceRolesGuard)
   @Put(':id/assign-user')
   async assignUser(@Body() assignDto: AssignUserDto, @CurrentUser('userId') userId?: string) {

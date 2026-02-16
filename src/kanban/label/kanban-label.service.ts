@@ -5,19 +5,21 @@ import { KanbanLabel, KanbanLabelDocument } from '../board/schemas/kanban-label.
 
 @Injectable()
 export class KanbanLabelService {
-  constructor(
-    @InjectModel(KanbanLabel.name) private labelModel: Model<KanbanLabelDocument>,
-  ) {}
+  constructor(@InjectModel(KanbanLabel.name) private labelModel: Model<KanbanLabelDocument>) {}
 
-  async create(createLabelDto: { board: string; name: string; color?: string }): Promise<KanbanLabel> {
+  async create(createLabelDto: {
+    board: string;
+    name: string;
+    color?: string;
+  }): Promise<KanbanLabel> {
     const { board, name, color } = createLabelDto;
 
     // Check for duplicate name in the board
-    const existing = await this.labelModel.findOne({ 
-      board: new Types.ObjectId(board), 
-      name: { $regex: new RegExp(`^${name}$`, 'i') } // Case insensitive check
+    const existing = await this.labelModel.findOne({
+      board: new Types.ObjectId(board),
+      name: { $regex: new RegExp(`^${name}$`, 'i') }, // Case insensitive check
     });
-    
+
     if (existing) {
       throw new BadRequestException(`Label '${name}' already exists on this board`);
     }
@@ -33,17 +35,21 @@ export class KanbanLabelService {
 
   async findAllByBoard(boardId: string): Promise<KanbanLabel[]> {
     if (!Types.ObjectId.isValid(boardId)) {
-        return [];
+      return [];
     }
-    return this.labelModel.find({ board: new Types.ObjectId(boardId) }).sort({ name: 1 }).exec();
+    return this.labelModel
+      .find({ board: new Types.ObjectId(boardId) })
+      .sort({ name: 1 })
+      .exec();
   }
 
-  async update(id: string, updateLabelDto: { name?: string; color?: string }): Promise<KanbanLabel> {
-    const label = await this.labelModel.findByIdAndUpdate(
-      id,
-      { $set: updateLabelDto },
-      { new: true },
-    ).exec();
+  async update(
+    id: string,
+    updateLabelDto: { name?: string; color?: string },
+  ): Promise<KanbanLabel> {
+    const label = await this.labelModel
+      .findByIdAndUpdate(id, { $set: updateLabelDto }, { new: true })
+      .exec();
 
     if (!label) {
       throw new NotFoundException(`Label with ID ${id} not found`);

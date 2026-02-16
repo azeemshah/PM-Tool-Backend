@@ -58,7 +58,11 @@ export class WorkspaceController {
   @Patch(':workspaceId')
   @UseGuards(WorkspacePermissionGuard)
   @Permissions('MANAGE_WORKSPACE_SETTINGS')
-  async update(@Request() req: any, @Param('workspaceId') id: string, @Body() updateWorkspaceDto: UpdateWorkspaceDto) {
+  async update(
+    @Request() req: any,
+    @Param('workspaceId') id: string,
+    @Body() updateWorkspaceDto: UpdateWorkspaceDto,
+  ) {
     const workspace = await this.workspaceService.update(id, updateWorkspaceDto, req.user.userId);
     return {
       success: true,
@@ -70,8 +74,8 @@ export class WorkspaceController {
   @Delete(':workspaceId')
   @UseGuards(WorkspacePermissionGuard)
   @Permissions('DELETE_WORKSPACE')
-  async delete(@Param('workspaceId') id: string) {
-    await this.workspaceService.delete(id);
+  async delete(@Request() req: any, @Param('workspaceId') id: string) {
+    await this.workspaceService.delete(id, req.user.userId);
     return {
       success: true,
       message: 'Workspace deleted successfully',

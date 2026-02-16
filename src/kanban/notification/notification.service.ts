@@ -20,23 +20,23 @@ export class NotificationService {
       isRead: false,
     });
     let savedNotification = await notification.save();
-    
+
     // Populate workspace details
     savedNotification = await savedNotification.populate('workspace', 'name');
 
     console.log('NotificationService: Saved notification', savedNotification._id);
-    
+
     // Emit real-time notification
     if (savedNotification.recipient) {
-        const recipientId = savedNotification.recipient.toString();
-        console.log(`NotificationService: Emitting to gateway for recipient: ${recipientId}`);
-        try {
-          this.notificationGateway.sendNotification(recipientId, savedNotification);
-        } catch (error) {
-          console.error(`NotificationService: Failed to emit notification to ${recipientId}`, error);
-        }
+      const recipientId = savedNotification.recipient.toString();
+      console.log(`NotificationService: Emitting to gateway for recipient: ${recipientId}`);
+      try {
+        this.notificationGateway.sendNotification(recipientId, savedNotification);
+      } catch (error) {
+        console.error(`NotificationService: Failed to emit notification to ${recipientId}`, error);
+      }
     }
-    
+
     return savedNotification;
   }
 
@@ -66,7 +66,10 @@ export class NotificationService {
 
   /* ================= Mark All Notifications as Read ================= */
   async markAllAsRead(userId: Types.ObjectId) {
-    return this.notificationModel.updateMany({ recipient: userId, isRead: false }, { isRead: true });
+    return this.notificationModel.updateMany(
+      { recipient: userId, isRead: false },
+      { isRead: true },
+    );
   }
 
   /* ================= Delete All Notifications ================= */

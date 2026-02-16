@@ -5,7 +5,7 @@ import { Activity } from './schemas/activity.schema';
 
 @Injectable()
 export class HistoryService {
-  constructor(@InjectModel(Activity.name) private activityModel: Model<Activity>) { }
+  constructor(@InjectModel(Activity.name) private activityModel: Model<Activity>) {}
 
   async log(dto: Partial<Activity>) {
     try {

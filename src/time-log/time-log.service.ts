@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { TimeLog } from './schemas/time-log.schema';
@@ -15,7 +20,7 @@ export class TimeLogService {
     private itemModel: Model<Item>,
     private historyService: HistoryService,
     private memberService: MemberService,
-  ) { }
+  ) {}
 
   // ============ MANUAL TIME LOGGING ============
 
@@ -123,7 +128,9 @@ export class TimeLogService {
       const otherIssue = await this.itemModel.findById(activeIssueId);
       const issueName = otherIssue ? otherIssue.title : 'another task';
 
-      throw new BadRequestException(`A timer is already running for "${issueName}". Please stop it before starting a new one.`);
+      throw new BadRequestException(
+        `A timer is already running for "${issueName}". Please stop it before starting a new one.`,
+      );
     }
 
     const now = new Date();
@@ -275,7 +282,6 @@ export class TimeLogService {
             description: `Updated time log from ${oldTimeSpent} to ${data.timeSpent || oldTimeSpent} minutes`,
           },
         });
-
       } catch (err) {
         console.error('Failed to log activity history:', err);
         // Don't fail the update if history logging fails
@@ -351,13 +357,15 @@ export class TimeLogService {
       .find({ workItemId: new Types.ObjectId(issueId), isActive: false })
       .sort({ logDate: -1 })
       .populate({ path: 'userId', select: '_id firstName lastName avatar' })
-      .then(logs => logs.map(log => {
-        const logObj = log.toObject();
-        if (logObj.userId) {
-          (logObj.userId as any).profilePicture = (logObj.userId as any).avatar;
-        }
-        return logObj;
-      }));
+      .then((logs) =>
+        logs.map((log) => {
+          const logObj = log.toObject();
+          if (logObj.userId) {
+            (logObj.userId as any).profilePicture = (logObj.userId as any).avatar;
+          }
+          return logObj;
+        }),
+      );
   }
 
   getByUser(userId: string) {
@@ -405,7 +413,7 @@ export class TimeLogService {
 
     // Group by date
     const byDate: { [key: string]: any } = {};
-    let weekTotals: { [key: string]: number } = {};
+    const weekTotals: { [key: string]: number } = {};
 
     logs.forEach((log: any) => {
       const dateStr = new Date(log.logDate).toISOString().split('T')[0];
@@ -463,7 +471,9 @@ export class TimeLogService {
     const sums = children.reduce(
       (acc: any, c: any) => {
         acc.original += Number(c.originalEstimate || 0);
-        acc.remaining += Number(c.remainingEstimate || Math.max(0, (c.originalEstimate || 0) - (c.timeSpent || 0)));
+        acc.remaining += Number(
+          c.remainingEstimate || Math.max(0, (c.originalEstimate || 0) - (c.timeSpent || 0)),
+        );
         acc.spent += Number(c.timeSpent || 0);
         return acc;
       },
@@ -491,8 +501,11 @@ export class TimeLogService {
 
     try {
       const currentUserId = userId.toString();
-      const member = await this.memberService.getUserRoleInWorkspace(currentUserId, issue.workspace.toString());
-      
+      const member = await this.memberService.getUserRoleInWorkspace(
+        currentUserId,
+        issue.workspace.toString(),
+      );
+
       if (member) {
         // Watchers and Viewers are not allowed to log time at all
         if (member.role === 'Watcher' || member.role === 'Viewer') {
@@ -501,18 +514,24 @@ export class TimeLogService {
 
         // Only Owner can log time for anyone. Everyone else can only log for themselves.
         if (member.role !== 'Owner') {
-          const assignedToId = issue.assignedTo?._id 
-            ? issue.assignedTo._id.toString() 
-            : (issue.assignedTo ? issue.assignedTo.toString() : null);
-          
-          const reporterId = issue.reporter?._id 
-            ? issue.reporter._id.toString() 
-            : (issue.reporter ? issue.reporter.toString() : null);
-          
+          const assignedToId = issue.assignedTo?._id
+            ? issue.assignedTo._id.toString()
+            : issue.assignedTo
+              ? issue.assignedTo.toString()
+              : null;
+
+          const reporterId = issue.reporter?._id
+            ? issue.reporter._id.toString()
+            : issue.reporter
+              ? issue.reporter.toString()
+              : null;
+
           const isAuthorized = assignedToId === currentUserId || reporterId === currentUserId;
-          
+
           if (!isAuthorized) {
-            throw new ForbiddenException('Only the Owner can log time for other members. You can only log time for tasks assigned to you.');
+            throw new ForbiddenException(
+              'Only the Owner can log time for other members. You can only log time for tasks assigned to you.',
+            );
           }
         }
       }

@@ -52,10 +52,7 @@ export class ItemController {
   }
 
   @Get('search/global/:searchTerm')
-  globalSearch(
-    @Param('searchTerm') searchTerm: string,
-    @Request() req: any,
-  ) {
+  globalSearch(@Param('searchTerm') searchTerm: string, @Request() req: any) {
     return this.itemService.globalSearch(searchTerm, req.user?.userId);
   }
 
@@ -107,15 +104,31 @@ export class ItemController {
   @Post(':id/estimate')
   @UseGuards(WorkspacePermissionGuard)
   @Permissions('EDIT_TASK')
-  setEstimate(@Param('id') id: string, @Body() body: { originalEstimate: number }, @Request() req: any) {
+  setEstimate(
+    @Param('id') id: string,
+    @Body() body: { originalEstimate: number },
+    @Request() req: any,
+  ) {
     return this.itemService.setEstimate(id, body.originalEstimate, req.user?.userId);
   }
 
   @Post(':id/log-work')
   @UseGuards(WorkspacePermissionGuard)
   @Permissions('EDIT_TASK')
-  logWork(@Param('id') id: string, @Body() body: { timeSpent: number; comment?: string; adjustRemaining?: boolean }, @Request() req: any) {
-    return this.itemService.logWork(id, { timeSpent: body.timeSpent, comment: body.comment, adjustRemaining: body.adjustRemaining !== false }, req.user?.userId);
+  logWork(
+    @Param('id') id: string,
+    @Body() body: { timeSpent: number; comment?: string; adjustRemaining?: boolean },
+    @Request() req: any,
+  ) {
+    return this.itemService.logWork(
+      id,
+      {
+        timeSpent: body.timeSpent,
+        comment: body.comment,
+        adjustRemaining: body.adjustRemaining !== false,
+      },
+      req.user?.userId,
+    );
   }
 
   @Get(':id/time-tracking')

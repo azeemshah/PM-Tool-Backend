@@ -21,7 +21,7 @@ export enum NotificationType {
   SPRINT_STARTED = 'SPRINT_STARTED',
   SPRINT_COMPLETED = 'SPRINT_COMPLETED',
   SPRINT_UPDATED = 'SPRINT_UPDATED',
-  SYSTEM = "SYSTEM",
+  SYSTEM = 'SYSTEM',
 }
 
 @Schema({ timestamps: true })

@@ -1,6 +1,14 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateItemDto, CustomFieldDto } from './create-work-item.dto';
-import { IsOptional, IsString, IsEnum, IsMongoId, IsISO8601, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsEnum,
+  IsMongoId,
+  IsISO8601,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ItemPriority, ItemType } from '../schemas/work-item.schema';
 

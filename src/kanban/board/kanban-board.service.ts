@@ -161,17 +161,16 @@ export class KanbanBoardService {
         const uniqueIds = Array.from(new Set(ids));
 
         for (const recipientId of uniqueIds) {
-            // Don't notify the user who performed the action
-            // if (userId && recipientId === userId.toString()) continue;
+          if (userId && recipientId === userId.toString()) continue;
 
-            await this.notificationService.create({
-                recipient: new Types.ObjectId(recipientId),
-                sender: userId ? new Types.ObjectId(userId) : undefined,
-                type: NotificationType.STATUS_CHANGED,
-                message: `Work item "${workItem.title}" moved from ${fromColumn.name} to ${targetColumn.name}`,
-                workspace: workspace?._id,
-                workItem: new Types.ObjectId(workItemId),
-            });
+          await this.notificationService.create({
+            recipient: new Types.ObjectId(recipientId),
+            sender: userId ? new Types.ObjectId(userId) : undefined,
+            type: NotificationType.STATUS_CHANGED,
+            message: `Work item "${workItem.title}" moved from ${fromColumn.name} to ${targetColumn.name}`,
+            workspace: workspace?._id,
+            workItem: new Types.ObjectId(workItemId),
+          });
         }
       } catch (err) {
         console.error('Failed to send notification:', err);

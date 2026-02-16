@@ -1,4 +1,14 @@
-import { Controller, Get, Post, UseGuards, Request, UseInterceptors, UploadedFile, Param, Res } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  UseGuards,
+  Request,
+  UseInterceptors,
+  UploadedFile,
+  Param,
+  Res,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { UsersService } from './users.service';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -63,11 +73,11 @@ export class UserCurrentController {
     return {
       message: 'Profile picture updated',
       user: {
-         ...serialized,
-         _id: updatedUser._id.toString(),
-         profilePicture: fileUrl,
-         name: `${updatedUser.firstName} ${updatedUser.lastName}`,
-      }
+        ...serialized,
+        _id: updatedUser._id.toString(),
+        profilePicture: fileUrl,
+        name: `${updatedUser.firstName} ${updatedUser.lastName}`,
+      },
     };
   }
 

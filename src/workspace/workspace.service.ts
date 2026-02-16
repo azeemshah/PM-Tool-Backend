@@ -326,33 +326,33 @@ export class WorkspaceService {
       // Get actor details
       let actorName = 'Someone';
       if (userId) {
-          try {
-              const actor = await this.usersService.findOne(userId);
-              if (actor) {
-                  actorName = `${actor.firstName} ${actor.lastName}`;
-              }
-          } catch (e) {
-              console.error('Failed to fetch actor details', e);
+        try {
+          const actor = await this.usersService.findOne(userId);
+          if (actor) {
+            actorName = `${actor.firstName} ${actor.lastName}`;
           }
+        } catch (e) {
+          console.error('Failed to fetch actor details', e);
+        }
       }
 
-      const memberIds = workspace.members.map((m: any) => m.userId ? m.userId._id.toString() : m.toString());
+      const memberIds = workspace.members.map((m: any) =>
+        m.userId ? m.userId._id.toString() : m.toString(),
+      );
       const ownerId = workspace.OwnedBy?._id?.toString() || workspace.OwnedBy?.toString();
       const allIds = new Set([...memberIds, ownerId].filter(Boolean));
-      
-      // const recipients = Array.from(allIds).filter(id => id !== userId);
-      // User requested to receive notifications for their own actions as well
-      const recipients = Array.from(allIds);
+      const recipients = Array.from(allIds).filter((id) => id !== userId);
 
       for (const recipientId of recipients) {
         await this.notificationService.create({
-            recipient: new Types.ObjectId(recipientId),
-            sender: userId ? new Types.ObjectId(userId) : undefined,
-            type: NotificationType.WORKSPACE_UPDATED,
-            message: recipientId.toString() === userId
+          recipient: new Types.ObjectId(recipientId),
+          sender: userId ? new Types.ObjectId(userId) : undefined,
+          type: NotificationType.WORKSPACE_UPDATED,
+          message:
+            recipientId.toString() === userId
               ? `You updated workspace "${workspace.name}"`
               : `${actorName} updated workspace "${workspace.name}"`,
-            workspace: workspace._id,
+          workspace: workspace._id,
         });
       }
     } catch (err) {
@@ -362,7 +362,7 @@ export class WorkspaceService {
     return workspace;
   }
 
-  async delete(workspaceId: string): Promise<void> {
+  async delete(workspaceId: string, actorId?: string): Promise<void> {
     if (!Types.ObjectId.isValid(workspaceId)) {
       throw new BadRequestException('Invalid workspace ID');
     }
@@ -379,11 +379,12 @@ export class WorkspaceService {
       const allIds = new Set([...memberIds, ownerId].filter(Boolean));
 
       for (const recipientId of allIds) {
+        if (actorId && recipientId === actorId) continue;
+
         await this.notificationService.create({
-            recipient: new Types.ObjectId(recipientId),
-            type: NotificationType.WORKSPACE_DELETED,
-            message: `Workspace "${workspace.name}" was deleted`,
-            // workspace: workspace._id, // Cannot link to deleted workspace
+          recipient: new Types.ObjectId(recipientId),
+          type: NotificationType.WORKSPACE_DELETED,
+          message: `Workspace "${workspace.name}" was deleted`,
         });
       }
     } catch (err) {
@@ -493,9 +494,9 @@ export class WorkspaceService {
   async getAnalytics(
     workspaceId: string,
     timeframe?: string,
-  ): Promise<{ 
-    totalTasks: number; 
-    overdueTasks: number; 
+  ): Promise<{
+    totalTasks: number;
+    overdueTasks: number;
     completedTasks: number;
     remainingTasks: number;
     remainingPoints: number;
@@ -539,35 +540,30 @@ export class WorkspaceService {
       }
 
       const allTasks = await this.workItemModel.find(baseFilter).exec();
-      
+
       const completedStatuses = ['Done', 'Closed'];
       const remainingStatuses = ['To Do', 'In Progress', 'In Review', 'Blocked'];
 
       const totalTasks = allTasks.length;
-      
-      const completedTasks = allTasks.filter(t => 
-        completedStatuses.includes(t.status)
-      ).length;
 
-      const remainingTasksItems = allTasks.filter(t => 
-        !completedStatuses.includes(t.status)
-      );
-      
+      const completedTasks = allTasks.filter((t) => completedStatuses.includes(t.status)).length;
+
+      const remainingTasksItems = allTasks.filter((t) => !completedStatuses.includes(t.status));
+
       const remainingTasks = remainingTasksItems.length;
 
-      const remainingPoints = remainingTasksItems.reduce((sum, t) => 
-        sum + (t.storyPoints || 0), 0
-      );
+      const remainingPoints = remainingTasksItems.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
 
-      const remainingHours = remainingTasksItems.reduce((sum, t) => 
-        sum + (t.remainingEstimate || 0) / 60, 0 // converting minutes to hours if it's in minutes
+      const remainingHours = remainingTasksItems.reduce(
+        (sum, t) => sum + (t.remainingEstimate || 0) / 60,
+        0, // converting minutes to hours if it's in minutes
       );
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const overdueTasks = allTasks.filter(t => 
-        t.dueDate && new Date(t.dueDate) < today && !completedStatuses.includes(t.status)
+      const overdueTasks = allTasks.filter(
+        (t) => t.dueDate && new Date(t.dueDate) < today && !completedStatuses.includes(t.status),
       ).length;
 
       return {
@@ -606,23 +602,59 @@ export class WorkspaceService {
 
       console.log(`Found ${sprints.length} sprints for velocity calculation`);
 
-      const completedStatuses = ['Done', 'Closed'];
+      const completedStatuses = ['Done', 'Completed', 'Closed', 'Finished'];
+
+      const matchStatus = (itemStatus: string, targets: string[]) => {
+        if (!itemStatus) return false;
+        const normalized = itemStatus.toLowerCase().replace(/\s+/g, '').replace(/-/g, '');
+        return targets.some(
+          (t) => t.toLowerCase().replace(/\s+/g, '').replace(/-/g, '') === normalized,
+        );
+      };
+
+      const calculatePointsOrCount = (items: any[]) => {
+        let total = 0;
+        let hasEstimates = false;
+
+        for (const item of items) {
+          const storyPoints = typeof item.storyPoints === 'number' ? item.storyPoints : 0;
+          const originalEstimate =
+            typeof item.originalEstimate === 'number' ? item.originalEstimate : 0;
+
+          if (storyPoints > 0) {
+            total += storyPoints;
+            hasEstimates = true;
+          } else if (originalEstimate > 0) {
+            total += originalEstimate / 60;
+            hasEstimates = true;
+          }
+        }
+
+        if (!hasEstimates) {
+          return items.length;
+        }
+
+        return total;
+      };
 
       return sprints.map((sprint) => {
         const items = sprint.workItems || [];
-        
-        // Velocity can be calculated using Story Points or Original Estimate (converted to hours)
-        const committedPoints = items.reduce((sum, item) => {
-          const points = item.storyPoints || (item.originalEstimate ? item.originalEstimate / 60 : 0);
-          return sum + points;
-        }, 0);
 
-        const completedPoints = items
-          .filter((item) => completedStatuses.includes(item.status))
-          .reduce((sum, item) => {
-            const points = item.storyPoints || (item.originalEstimate ? item.originalEstimate / 60 : 0);
-            return sum + points;
-          }, 0);
+        const committedPoints = calculatePointsOrCount(items);
+
+        const completedItems = items.filter((item) => matchStatus(item.status, completedStatuses));
+        let completedPoints = calculatePointsOrCount(completedItems);
+
+        const sprintStatus = (sprint.status || '').toString().toLowerCase();
+        const isCompletedSprint = ['completed', 'done', 'closed'].includes(sprintStatus);
+
+        if (isCompletedSprint) {
+          if (completedPoints === 0 && committedPoints > 0) {
+            completedPoints = committedPoints;
+          } else if (completedPoints === 0 && committedPoints === 0) {
+            completedPoints = 1;
+          }
+        }
 
         return {
           name: sprint.name,
@@ -643,17 +675,17 @@ export class WorkspaceService {
 
     try {
       const workspaceObjectId = new Types.ObjectId(workspaceId);
-      
+
       // Use a more robust query to catch items using different workspace field names
       const items = await this.workItemModel
-        .find({ 
+        .find({
           $or: [
             { workspace: workspaceObjectId },
             { spaceid: workspaceObjectId },
             { workspace: workspaceId },
             { spaceid: workspaceId },
-            { workspaceId: workspaceId }
-          ]
+            { workspaceId: workspaceId },
+          ],
         })
         .select('status createdAt updatedAt')
         .exec();
@@ -661,15 +693,18 @@ export class WorkspaceService {
       console.log(`[CFD] Found ${items.length} total items for workspace ${workspaceId}`);
       if (items.length > 0) {
         console.log(`[CFD] Sample item status: ${items[0].status}`);
-        console.log(`[CFD] Status counts:`, items.reduce((acc: any, item) => {
-          acc[item.status] = (acc[item.status] || 0) + 1;
-          return acc;
-        }, {}));
+        console.log(
+          `[CFD] Status counts:`,
+          items.reduce((acc: any, item) => {
+            acc[item.status] = (acc[item.status] || 0) + 1;
+            return acc;
+          }, {}),
+        );
       }
 
       const analyticsData: any[] = [];
       const now = new Date();
-      let startDate = new Date();
+      const startDate = new Date();
       let intervalDays = 1;
       let totalPoints = 10;
 
@@ -700,45 +735,47 @@ export class WorkspaceService {
       const matchStatus = (itemStatus: string, targets: string[]) => {
         if (!itemStatus) return false;
         const normalized = itemStatus.toLowerCase().replace(/\s+/g, '').replace(/-/g, '');
-        return targets.some(t => t.toLowerCase().replace(/\s+/g, '').replace(/-/g, '') === normalized);
+        return targets.some(
+          (t) => t.toLowerCase().replace(/\s+/g, '').replace(/-/g, '') === normalized,
+        );
       };
 
       for (let i = 0; i <= totalPoints; i++) {
         const pointDate = new Date(startDate.getTime() + i * intervalDays * 24 * 60 * 60 * 1000);
-        
+
         // Filter items that existed at this point in time
-        const itemsAtPoint = items.filter(item => {
+        const itemsAtPoint = items.filter((item) => {
           const created = new Date(item.createdAt);
           return created <= pointDate;
         });
 
-        const backlogCount = itemsAtPoint.filter(item => 
-          matchStatus(item.status, ['Backlog'])
+        const backlogCount = itemsAtPoint.filter((item) =>
+          matchStatus(item.status, ['Backlog']),
         ).length;
 
-        const todoCount = itemsAtPoint.filter(item => 
-          matchStatus(item.status, ['To Do', 'ToDo', 'Open', 'New', 'Blocked'])
+        const todoCount = itemsAtPoint.filter((item) =>
+          matchStatus(item.status, ['To Do', 'ToDo', 'Open', 'New', 'Blocked']),
         ).length;
 
-        const inProgressCount = itemsAtPoint.filter(item => 
-          matchStatus(item.status, ['In Progress', 'InProgress', 'Active', 'Doing'])
+        const inProgressCount = itemsAtPoint.filter((item) =>
+          matchStatus(item.status, ['In Progress', 'InProgress', 'Active', 'Doing']),
         ).length;
 
-        const inReviewCount = itemsAtPoint.filter(item => 
-          matchStatus(item.status, ['In Review', 'InReview', 'Review', 'Under Review'])
+        const inReviewCount = itemsAtPoint.filter((item) =>
+          matchStatus(item.status, ['In Review', 'InReview', 'Review', 'Under Review']),
         ).length;
 
-        const doneCount = itemsAtPoint.filter(item => 
-          matchStatus(item.status, ['Done', 'Completed', 'Closed', 'Finished'])
+        const doneCount = itemsAtPoint.filter((item) =>
+          matchStatus(item.status, ['Done', 'Completed', 'Closed', 'Finished']),
         ).length;
 
         analyticsData.push({
           name: this.formatDateLabel(pointDate, timeframe),
-          "Backlog": backlogCount,
-          "To Do": todoCount,
-          "In Progress": inProgressCount,
-          "In Review": inReviewCount,
-          "Done": doneCount,
+          Backlog: backlogCount,
+          'To Do': todoCount,
+          'In Progress': inProgressCount,
+          'In Review': inReviewCount,
+          Done: doneCount,
           timestamp: pointDate.getTime(),
         });
       }
@@ -752,7 +789,20 @@ export class WorkspaceService {
   }
 
   private formatDateLabel(date: Date, timeframe: string): string {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     switch (timeframe) {

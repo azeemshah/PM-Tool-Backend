@@ -27,15 +27,18 @@ export class ColumnController {
   constructor(private readonly columnService: ColumnService) {}
 
   // -------------------- Columns --------------------
-  @Roles('Owner','Admin','Member')
-@UseGuards(WorkspaceRolesByBoardGuard)
+  @Roles('Owner', 'Admin', 'Member')
+  @UseGuards(WorkspaceRolesByBoardGuard)
   @Post('create')
-  async createColumn(@Body() createColumnDto: CreateColumnDto, @CurrentUser('userId') userId: string): Promise<KanbanColumn> {
+  async createColumn(
+    @Body() createColumnDto: CreateColumnDto,
+    @CurrentUser('userId') userId: string,
+  ): Promise<KanbanColumn> {
     return this.columnService.createColumn(createColumnDto, userId);
   }
 
   @UseGuards(WorkspaceRolesByBoardGuard)
-  @Roles('Owner','Admin','Member')
+  @Roles('Owner', 'Admin', 'Member')
   @Put('columns/:columnId')
   async updateColumn(
     @Param('columnId') columnId: string,
@@ -45,10 +48,13 @@ export class ColumnController {
   }
 
   @UseGuards(WorkspaceRolesByBoardGuard)
-  @Roles('Owner','Admin','Member')
+  @Roles('Owner', 'Admin', 'Member')
   @Delete('columns/:columnId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteColumn(@Param('columnId') columnId: string, @CurrentUser('userId') userId: string): Promise<void> {
+  async deleteColumn(
+    @Param('columnId') columnId: string,
+    @CurrentUser('userId') userId: string,
+  ): Promise<void> {
     return this.columnService.deleteColumn(columnId, userId);
   }
 
@@ -58,14 +64,14 @@ export class ColumnController {
   }
 
   @UseGuards(WorkspaceRolesByBoardGuard)
-  @Roles('Owner','Admin','Member')
+  @Roles('Owner', 'Admin', 'Member')
   @Patch('move/:id')
   async moveColumn(@Param('id') columnId: string, @Body('position') position: number) {
     return this.columnService.moveColumn(columnId, position);
   }
 
   @UseGuards(WorkspaceRolesByBoardGuard)
-  @Roles('Owner','Admin','Member')
+  @Roles('Owner', 'Admin', 'Member')
   @Put('columns/reorder/:boardId')
   async reorderColumns(@Param('boardId') boardId: string, @Body() body: { columnIds: string[] }) {
     return this.columnService.reorderColumns(boardId, body.columnIds);

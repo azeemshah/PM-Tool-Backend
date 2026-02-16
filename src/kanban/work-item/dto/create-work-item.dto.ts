@@ -1,5 +1,13 @@
 // src/work-item/dto/create-work-item.dto.ts
-import { IsString, IsNotEmpty, IsOptional, IsEnum, IsMongoId, IsISO8601, IsArray } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEnum,
+  IsMongoId,
+  IsISO8601,
+  IsArray,
+} from 'class-validator';
 
 export enum WorkItemType {
   EPIC = 'Epic',

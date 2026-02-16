@@ -43,15 +43,15 @@ export class ColumnService {
 
     // Notify workspace members about the new column
     if (board.workspaceId) {
-       this.notifyBoardMembers(
-         board.workspaceId.toString(),
-         userId,
-         `New column "${savedColumn.name}" created in board "${board.name}"`,
-         NotificationType.SYSTEM,
-         board._id
-       );
+      this.notifyBoardMembers(
+        board.workspaceId.toString(),
+        userId,
+        `New column "${savedColumn.name}" created in board "${board.name}"`,
+        NotificationType.SYSTEM,
+        board._id,
+      );
     }
-    
+
     return savedColumn;
   }
 
@@ -75,48 +75,51 @@ export class ColumnService {
     // Notify
     const board = await this.boardModel.findById(column.BoardId).select('workspaceId name').lean();
     if (board && board.workspaceId && userId) {
-        this.notifyBoardMembers(
-            board.workspaceId.toString(),
-            userId,
-            `Column "${column.name}" deleted from board "${board.name}"`,
-            NotificationType.SYSTEM,
-            board._id
-        );
+      this.notifyBoardMembers(
+        board.workspaceId.toString(),
+        userId,
+        `Column "${column.name}" deleted from board "${board.name}"`,
+        NotificationType.SYSTEM,
+        board._id,
+      );
     }
   }
 
   // Helper to notify members
   private async notifyBoardMembers(
-    workspaceId: string, 
-    senderId: string, 
-    message: string, 
+    workspaceId: string,
+    senderId: string,
+    message: string,
     type: NotificationType,
-    boardId: any
+    boardId: any,
   ) {
     try {
-        // Cast to any to bypass strict type checking on the generic Model<any>
-        const workspace = await (this.workspaceModel as any).findById(workspaceId).select('members OwnedBy').lean();
-        if (!workspace) return;
+      // Cast to any to bypass strict type checking on the generic Model<any>
+      const workspace = await (this.workspaceModel as any)
+        .findById(workspaceId)
+        .select('members OwnedBy')
+        .lean();
+      if (!workspace) return;
 
-        const memberIds = workspace.members ? workspace.members.map((m: any) => m.toString()) : [];
-        if (workspace.OwnedBy) memberIds.push(workspace.OwnedBy.toString());
+      const memberIds = workspace.members ? workspace.members.map((m: any) => m.toString()) : [];
+      if (workspace.OwnedBy) memberIds.push(workspace.OwnedBy.toString());
 
-        const uniqueRecipients = new Set(memberIds);
+      const uniqueRecipients = new Set(memberIds);
 
-        for (const recipientId of uniqueRecipients) {
-            // if (recipientId === senderId) continue; // Don't notify the sender
+      for (const recipientId of uniqueRecipients) {
+        if (recipientId === senderId) continue;
 
-            await this.notificationService.create({
-                recipient: new Types.ObjectId(recipientId as string),
-                type,
-                message,
-                workspace: new Types.ObjectId(workspaceId),
-                relatedId: new Types.ObjectId(boardId),
-                onModel: 'KanbanBoard'
-            } as any);
-        }
+        await this.notificationService.create({
+          recipient: new Types.ObjectId(recipientId as string),
+          type,
+          message,
+          workspace: new Types.ObjectId(workspaceId),
+          relatedId: new Types.ObjectId(boardId),
+          onModel: 'KanbanBoard',
+        } as any);
+      }
     } catch (error) {
-        console.error('Failed to notify board members:', error);
+      console.error('Failed to notify board members:', error);
     }
   }
 

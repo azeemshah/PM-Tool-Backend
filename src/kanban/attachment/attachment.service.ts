@@ -46,20 +46,20 @@ export class AttachmentService {
     try {
       let item: any = await this.workItemModel.findById(dto.workItemId).exec();
       if (!item) {
-          item = await this.itemModel.findById(dto.workItemId).exec();
+        item = await this.itemModel.findById(dto.workItemId).exec();
       }
 
       let workspace: any = null;
-      
+
       const workspaceId = (item as any)?.workspace || (item as any)?.spaceid;
 
       if (workspaceId) {
-          workspace = await this.workspaceModel.findById(workspaceId).exec();
+        workspace = await this.workspaceModel.findById(workspaceId).exec();
       } else if (item?.board) {
-          const board = await this.boardModel.findById(item.board).exec();
-          if (board) {
-             workspace = await this.workspaceModel.findById(board.workspaceId).exec();
-          }
+        const board = await this.boardModel.findById(item.board).exec();
+        if (board) {
+          workspace = await this.workspaceModel.findById(board.workspaceId).exec();
+        }
       }
 
       const ids = workspace
@@ -69,18 +69,18 @@ export class AttachmentService {
           ].filter(Boolean)
         : [];
       const uniqueIds = Array.from(new Set(ids));
-      
-      for (const recipientId of uniqueIds) {
-           // if (dto.userId && recipientId === dto.userId) continue;
 
-           await this.notificationService.create({
-               recipient: new Types.ObjectId(recipientId),
-               sender: dto.userId ? new Types.ObjectId(dto.userId) : undefined,
-               type: NotificationType.ATTACHMENT_ADDED,
-               message: `Attachment "${saved.fileName}" added to "${item?.title}"`,
-               workspace: workspace?._id,
-               workItem: item?._id as any
-           });
+      for (const recipientId of uniqueIds) {
+        if (dto.userId && recipientId === dto.userId) continue;
+
+        await this.notificationService.create({
+          recipient: new Types.ObjectId(recipientId),
+          sender: dto.userId ? new Types.ObjectId(dto.userId) : undefined,
+          type: NotificationType.ATTACHMENT_ADDED,
+          message: `Attachment "${saved.fileName}" added to "${item?.title}"`,
+          workspace: workspace?._id,
+          workItem: item?._id as any,
+        });
       }
     } catch (err) {
       console.error('Failed to send attachment notification:', err);
@@ -128,22 +128,22 @@ export class AttachmentService {
     try {
       let item: any = doc ? await this.workItemModel.findById(doc.workItem).exec() : null;
       if (!item && doc) {
-          item = await this.itemModel.findById(doc.workItem).exec();
+        item = await this.itemModel.findById(doc.workItem).exec();
       }
 
       let workspace: any = null;
-      
+
       const workspaceId = (item as any)?.workspace || (item as any)?.spaceid;
 
       if (workspaceId) {
-          workspace = await this.workspaceModel.findById(workspaceId).exec();
+        workspace = await this.workspaceModel.findById(workspaceId).exec();
       } else if (item?.board) {
-          const board = await this.boardModel.findById(item.board).exec();
-          if (board) {
-             workspace = await this.workspaceModel.findById(board.workspaceId).exec();
-          }
+        const board = await this.boardModel.findById(item.board).exec();
+        if (board) {
+          workspace = await this.workspaceModel.findById(board.workspaceId).exec();
+        }
       }
-      
+
       const ids = workspace
         ? [
             workspace.OwnedBy?.toString(),
@@ -151,17 +151,15 @@ export class AttachmentService {
           ].filter(Boolean)
         : [];
       const uniqueIds = Array.from(new Set(ids));
-      
+
       for (const recipientId of uniqueIds) {
-          // If we knew who deleted it, we'd skip them. But here we only have the ID.
-          // We'll send to everyone.
-          await this.notificationService.create({
-            recipient: new Types.ObjectId(recipientId),
-            type: NotificationType.WORK_ITEM_UPDATED, // Or generic updated
-            message: `Attachment removed from "${item?.title || 'Work Item'}"`,
-            workspace: workspace?._id,
-            workItem: item?._id as any
-          });
+        await this.notificationService.create({
+          recipient: new Types.ObjectId(recipientId),
+          type: NotificationType.WORK_ITEM_UPDATED, // Or generic updated
+          message: `Attachment removed from "${item?.title || 'Work Item'}"`,
+          workspace: workspace?._id,
+          workItem: item?._id as any,
+        });
       }
     } catch (_) {}
     return { message: 'Attachment deleted successfully' };
