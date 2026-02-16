@@ -740,44 +740,72 @@ export class WorkspaceService {
         );
       };
 
+      const statusGroups: Record<string, string[]> = {
+        Backlog: ['Backlog'],
+        'To Do': ['To Do', 'ToDo', 'Todo', 'Open', 'New'],
+        'In Progress': ['In Progress', 'InProgress', 'Active', 'Doing'],
+        'In Review': ['In Review', 'InReview', 'Review', 'Under Review'],
+        Blocked: ['Blocked'],
+        Done: ['Done', 'Completed', 'Finished'],
+        Closed: ['Closed'],
+      };
+
+      const allItemStatuses = new Set<string>();
+      for (const item of items) {
+        const status = (item.status || '').toString();
+        if (status) {
+          allItemStatuses.add(status);
+        }
+      }
+
+      for (const rawStatus of allItemStatuses) {
+        const isCovered = Object.values(statusGroups).some((targets) =>
+          matchStatus(rawStatus, targets),
+        );
+        if (!isCovered) {
+          statusGroups[rawStatus] = [rawStatus];
+        }
+      }
+
+      const preferredOrder = [
+        'Backlog',
+        'To Do',
+        'In Progress',
+        'In Review',
+        'Blocked',
+        'Done',
+        'Closed',
+      ];
+
+      const dynamicStatuses = Object.keys(statusGroups).sort((a, b) => {
+        const ai = preferredOrder.indexOf(a);
+        const bi = preferredOrder.indexOf(b);
+        if (ai === -1 && bi === -1) return a.localeCompare(b);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      });
+
       for (let i = 0; i <= totalPoints; i++) {
         const pointDate = new Date(startDate.getTime() + i * intervalDays * 24 * 60 * 60 * 1000);
 
-        // Filter items that existed at this point in time
         const itemsAtPoint = items.filter((item) => {
           const created = new Date(item.createdAt);
           return created <= pointDate;
         });
 
-        const backlogCount = itemsAtPoint.filter((item) =>
-          matchStatus(item.status, ['Backlog']),
-        ).length;
-
-        const todoCount = itemsAtPoint.filter((item) =>
-          matchStatus(item.status, ['To Do', 'ToDo', 'Open', 'New', 'Blocked']),
-        ).length;
-
-        const inProgressCount = itemsAtPoint.filter((item) =>
-          matchStatus(item.status, ['In Progress', 'InProgress', 'Active', 'Doing']),
-        ).length;
-
-        const inReviewCount = itemsAtPoint.filter((item) =>
-          matchStatus(item.status, ['In Review', 'InReview', 'Review', 'Under Review']),
-        ).length;
-
-        const doneCount = itemsAtPoint.filter((item) =>
-          matchStatus(item.status, ['Done', 'Completed', 'Closed', 'Finished']),
-        ).length;
-
-        analyticsData.push({
+        const dataPoint: any = {
           name: this.formatDateLabel(pointDate, timeframe),
-          Backlog: backlogCount,
-          'To Do': todoCount,
-          'In Progress': inProgressCount,
-          'In Review': inReviewCount,
-          Done: doneCount,
           timestamp: pointDate.getTime(),
-        });
+        };
+
+        for (const status of dynamicStatuses) {
+          const targets = statusGroups[status] || [status];
+          const count = itemsAtPoint.filter((item) => matchStatus(item.status, targets)).length;
+          dataPoint[status] = count;
+        }
+
+        analyticsData.push(dataPoint);
       }
 
       console.log(`[CFD] Final data point:`, analyticsData[analyticsData.length - 1]);
