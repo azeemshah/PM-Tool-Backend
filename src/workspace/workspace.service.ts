@@ -492,7 +492,15 @@ export class WorkspaceService {
 
   async getAnalytics(
     workspaceId: string,
-  ): Promise<{ totalTasks: number; overdueTasks: number; completedTasks: number }> {
+    timeframe?: string,
+  ): Promise<{ 
+    totalTasks: number; 
+    overdueTasks: number; 
+    completedTasks: number;
+    remainingTasks: number;
+    remainingPoints: number;
+    remainingHours: number;
+  }> {
     if (!Types.ObjectId.isValid(workspaceId)) {
       throw new BadRequestException('Invalid workspace ID');
     }
@@ -502,38 +510,73 @@ export class WorkspaceService {
       throw new NotFoundException('Workspace not found');
     }
 
-    const workspaceObjectId = new Types.ObjectId(workspaceId);
-
     try {
-      const baseFilter = {
+      const baseFilter: any = {
         workspace: workspaceId,
         type: { $ne: 'epic' },
       };
 
-      const totalTasks = await this.workItemModel.countDocuments(baseFilter).exec();
+      // Apply timeframe filtering if provided
+      const now = new Date();
+      if (timeframe) {
+        const startDate = new Date();
+        if (timeframe === 'today') {
+          startDate.setHours(0, 0, 0, 0);
+          baseFilter.createdAt = { $gte: startDate };
+        } else if (timeframe === 'weekly') {
+          startDate.setDate(now.getDate() - 7);
+          baseFilter.createdAt = { $gte: startDate };
+        } else if (timeframe === 'monthly') {
+          // Show data for the current year to display months
+          startDate.setMonth(0, 1);
+          startDate.setHours(0, 0, 0, 0);
+          baseFilter.createdAt = { $gte: startDate };
+        } else if (timeframe === 'yearly') {
+          // Show data for the last 5 years to display multiple years
+          startDate.setFullYear(now.getFullYear() - 5);
+          baseFilter.createdAt = { $gte: startDate };
+        }
+      }
 
-      const completedTasks = await this.workItemModel
-        .countDocuments({
-          ...baseFilter,
-          status: 'Done', // ItemStatus.DONE
-        })
-        .exec();
+      const allTasks = await this.workItemModel.find(baseFilter).exec();
+      
+      const completedStatuses = ['Done', 'Closed'];
+      const remainingStatuses = ['To Do', 'In Progress', 'In Review', 'Blocked'];
+
+      const totalTasks = allTasks.length;
+      
+      const completedTasks = allTasks.filter(t => 
+        completedStatuses.includes(t.status)
+      ).length;
+
+      const remainingTasksItems = allTasks.filter(t => 
+        !completedStatuses.includes(t.status)
+      );
+      
+      const remainingTasks = remainingTasksItems.length;
+
+      const remainingPoints = remainingTasksItems.reduce((sum, t) => 
+        sum + (t.storyPoints || 0), 0
+      );
+
+      const remainingHours = remainingTasksItems.reduce((sum, t) => 
+        sum + (t.remainingEstimate || 0) / 60, 0 // converting minutes to hours if it's in minutes
+      );
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const overdueTasks = await this.workItemModel
-        .countDocuments({
-          ...baseFilter,
-          dueDate: { $lt: today },
-          status: { $ne: 'Done' },
-        })
-        .exec();
+      const overdueTasks = allTasks.filter(t => 
+        t.dueDate && new Date(t.dueDate) < today && !completedStatuses.includes(t.status)
+      ).length;
 
       return {
         totalTasks,
         completedTasks,
         overdueTasks,
+        remainingTasks,
+        remainingPoints,
+        remainingHours,
       };
     } catch (error) {
       console.error('Error calculating analytics:', error);
@@ -541,7 +584,188 @@ export class WorkspaceService {
         totalTasks: 0,
         completedTasks: 0,
         overdueTasks: 0,
+        remainingTasks: 0,
+        remainingPoints: 0,
+        remainingHours: 0,
       };
+    }
+  }
+
+  async getVelocityAnalytics(workspaceId: string): Promise<any[]> {
+    if (!Types.ObjectId.isValid(workspaceId)) {
+      throw new BadRequestException('Invalid workspace ID');
+    }
+
+    try {
+      const sprints = await this.sprintModel
+        .find({ workspaceId: new Types.ObjectId(workspaceId) })
+        .populate('workItems')
+        .sort({ createdAt: 1 })
+        .limit(6) // Limit to last 6 sprints for chart
+        .exec();
+
+      console.log(`Found ${sprints.length} sprints for velocity calculation`);
+
+      const completedStatuses = ['Done', 'Closed'];
+
+      return sprints.map((sprint) => {
+        const items = sprint.workItems || [];
+        
+        // Velocity can be calculated using Story Points or Original Estimate (converted to hours)
+        const committedPoints = items.reduce((sum, item) => {
+          const points = item.storyPoints || (item.originalEstimate ? item.originalEstimate / 60 : 0);
+          return sum + points;
+        }, 0);
+
+        const completedPoints = items
+          .filter((item) => completedStatuses.includes(item.status))
+          .reduce((sum, item) => {
+            const points = item.storyPoints || (item.originalEstimate ? item.originalEstimate / 60 : 0);
+            return sum + points;
+          }, 0);
+
+        return {
+          name: sprint.name,
+          committed: Math.round(committedPoints),
+          completed: Math.round(completedPoints),
+        };
+      });
+    } catch (error) {
+      console.error('Error calculating velocity:', error);
+      return [];
+    }
+  }
+
+  async getCFDAnalytics(workspaceId: string, timeframe: string): Promise<any[]> {
+    if (!Types.ObjectId.isValid(workspaceId)) {
+      throw new BadRequestException('Invalid workspace ID');
+    }
+
+    try {
+      const workspaceObjectId = new Types.ObjectId(workspaceId);
+      
+      // Use a more robust query to catch items using different workspace field names
+      const items = await this.workItemModel
+        .find({ 
+          $or: [
+            { workspace: workspaceObjectId },
+            { spaceid: workspaceObjectId },
+            { workspace: workspaceId },
+            { spaceid: workspaceId },
+            { workspaceId: workspaceId }
+          ]
+        })
+        .select('status createdAt updatedAt')
+        .exec();
+
+      console.log(`[CFD] Found ${items.length} total items for workspace ${workspaceId}`);
+      if (items.length > 0) {
+        console.log(`[CFD] Sample item status: ${items[0].status}`);
+        console.log(`[CFD] Status counts:`, items.reduce((acc: any, item) => {
+          acc[item.status] = (acc[item.status] || 0) + 1;
+          return acc;
+        }, {}));
+      }
+
+      const analyticsData: any[] = [];
+      const now = new Date();
+      let startDate = new Date();
+      let intervalDays = 1;
+      let totalPoints = 10;
+
+      switch (timeframe) {
+        case 'today':
+          startDate.setHours(0, 0, 0, 0);
+          intervalDays = 1 / 24;
+          totalPoints = 24;
+          break;
+        case 'weekly':
+          startDate.setDate(now.getDate() - 7);
+          intervalDays = 1;
+          totalPoints = 7;
+          break;
+        case 'monthly':
+          startDate.setDate(now.getDate() - 30);
+          intervalDays = 3;
+          totalPoints = 10;
+          break;
+        case 'yearly':
+        default:
+          startDate.setFullYear(now.getFullYear() - 1);
+          intervalDays = 30;
+          totalPoints = 12;
+          break;
+      }
+
+      const matchStatus = (itemStatus: string, targets: string[]) => {
+        if (!itemStatus) return false;
+        const normalized = itemStatus.toLowerCase().replace(/\s+/g, '').replace(/-/g, '');
+        return targets.some(t => t.toLowerCase().replace(/\s+/g, '').replace(/-/g, '') === normalized);
+      };
+
+      for (let i = 0; i <= totalPoints; i++) {
+        const pointDate = new Date(startDate.getTime() + i * intervalDays * 24 * 60 * 60 * 1000);
+        
+        // Filter items that existed at this point in time
+        const itemsAtPoint = items.filter(item => {
+          const created = new Date(item.createdAt);
+          return created <= pointDate;
+        });
+
+        const backlogCount = itemsAtPoint.filter(item => 
+          matchStatus(item.status, ['Backlog'])
+        ).length;
+
+        const todoCount = itemsAtPoint.filter(item => 
+          matchStatus(item.status, ['To Do', 'ToDo', 'Open', 'New', 'Blocked'])
+        ).length;
+
+        const inProgressCount = itemsAtPoint.filter(item => 
+          matchStatus(item.status, ['In Progress', 'InProgress', 'Active', 'Doing'])
+        ).length;
+
+        const inReviewCount = itemsAtPoint.filter(item => 
+          matchStatus(item.status, ['In Review', 'InReview', 'Review', 'Under Review'])
+        ).length;
+
+        const doneCount = itemsAtPoint.filter(item => 
+          matchStatus(item.status, ['Done', 'Completed', 'Closed', 'Finished'])
+        ).length;
+
+        analyticsData.push({
+          name: this.formatDateLabel(pointDate, timeframe),
+          "Backlog": backlogCount,
+          "To Do": todoCount,
+          "In Progress": inProgressCount,
+          "In Review": inReviewCount,
+          "Done": doneCount,
+          timestamp: pointDate.getTime(),
+        });
+      }
+
+      console.log(`[CFD] Final data point:`, analyticsData[analyticsData.length - 1]);
+      return analyticsData;
+    } catch (error) {
+      console.error('Error calculating CFD:', error);
+      return [];
+    }
+  }
+
+  private formatDateLabel(date: Date, timeframe: string): string {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    switch (timeframe) {
+      case 'today':
+        return `${date.getHours()}:00`;
+      case 'weekly':
+        return days[date.getDay()];
+      case 'monthly':
+        return `Day ${date.getDate()}`;
+      case 'yearly':
+        return months[date.getMonth()];
+      default:
+        return date.toLocaleDateString();
     }
   }
 }

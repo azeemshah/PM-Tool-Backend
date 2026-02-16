@@ -131,6 +131,9 @@ export class Item extends Document {
   // Materialized path for fast hierarchy queries
   @Prop({ required: true, index: true })
   path: string;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const ItemSchema = SchemaFactory.createForClass(Item);

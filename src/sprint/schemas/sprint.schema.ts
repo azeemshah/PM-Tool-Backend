@@ -28,7 +28,7 @@ export class Sprint extends Document {
   status: SprintStatus;
 
   @Prop({
-    type: [{ type: Types.ObjectId, ref: 'WorkItem' }],
+    type: [{ type: Types.ObjectId, ref: 'Item' }],
     default: [],
   })
   workItems: Types.ObjectId[];

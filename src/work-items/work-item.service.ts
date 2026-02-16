@@ -356,22 +356,70 @@ export class ItemService {
       keyword, // <-- grab it
     } = query;
 
-    const filter: any = { workspace: workspaceId };
+    const workspaceObjectId = Types.ObjectId.isValid(workspaceId)
+      ? new Types.ObjectId(workspaceId)
+      : null;
+
+    const filter: any = {
+      $or: [
+        { workspace: workspaceObjectId },
+        { spaceid: workspaceObjectId },
+        { workspace: workspaceId },
+        { spaceid: workspaceId },
+        { workspaceId: workspaceId },
+      ].filter(f => Object.values(f)[0] !== null),
+    };
 
     // Apply filters only if present
-    if (status) filter.status = status;
+    if (status) {
+      const statuses = status.split(',').filter(Boolean);
+      if (statuses.length > 1) {
+        filter.status = { 
+          $in: statuses.map(s => new RegExp(`^${s.trim()}$`, 'i')) 
+        };
+      } else {
+        filter.status = { $regex: new RegExp(`^${status}$`, 'i') };
+      }
+    }
     if (priority) filter.priority = priority;
     if (type) filter.type = type;
-    if (reporter) filter.reporter = reporter;
+    
+    if (reporter) {
+      const userFilter = {
+        $or: [
+          { reporter: reporter },
+          { assignedTo: reporter },
+          { assignee: reporter },
+          { assignedToId: reporter },
+          { assigneeId: reporter },
+          { reporterId: reporter }
+        ]
+      };
+      
+      // Combine with existing filter (workspace $or)
+      const currentFilter = { ...filter };
+      // Reset filter to use $and for combining workspace and user filters
+      Object.keys(filter).forEach(key => delete filter[key]);
+      filter.$and = [currentFilter, userFilter];
+    }
 
     // Keyword search: search in title and description
     if (keyword) {
-      filter.$or = [
-        { title: { $regex: keyword, $options: 'i' } }, // case-insensitive
-        { description: { $regex: keyword, $options: 'i' } }, // case-insensitive
-      ];
+      const keywordFilter = {
+        $or: [
+          { title: { $regex: keyword, $options: 'i' } },
+          { description: { $regex: keyword, $options: 'i' } },
+        ],
+      };
+      // Combine with existing filter using $and
+      const finalFilter = { $and: [filter, keywordFilter] };
+      return this.executeFindQuery(finalFilter, page, limit);
     }
 
+    return this.executeFindQuery(filter, page, limit);
+  }
+
+  private async executeFindQuery(filter: any, page: number, limit: number) {
     const skip = (page - 1) * limit;
 
     const [tasks, total] = await Promise.all([

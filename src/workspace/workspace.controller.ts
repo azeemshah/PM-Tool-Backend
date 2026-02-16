@@ -10,6 +10,7 @@ import {
   Request,
   HttpStatus,
   HttpCode,
+  Query,
 } from '@nestjs/common';
 import { WorkspaceService } from './workspace.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
@@ -78,7 +79,23 @@ export class WorkspaceController {
   }
 
   @Get('analytics/:workspaceId')
-  getWorkspaceAnalytics(@Param('workspaceId') workspaceId: string) {
-    return this.workspaceService.getAnalytics(workspaceId);
+  getWorkspaceAnalytics(
+    @Param('workspaceId') workspaceId: string,
+    @Query('timeframe') timeframe?: string,
+  ) {
+    return this.workspaceService.getAnalytics(workspaceId, timeframe);
+  }
+
+  @Get('velocity/:workspaceId')
+  getWorkspaceVelocity(@Param('workspaceId') workspaceId: string) {
+    return this.workspaceService.getVelocityAnalytics(workspaceId);
+  }
+
+  @Get('cfd/:workspaceId')
+  getWorkspaceCFD(
+    @Param('workspaceId') workspaceId: string,
+    @Query('timeframe') timeframe: string = 'monthly',
+  ) {
+    return this.workspaceService.getCFDAnalytics(workspaceId, timeframe);
   }
 }
