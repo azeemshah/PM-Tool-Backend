@@ -14,6 +14,7 @@ import { User } from '../../users/schemas/user.schema';
 import { Workspace } from '../../workspace/schemas/workspace.schema';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationType } from '../notification/schemas/notification.schema';
+import { CommentGateway } from './comment.gateway';
 
 @Injectable()
 export class CommentService {
@@ -28,6 +29,7 @@ export class CommentService {
     @InjectModel('Member') private readonly memberModel: Model<any>,
     private readonly historyService: HistoryService,
     private readonly notificationService: NotificationService,
+    private readonly commentGateway: CommentGateway,
   ) {}
 
   private async getActorName(actorId?: string) {
@@ -125,47 +127,14 @@ export class CommentService {
         if (workspaceId) {
           const members = await this.memberModel.find({ workspaceId }).populate('userId').exec();
           const recipients = new Set<string>();
-          const content = dto.content || '';
-          const assigneeId = workItem.assignee ? workItem.assignee.toString() : null;
-
-          // Check if actor is a Member
-          let isActorMember = false;
-          if (actor) {
-            const actorMember = members.find((m) => {
-              if (!m.userId) return false;
-              const uid = m.userId._id ? m.userId._id.toString() : m.userId.toString();
-              return uid === actor.toString();
-            });
-            if (actorMember && actorMember.role && actorMember.role.toLowerCase() === 'member') {
-              isActorMember = true;
-            }
-          }
 
           for (const member of members) {
             if (!member.userId) continue;
             const uid = member.userId._id ? member.userId._id.toString() : member.userId.toString();
 
-            // Don't notify the actor
-            if (uid === actor) continue;
+            if (actor && uid === actor.toString()) continue;
 
-            const role = member.role;
-            const user = member.userId;
-            const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
-            const isMember = role && role.toLowerCase() === 'member';
-
-            // console.log(`[Comment Notification] User: ${uid}, Role: ${role}, IsMember: ${isMember}, Tagged: ${content.includes('@' + fullName)}`);
-
-            if (!isMember || isActorMember) {
-              recipients.add(uid);
-            } else {
-              // For Members: Notify if they are the assignee OR if they are tagged
-              const isAssignee = assigneeId && uid === assigneeId;
-              const isTagged = fullName && content.includes(`@${fullName}`);
-
-              if (isAssignee || isTagged) {
-                recipients.add(uid);
-              }
-            }
+            recipients.add(uid);
           }
 
           for (const recipientId of Array.from(recipients)) {
@@ -184,6 +153,16 @@ export class CommentService {
               console.error('Failed to send comment notification to', recipientId, err);
             }
           }
+        }
+
+        try {
+          this.commentGateway.emitCommentCreated({
+            workspaceId: workspaceId ? workspaceId.toString() : undefined,
+            workItemId: workItem._id.toString(),
+            comment: savedComment,
+          });
+        } catch (err) {
+          console.error('Failed to emit real-time comment event', err);
         }
       }
     } catch (err) {

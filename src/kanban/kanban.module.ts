@@ -41,6 +41,7 @@ import { Estimation, EstimationSchema } from './estimation/schemas/estimation.sc
 import { CommentController } from './comment/comment.controller';
 import { CommentService } from './comment/comment.service';
 import { Comment, CommentSchema } from './comment/schemas/comment.schema';
+import { CommentGateway } from './comment/comment.gateway';
 
 // Attachment
 import { AttachmentController } from './attachment/attachment.controller';
@@ -193,6 +194,7 @@ import { Tag, TagSchema } from './tag/schemas/tag.schema';
     SearchService,
     ColumnService,
     CommentService,
+    CommentGateway,
     EstimationService,
     WorkspacePermissionGuard,
   ],
