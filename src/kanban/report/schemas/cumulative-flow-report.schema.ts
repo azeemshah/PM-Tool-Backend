@@ -8,7 +8,7 @@ import { Document, Types } from 'mongoose';
   - Shows how many work items exist in each status per day
 */
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_cumulativeflowreports' })
 export class CumulativeFlowReport extends Document {
   /* ================= Workspace ================= */
   @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })

@@ -22,7 +22,7 @@ import { WorkspaceRolesByBoardGuard } from './../workspace-roles-by-board.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @UseGuards(JwtAuthGuard)
-@Controller('column')
+@Controller('pm-column')
 export class ColumnController {
   constructor(private readonly columnService: ColumnService) {}
 

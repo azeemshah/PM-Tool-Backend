@@ -16,7 +16,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard'; // Adjust path a
 import { WorkspaceRolesByTimelogGuard } from '../common/guards/workspace-roles-by-timelog.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 
-@Controller('time-logs')
+@Controller('pm-time-logs')
 @UseGuards(JwtAuthGuard)
 export class TimeLogController {
   constructor(private readonly timeLogService: TimeLogService) {}

@@ -24,7 +24,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { WorkspaceRolesGuard } from '@/common/guards/workspace-roles.guard';
 
 @UseGuards(JwtAuthGuard)
-@Controller('kanban')
+@Controller('pm-kanban')
 export class KanbanBoardController {
   constructor(private readonly boardService: KanbanBoardService) {}
 

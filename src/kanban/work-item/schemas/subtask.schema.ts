@@ -3,7 +3,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { WorkItem, WorkItemType } from './work-item.schema';
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_subtasks' })
 export class Subtask extends WorkItem {
   @Prop({
     type: String,

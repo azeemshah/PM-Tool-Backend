@@ -5,7 +5,7 @@ import { WorkItem } from '../../work-item/schemas/work-item.schema';
 
 export type CommentDocument = Comment & Document;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_comments' })
 export class Comment extends Document {
   @Prop({ type: Types.ObjectId, ref: 'WorkItem', required: true })
   workItem: Types.ObjectId; // The work item the comment belongs to

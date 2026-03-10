@@ -3,7 +3,7 @@ import { Document } from 'mongoose';
 
 export type InvitationDocument = Invitation & Document;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_invitations' })
 export class Invitation {
   @Prop({ required: true })
   email: string;

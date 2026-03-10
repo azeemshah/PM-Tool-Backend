@@ -3,7 +3,7 @@ import { Controller, Get, Post, Patch, Param, Body, Delete } from '@nestjs/commo
 import { NotificationService } from './notification.service';
 import { Types } from 'mongoose';
 
-@Controller('kanban/notifications')
+@Controller('pm-kanban/notifications')
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
 

@@ -11,7 +11,7 @@ export enum WorkItemType {
   IMPROVEMENT = 'Improvement',
 }
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_workitems' })
 export class WorkItem extends Document {
   @Prop({ required: true })
   title: string;

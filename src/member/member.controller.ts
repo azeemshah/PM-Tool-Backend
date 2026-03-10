@@ -19,7 +19,7 @@ import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { WorkspaceRolesGuard } from '@/common/guards/workspace-roles.guard';
 
-@Controller('members')
+@Controller('pm-members')
 @UseGuards(JwtAuthGuard)
 export class MemberController {
   constructor(private memberService: MemberService) {}

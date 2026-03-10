@@ -2,7 +2,7 @@
 import { Controller, Get, Query, Param } from '@nestjs/common';
 import { AuditService } from './audit.service';
 
-@Controller('kanban/audit')
+@Controller('pm-kanban/audit')
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 

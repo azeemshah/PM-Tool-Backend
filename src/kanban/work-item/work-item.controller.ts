@@ -10,7 +10,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { WorkspaceRolesGuard } from '@/common/guards/workspace-roles.guard';
 
-@Controller('kanban/items')
+@Controller('pm-kanban/items')
 @UseGuards(JwtAuthGuard)
 export class WorkItemController {
   constructor(private readonly workItemService: WorkItemService) {}

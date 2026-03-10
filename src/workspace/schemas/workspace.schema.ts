@@ -3,7 +3,7 @@ import { Document, Types } from 'mongoose';
 
 export type WorkspaceDocument = Workspace & Document;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_workspaces' })
 export class Workspace {
   @Prop({ required: true, trim: true })
   name: string;

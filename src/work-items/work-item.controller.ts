@@ -17,7 +17,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { WorkspacePermissionGuard } from '../common/guards/workspace-permission.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
 
-@Controller('items')
+@Controller('pm-items')
 @UseGuards(JwtAuthGuard)
 export class ItemController {
   constructor(private readonly itemService: ItemService) {}

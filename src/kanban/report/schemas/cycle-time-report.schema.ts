@@ -8,7 +8,7 @@ import { Document, Types } from 'mongoose';
   Used for performance, SLA, and trend analysis
 */
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_cycletimereports' })
 export class CycleTimeReport extends Document {
   /* ================= Workspace ================= */
   @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })

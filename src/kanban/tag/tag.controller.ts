@@ -7,7 +7,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { WorkspaceRolesGuard } from '@/common/guards/workspace-roles.guard';
 
-@Controller('kanban/tags')
+@Controller('pm-kanban/tags')
 @UseGuards(JwtAuthGuard)
 export class TagController {
   constructor(private readonly tagService: TagService) {}

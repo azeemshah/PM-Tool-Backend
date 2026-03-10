@@ -28,7 +28,7 @@ export enum ItemStatus {
   CLOSED = 'Closed',
 }
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_items' })
 export class Item extends Document {
   @Prop({ required: true })
   title: string;

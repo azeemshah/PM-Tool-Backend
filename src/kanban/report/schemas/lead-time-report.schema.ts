@@ -8,7 +8,7 @@ import { Document, Types } from 'mongoose';
   Used for delivery forecasting, SLA, customer satisfaction
 */
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_leadtimereports' })
 export class LeadTimeReport extends Document {
   /* ================= Workspace ================= */
   @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })

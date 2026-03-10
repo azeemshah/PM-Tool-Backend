@@ -3,7 +3,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { SprintStatus } from '../enums/sprint-status.enum';
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_sprints' })
 export class Sprint extends Document {
   @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
   workspaceId: Types.ObjectId;

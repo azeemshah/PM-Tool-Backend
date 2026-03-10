@@ -19,7 +19,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { WorkspacePermissionGuard } from '../common/guards/workspace-permission.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
 
-@Controller('workspace')
+@Controller('pm-workspace')
 @UseGuards(JwtAuthGuard)
 export class WorkspaceController {
   constructor(private readonly workspaceService: WorkspaceService) {}

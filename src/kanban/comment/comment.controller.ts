@@ -6,7 +6,7 @@ import { UpdateCommentDto } from './dto/update-comment.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
-@Controller('kanban/comments')
+@Controller('pm-kanban/comments')
 export class CommentController {
   constructor(private readonly commentService: CommentService) {}
 

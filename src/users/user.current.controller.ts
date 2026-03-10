@@ -17,7 +17,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { Response } from 'express';
 
-@Controller('user')
+@Controller('pm-user')
 export class UserCurrentController {
   constructor(private readonly usersService: UsersService) {}
 

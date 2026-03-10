@@ -25,6 +25,7 @@ export const MemberSchema = new Schema(
   },
   {
     timestamps: true,
+    collection: 'pm_members',
   },
 );
 

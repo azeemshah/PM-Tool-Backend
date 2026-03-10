@@ -5,7 +5,7 @@ import { KanbanColumn } from '../../column/schemas/column.schema';
 
 export type KanbanBoardDocument = KanbanBoard & Document;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_kanbanboards' })
 export class KanbanBoard extends Document {
   @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
   workspaceId: Types.ObjectId;

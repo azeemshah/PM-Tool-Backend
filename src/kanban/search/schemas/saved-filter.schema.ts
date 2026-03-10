@@ -7,7 +7,7 @@ import { Document, Types } from 'mongoose';
   Stores user-defined search filters for Kanban boards, work items, and reports
 */
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_savedfilters' })
 export class SavedFilter extends Document {
   /* ================= Filter Name ================= */
   @Prop({ required: true })

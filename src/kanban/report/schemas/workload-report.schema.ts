@@ -8,7 +8,7 @@ import { Document, Types } from 'mongoose';
   Used for capacity planning, bottleneck detection, and team balance
 */
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_workloadreports' })
 export class WorkloadReport extends Document {
   /* ================= Workspace ================= */
   @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })

@@ -3,7 +3,7 @@ import { Document, Types } from 'mongoose';
 
 export type ColumnDocument = KanbanColumn & Document;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_kanbancolumns' })
 export class KanbanColumn extends Document {
   @Prop({ type: Types.ObjectId, ref: 'KanbanBoard', required: true })
   BoardId: Types.ObjectId;

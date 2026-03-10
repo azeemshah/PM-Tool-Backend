@@ -22,7 +22,7 @@ import { Response } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
-@Controller('kanban/files')
+@Controller('pm-kanban/files')
 @UseGuards(JwtAuthGuard)
 export class AttachmentController {
   constructor(private readonly attachmentService: AttachmentService) {}

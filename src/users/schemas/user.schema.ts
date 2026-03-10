@@ -4,7 +4,7 @@ import * as bcrypt from 'bcryptjs';
 
 export type UserDocument = User & Document;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_users' })
 export class User {
   @Prop({ required: true, trim: true })
   firstName: string;

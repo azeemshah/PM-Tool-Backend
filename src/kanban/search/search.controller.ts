@@ -3,7 +3,7 @@ import { Controller, Get, Post, Put, Delete, Param, Body, Query } from '@nestjs/
 import { SearchService } from './search.service';
 import { SavedFilterDto } from './dto/saved-filter.dto';
 
-@Controller('kanban/search')
+@Controller('pm-kanban/search')
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}
 

@@ -24,7 +24,7 @@ export enum NotificationType {
   SYSTEM = 'SYSTEM',
 }
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_notifications' })
 export class Notification {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   recipient: Types.ObjectId;

@@ -5,7 +5,7 @@ import { AddWorkItemsToSprintDto } from './dto/add-workitems-to-sprint.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
-@Controller('sprints')
+@Controller('pm-sprints')
 @UseGuards(JwtAuthGuard)
 export class SprintController {
   constructor(private readonly sprintService: SprintService) {}

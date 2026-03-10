@@ -3,7 +3,7 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { KanbanReportService } from './kanban-report.service';
 import { ReportQueryDto } from './dto/report-query.dto';
 
-@Controller('kanban/reports')
+@Controller('pm-kanban/reports')
 export class KanbanReportController {
   constructor(private readonly reportService: KanbanReportService) {}
 

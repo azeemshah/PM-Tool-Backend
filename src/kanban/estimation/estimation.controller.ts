@@ -3,7 +3,7 @@ import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common'
 import { EstimationService } from './estimation.service';
 import { EstimationDto } from './dto/estimation.dto';
 
-@Controller('kanban/estimations')
+@Controller('pm-kanban/estimations')
 export class EstimationController {
   constructor(private readonly estimationService: EstimationService) {}
 

@@ -8,7 +8,7 @@ import { Document, Types } from 'mongoose';
   Used for accountability, compliance, and activity history
 */
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_auditlogs' })
 export class AuditLog extends Document {
   /* ================= User ================= */
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })

@@ -23,7 +23,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { UsersService } from '../users/users.service';
 import { AuthResponseDto } from './dto/auth-response.dto';
 
-@Controller('auth')
+@Controller('pm-auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,

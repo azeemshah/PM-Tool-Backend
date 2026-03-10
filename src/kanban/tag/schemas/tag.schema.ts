@@ -3,7 +3,7 @@ import { Document, Types } from 'mongoose';
 
 export type TagDocument = Tag & Document;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_tags' })
 export class Tag extends Document {
   @Prop({ required: true, trim: true, lowercase: true })
   name: string;

@@ -3,7 +3,7 @@ import { KanbanLabelService } from './kanban-label.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { WorkspacePermissionGuard } from '../../common/guards/workspace-permission.guard';
 
-@Controller('kanban/labels')
+@Controller('pm-kanban/labels')
 @UseGuards(JwtAuthGuard)
 export class KanbanLabelController {
   constructor(private readonly labelService: KanbanLabelService) {}

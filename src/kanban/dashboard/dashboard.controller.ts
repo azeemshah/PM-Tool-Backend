@@ -3,7 +3,7 @@ import { Controller, Get, Post, Put, Delete, Param, Body, Query } from '@nestjs/
 import { DashboardService } from './dashboard.service';
 import { DashboardWidget } from './schemas/dashboard-widget.schema';
 
-@Controller('kanban/dashboard')
+@Controller('pm-kanban/dashboard')
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 

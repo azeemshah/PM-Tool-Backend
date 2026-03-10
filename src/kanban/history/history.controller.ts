@@ -1,7 +1,7 @@
 import { Controller, Get, Query, Req } from '@nestjs/common';
 import { HistoryService } from './history.service';
 
-@Controller('api/history')
+@Controller('pm-history')
 export class HistoryController {
   constructor(private readonly historyService: HistoryService) {}
 

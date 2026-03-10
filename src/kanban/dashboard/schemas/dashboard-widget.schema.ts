@@ -7,7 +7,7 @@ import { Document, Types } from 'mongoose';
   Stores user-specific or team-specific widget configurations for Kanban dashboards
 */
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_dashboardwidgets' })
 export class DashboardWidget extends Document {
   /* ================= Workspace ================= */
   @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
