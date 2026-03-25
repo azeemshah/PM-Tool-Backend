@@ -10,7 +10,7 @@ import { EmailQueue, EmailQueueDocument } from './schemas/email-queue.schema';
 @Injectable()
 export class EmailService implements OnModuleInit, OnModuleDestroy {
   private readonly BATCH_SIZE = 10;
-  private readonly CRON_EXPRESSION = '*/1 * * * *';
+  private readonly CRON_EXPRESSION = '*/30 * * * * *';
   private readonly MAX_RETRY_ATTEMPTS = 3;
   private readonly MIN_SEND_INTERVAL_MS = 1200;
 
@@ -101,7 +101,7 @@ export class EmailService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.logger.log(
-      `Email queue cron started. Processing ${this.BATCH_SIZE} pending emails every 1 minute.`,
+      `Email queue cron started. Processing ${this.BATCH_SIZE} pending emails every 30 seconds.`,
     );
   }
 
