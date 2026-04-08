@@ -3,6 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
   UnauthorizedException,
+  ForbiddenException,
   ConflictException,
   GoneException,
   InternalServerErrorException,
@@ -36,7 +37,7 @@ export class MemberService {
   /**
    * Add a member to a workspace
    */
-  async addMember(createMemberDto: CreateMemberDto) {
+  async addMember(createMemberDto: CreateMemberDto, invitedBy?: string) {
     const { userId, workspaceId, role } = createMemberDto;
 
     // Validate workspace exists
@@ -66,6 +67,7 @@ export class MemberService {
       userId,
       workspaceId,
       role: role || 'Member',
+      invitedBy: invitedBy || null,
     });
 
     const saved = await member.save();
@@ -119,12 +121,33 @@ export class MemberService {
       throw new NotFoundException('Workspace not found');
     }
 
-    const result = members.map((member: any) => ({
-      _id: member._id,
-      user: member.userId,
-      role: member.role,
-      joinedAt: member.joinedAt,
-    }));
+    const deriveInvitedBy = async (member: any) => {
+      if (member.invitedBy) {
+        return member.invitedBy;
+      }
+
+      const email = member.userId?.email;
+      if (!email) {
+        return null;
+      }
+
+      const invite = await this.invitationModel
+        .findOne({ workspaceId, email })
+        .sort({ createdAt: -1 })
+        .exec();
+
+      return invite?.invitedBy || null;
+    };
+
+    const result = await Promise.all(
+      members.map(async (member: any) => ({
+        _id: member._id,
+        user: member.userId,
+        role: member.role,
+        invitedBy: await deriveInvitedBy(member),
+        joinedAt: member.joinedAt,
+      })),
+    );
 
     // If owner is not in members list (sometimes happens), add them
     const ownerId = workspace.OwnedBy?._id?.toString();
@@ -228,19 +251,48 @@ export class MemberService {
   /**
    * Remove member from workspace
    */
-  async removeMember(memberId: string) {
-    const member = await this.memberModel.findByIdAndDelete(memberId);
+  async removeMember(memberId: string, requesterId: string) {
+    const member = await this.memberModel
+      .findById(memberId)
+      .populate('userId', 'email firstName lastName');
 
     if (!member) {
       throw new NotFoundException('Member not found');
     }
+
+    if (member.role === 'Owner') {
+      throw new ForbiddenException('Workspace owner cannot be removed');
+    }
+
+    const memberUser = member.userId as any;
+    const memberEmail = memberUser?.email;
+    const invitedBy = member.invitedBy?.toString();
+
+    let canRemove = invitedBy === requesterId;
+
+    if (!canRemove && memberEmail) {
+      const matchingInvite = await this.invitationModel.findOne({
+        workspaceId: member.workspaceId,
+        email: memberEmail,
+        invitedBy: requesterId,
+      });
+
+      canRemove = !!matchingInvite;
+    }
+
+    if (!canRemove) {
+      throw new ForbiddenException('You can only remove members you invited');
+    }
+
+    const memberUserId = (member.userId as any)?._id || member.userId;
+    await this.memberModel.findByIdAndDelete(memberId);
 
     // Also remove from workspace.members array
     try {
       const workspace = await this.workspaceModel.findById(member.workspaceId);
       if (workspace) {
         workspace.members = workspace.members.filter(
-          (m: any) => m.toString() !== member.userId.toString(),
+          (m: any) => m.toString() !== memberUserId.toString(),
         );
         await workspace.save();
       }
@@ -501,12 +553,14 @@ export class MemberService {
           userId: user._id,
           workspaceId: invite.workspaceId,
           role: memberRole,
+          invitedBy: invite.invitedBy,
         });
 
         console.log('✅ [acceptInvitation] Member created successfully - ID:', member._id);
       } else {
         // Update member role
         member.role = memberRole;
+        member.invitedBy = member.invitedBy || invite.invitedBy;
         await member.save();
         console.log('✅ [acceptInvitation] Member role updated to:', memberRole);
       }

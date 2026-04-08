@@ -18,6 +18,10 @@ export const MemberSchema = new Schema(
       default: 'Member',
       required: true,
     },
+    invitedBy: {
+      type: String,
+      default: null,
+    },
     joinedAt: {
       type: Date,
       default: Date.now,

@@ -56,8 +56,8 @@ export class MemberController {
    * POST /members
    */
   @Post()
-  async addMember(@Body() createMemberDto: CreateMemberDto) {
-    const member = await this.memberService.addMember(createMemberDto);
+  async addMember(@Body() createMemberDto: CreateMemberDto, @Request() req: any) {
+    const member = await this.memberService.addMember(createMemberDto, req.user.userId);
     return {
       statusCode: 201,
       message: 'Member added successfully',
@@ -143,8 +143,8 @@ export class MemberController {
    * DELETE /members/:memberId
    */
   @Delete(':memberId')
-  async removeMember(@Param('memberId') memberId: string) {
-    const result = await this.memberService.removeMember(memberId);
+  async removeMember(@Param('memberId') memberId: string, @Request() req: any) {
+    const result = await this.memberService.removeMember(memberId, req.user.userId);
     return {
       statusCode: 200,
       message: result.message,
