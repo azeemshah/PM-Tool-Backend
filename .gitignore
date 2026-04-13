@@ -44,3 +44,4 @@ lerna-debug.log*
 .cache
 .temp
 .tmp
+.DS_Store

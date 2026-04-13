@@ -21,6 +21,12 @@ import { Response } from 'express';
 export class UserCurrentController {
   constructor(private readonly usersService: UsersService) {}
 
+  private normalizeAvatarPath(pathValue?: string | null): string | null {
+    if (!pathValue) return null;
+    // Backward compatibility for older incorrectly stored avatar paths.
+    return pathValue.replace('/api/v1/user/profile-picture-file/', '/api/v1/pm-user/profile-picture-file/');
+  }
+
   @Get('current')
   @UseGuards(JwtAuthGuard)
   async getCurrent(@Request() req) {
@@ -33,7 +39,7 @@ export class UserCurrentController {
         ...serialized,
         _id: user._id.toString(),
         currentWorkspace: user._id.toString(),
-        profilePicture: user.avatar,
+        profilePicture: this.normalizeAvatarPath(user.avatar),
         name: `${user.firstName} ${user.lastName}`,
       },
     };
@@ -65,7 +71,7 @@ export class UserCurrentController {
       throw new Error('No file uploaded');
     }
     const userId = req.user.userId;
-    const fileUrl = `/api/v1/user/profile-picture-file/${file.filename}`;
+    const fileUrl = `/api/v1/pm-user/profile-picture-file/${file.filename}`;
 
     const updatedUser = await this.usersService.update(userId, { avatar: fileUrl });
     const serialized = this.usersService.serializeUser(updatedUser);
@@ -75,7 +81,7 @@ export class UserCurrentController {
       user: {
         ...serialized,
         _id: updatedUser._id.toString(),
-        profilePicture: fileUrl,
+        profilePicture: this.normalizeAvatarPath(fileUrl),
         name: `${updatedUser.firstName} ${updatedUser.lastName}`,
       },
     };

@@ -489,7 +489,7 @@ export class EmailService implements OnModuleInit, OnModuleDestroy {
               <li>Plan sprints and manage workflows</li>
             </ul>
             <p>Get started by logging into your account and exploring the features.</p>
-            <a href="${this.configService.get('FRONTEND_URL')}/login" class="button">Go to Dashboard</a>
+            <a href="${this.configService.get('FRONTEND_URL')}/" class="button">Go to Dashboard</a>
           </div>
           <div class="footer">
             <p>© ${new Date().getFullYear()} PM Tool. All rights reserved.</p>
@@ -601,7 +601,7 @@ export class EmailService implements OnModuleInit, OnModuleDestroy {
             </div>
             <p>Your account password was recently changed. If you made this change, you can safely ignore this email.</p>
             <p>If you didn't change your password, please contact our support team immediately.</p>
-            <a href="${this.configService.get('FRONTEND_URL')}/login" class="button">Go to Login</a>
+            <a href="${this.configService.get('FRONTEND_URL')}/" class="button">Go to Login</a>
           </div>
           <div class="footer">
             <p>© ${new Date().getFullYear()} PM Tool. All rights reserved.</p>
@@ -617,10 +617,11 @@ export class EmailService implements OnModuleInit, OnModuleDestroy {
     inviteLink: string,
     workspaceInviteCode?: string,
   ): string {
-    // Use workspace inviteCode if available, otherwise fall back to token link
-    const acceptLink = workspaceInviteCode
+    // Always prefer token link for email invites so invited role is preserved.
+    const acceptLink = inviteLink;
+    const workspaceJoinLink = workspaceInviteCode
       ? `${this.configService.get('FRONTEND_URL')}/invite/workspace/${workspaceInviteCode}/join`
-      : inviteLink;
+      : null;
     const roleText = (role || '').toUpperCase();
     const adminDesc = 'Can view, create, edit tasks, project and manage settings.';
     return `
@@ -657,6 +658,7 @@ export class EmailService implements OnModuleInit, OnModuleDestroy {
               <p><strong>Or copy this link:</strong></p>
               <p style="word-break: break-all; color: #1976d2;">${acceptLink}</p>
             </div>
+            ${workspaceJoinLink ? `<p style="font-size: 13px; color: #666;">General workspace link (joins as Member): <a href="${workspaceJoinLink}">${workspaceJoinLink}</a></p>` : ''}
             <p>This invitation will expire in 7 days. If you have any questions, please contact our support team.</p>
           </div>
           <div class="footer">

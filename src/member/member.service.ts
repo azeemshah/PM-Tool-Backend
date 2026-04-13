@@ -159,6 +159,7 @@ export class MemberService {
         user: workspace.OwnedBy,
         role: 'Owner',
         joinedAt: workspace.createdAt,
+        invitedBy: undefined
       });
     }
 
@@ -306,8 +307,12 @@ export class MemberService {
   // ===============================
   // Join workspace by invite code
   // ===============================
-  async joinWorkspaceByInviteCode(inviteCode: string, userId: string) {
+  async joinWorkspaceByInviteCode(inviteCode: string, userId?: string) {
     try {
+      if (!userId) {
+        throw new UnauthorizedException('Please login to join workspace');
+      }
+
       // Validate user exists
       const user = await this.userModel.findById(userId);
       if (!user) {
@@ -356,7 +361,9 @@ export class MemberService {
         },
       };
     } catch (error: any) {
-      if (error.statusCode) throw error;
+      if (typeof error?.getStatus === 'function') {
+        throw error;
+      }
       throw new InternalServerErrorException('Failed to join workspace');
     }
   }
@@ -500,13 +507,22 @@ export class MemberService {
       console.log('✅ [acceptInvitation] Invitation valid and not expired');
 
       // Map invitation role to Member schema role format
-      const roleMap = {
+      const roleMap: Record<
+        'ADMIN' | 'TEAM_LEAD' | 'PROJECT_MANAGER' | 'MEMBER' | 'VIEWER' | 'WATCHER',
+        'Admin' | 'Team Lead' | 'Project Manager' | 'Member' | 'Viewer' | 'Watcher'
+      > = {
         ADMIN: 'Admin',
+        TEAM_LEAD: 'Team Lead',
+        PROJECT_MANAGER: 'Project Manager',
         MEMBER: 'Member',
         VIEWER: 'Viewer',
         WATCHER: 'Watcher',
       };
       const memberRole = roleMap[invite.role as keyof typeof roleMap];
+
+      if (!memberRole) {
+        throw new BadRequestException('Invalid invitation role');
+      }
 
       // Check if user already exists
       let user = await this.userModel.findOne({ email: invite.email });
