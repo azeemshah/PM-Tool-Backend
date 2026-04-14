@@ -223,6 +223,10 @@ export class AuthService {
   ): Promise<{ message: string }> {
     const { currentPassword, newPassword } = changePasswordDto;
 
+    if (currentPassword === newPassword) {
+      throw new BadRequestException('Current password and new password must be different');
+    }
+
     // Get user with password
     const user = await this.usersService.findByEmail(
       (await this.usersService.findOne(userId)).email,
@@ -235,7 +239,7 @@ export class AuthService {
     // Verify current password
     const isPasswordValid = await user.comparePassword(currentPassword);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Current password is incorrect');
+      throw new BadRequestException('Current password is incorrect');
     }
 
     // Update password
