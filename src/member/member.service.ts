@@ -159,7 +159,7 @@ export class MemberService {
         user: workspace.OwnedBy,
         role: 'Owner',
         joinedAt: workspace.createdAt,
-        invitedBy: undefined
+        invitedBy: undefined,
       });
     }
 
@@ -524,62 +524,81 @@ export class MemberService {
         throw new BadRequestException('Invalid invitation role');
       }
 
+      const normalizedEmail = invite.email.trim().toLowerCase();
+
       // Check if user already exists
-      let user = await this.userModel.findOne({ email: invite.email });
+      let user = await this.userModel.findOne({ email: normalizedEmail });
       console.log('✅ [acceptInvitation] User lookup - found:', !!user);
 
       if (!user) {
         // Create new user
         const tempPassword = crypto.randomBytes(8).toString('hex');
-        console.log('✅ [acceptInvitation] Creating new user for email:', invite.email);
+        let createdUser = false;
+        console.log('✅ [acceptInvitation] Creating new user for email:', normalizedEmail);
 
-        user = await this.userModel.create({
-          email: invite.email,
-          firstName: invite.email.split('@')[0],
-          lastName: 'User',
-          password: tempPassword,
-          isEmailVerified: true,
-        });
-
-        console.log('✅ [acceptInvitation] User created successfully - ID:', user._id);
-
-        // Send temp password via email
         try {
-          await this.mailService.sendTempPassword(invite.email, tempPassword);
-          console.log('✅ [acceptInvitation] Temp password email sent to:', invite.email);
-        } catch (emailError) {
-          console.warn(
-            '⚠️ [acceptInvitation] Failed to send temp password email:',
-            emailError.message,
-          );
+          user = await this.userModel.create({
+            email: normalizedEmail,
+            firstName: normalizedEmail.split('@')[0],
+            lastName: 'User',
+            password: tempPassword,
+            isEmailVerified: true,
+          });
+          createdUser = true;
+        } catch (error: any) {
+          if (error?.code === 11000) {
+            console.warn(
+              '⚠️ [acceptInvitation] User already existed during create, reloading by email:',
+              normalizedEmail,
+            );
+            user = await this.userModel.findOne({ email: normalizedEmail });
+            if (!user) {
+              throw error;
+            }
+          } else {
+            throw error;
+          }
+        }
+
+        if (createdUser) {
+          console.log('✅ [acceptInvitation] User created successfully - ID:', user._id);
+
+          // Send temp password via email only for brand-new accounts
+          try {
+            await this.mailService.sendTempPassword(normalizedEmail, tempPassword);
+            console.log('✅ [acceptInvitation] Temp password email sent to:', normalizedEmail);
+          } catch (emailError) {
+            console.warn(
+              '⚠️ [acceptInvitation] Failed to send temp password email:',
+              emailError.message,
+            );
+          }
         }
       }
 
-      // Check if member already exists in this workspace
-      let member = await this.memberModel.findOne({
-        userId: user._id,
-        workspaceId: invite.workspaceId,
-      });
-      console.log('✅ [acceptInvitation] Member in workspace lookup - found:', !!member);
-
-      if (!member) {
-        // Create member in the workspace
-        console.log('✅ [acceptInvitation] Creating new member for workspace:', invite.workspaceId);
-        member = await this.memberModel.create({
+      // Create or update the workspace member atomically to avoid duplicate-key races.
+      const member = await this.memberModel.findOneAndUpdate(
+        {
           userId: user._id,
           workspaceId: invite.workspaceId,
-          role: memberRole,
-          invitedBy: invite.invitedBy,
-        });
-
-        console.log('✅ [acceptInvitation] Member created successfully - ID:', member._id);
-      } else {
-        // Update member role
-        member.role = memberRole;
-        member.invitedBy = member.invitedBy || invite.invitedBy;
-        await member.save();
-        console.log('✅ [acceptInvitation] Member role updated to:', memberRole);
-      }
+        },
+        {
+          $set: {
+            role: memberRole,
+          },
+          $setOnInsert: {
+            userId: user._id,
+            workspaceId: invite.workspaceId,
+            invitedBy: invite.invitedBy,
+          },
+        },
+        {
+          new: true,
+          upsert: true,
+          setDefaultsOnInsert: true,
+        },
+      );
+      console.log('✅ [acceptInvitation] Member upserted successfully - ID:', member._id);
 
       // Mark invite as accepted
       invite.status = 'ACCEPTED';
@@ -590,10 +609,10 @@ export class MemberService {
       const workspace = await this.workspaceModel.findById(invite.workspaceId);
       if (workspace) {
         const userObjectId = new Types.ObjectId(user._id);
-        if (!workspace.members.find((m: any) => m.toString() === userObjectId.toString())) {
-          workspace.members.push(userObjectId);
-          await workspace.save();
-        }
+        await this.workspaceModel.updateOne(
+          { _id: workspace._id },
+          { $addToSet: { members: userObjectId } },
+        );
 
         // Notify workspace members
         const memberIds = workspace.members.map((m: any) => m.toString());
