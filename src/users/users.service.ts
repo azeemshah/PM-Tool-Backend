@@ -43,10 +43,12 @@ export class UsersService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<UserDocument> {
+    const normalizedEmail = updateUserDto.email?.trim().toLowerCase();
+
     // If email is being updated, check if it's already taken
-    if (updateUserDto.email) {
+    if (normalizedEmail) {
       const existingUser = await this.userModel.findOne({
-        email: updateUserDto.email,
+        email: normalizedEmail,
         _id: { $ne: id },
       });
       if (existingUser) {
@@ -54,8 +56,13 @@ export class UsersService {
       }
     }
 
+    const payload: UpdateUserDto = {
+      ...updateUserDto,
+      ...(normalizedEmail ? { email: normalizedEmail } : {}),
+    };
+
     const user = await this.userModel
-      .findByIdAndUpdate(id, updateUserDto, { new: true })
+      .findByIdAndUpdate(id, payload, { new: true })
       .select('-password')
       .exec();
 

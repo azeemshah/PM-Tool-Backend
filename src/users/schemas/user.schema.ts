@@ -72,7 +72,7 @@ export class User {
 
   // Virtual field for full name
   get name(): string {
-    return `${this.firstName} ${this.lastName}`;
+    return `${this.firstName} ${this.lastName}`.trim();
   }
 }
 
@@ -80,7 +80,7 @@ export const UserSchema = SchemaFactory.createForClass(User);
 
 // Add virtual for name
 UserSchema.virtual('name').get(function () {
-  return `${this.firstName} ${this.lastName}`;
+  return `${this.firstName} ${this.lastName}`.trim();
 });
 
 // Add virtual for profilePicture (alias for avatar)

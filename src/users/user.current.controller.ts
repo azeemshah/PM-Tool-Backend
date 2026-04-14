@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Body,
   UseGuards,
   Request,
   UseInterceptors,
@@ -11,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { UsersService } from './users.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import * as path from 'path';
@@ -40,7 +43,33 @@ export class UserCurrentController {
         _id: user._id.toString(),
         currentWorkspace: user._id.toString(),
         profilePicture: this.normalizeAvatarPath(user.avatar),
-        name: `${user.firstName} ${user.lastName}`,
+        name: user.name,
+      },
+    };
+  }
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  async updateProfile(@Request() req, @Body() updateProfileDto: UpdateProfileDto) {
+    const normalizedName = updateProfileDto.name.trim().replace(/\s+/g, ' ');
+    const [firstName, ...rest] = normalizedName.split(' ');
+    const lastName = rest.join(' ');
+
+    const updatedUser = await this.usersService.update(req.user.userId, {
+      firstName,
+      lastName,
+      email: updateProfileDto.email.trim().toLowerCase(),
+    });
+    const serialized = this.usersService.serializeUser(updatedUser);
+
+    return {
+      message: 'Profile updated successfully',
+      user: {
+        ...serialized,
+        _id: updatedUser._id.toString(),
+        currentWorkspace: updatedUser._id.toString(),
+        profilePicture: this.normalizeAvatarPath(updatedUser.avatar),
+        name: updatedUser.name,
       },
     };
   }
@@ -82,7 +111,7 @@ export class UserCurrentController {
         ...serialized,
         _id: updatedUser._id.toString(),
         profilePicture: this.normalizeAvatarPath(fileUrl),
-        name: `${updatedUser.firstName} ${updatedUser.lastName}`,
+        name: updatedUser.name,
       },
     };
   }
