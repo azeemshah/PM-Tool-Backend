@@ -1,16 +1,20 @@
 // src/kanban/comment/comment.controller.ts
-import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { CommentService } from './comment.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { UpdateCommentDto } from './dto/update-comment.dto';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
-@Controller('kanban/comments')
+@Controller('pm-kanban/comments')
 export class CommentController {
   constructor(private readonly commentService: CommentService) {}
 
   // -------------------- Create Comment --------------------
   @Post()
-  async createComment(@Body() dto: CreateCommentDto) {
-    return this.commentService.createComment(dto);
+  @UseGuards(JwtAuthGuard)
+  async createComment(@Body() dto: CreateCommentDto, @CurrentUser('userId') userId?: string) {
+    return this.commentService.createComment(dto, userId);
   }
 
   // -------------------- Get All Comments --------------------
@@ -19,11 +23,25 @@ export class CommentController {
     return this.commentService.getAllComments();
   }
 
+  // -------------------- Get Comments by Work Item --------------------
+  @Get('work-item/:workItemId')
+  async getCommentsByWorkItem(@Param('workItemId') workItemId: string) {
+    return this.commentService.getCommentsByWorkItem(workItemId);
+  }
+
   // -------------------- Get Comment by ID --------------------
   @Get(':id')
   async getCommentById(@Param('id') id: string) {
     return this.commentService.getCommentById(id);
   }
+
+  // -------------------- Update Comment --------------------
+  @Put(':id')
+  async updateComment(@Param('id') id: string, @Body() dto: UpdateCommentDto) {
+    return this.commentService.updateComment(id, dto);
+  }
+
+  // -------------------- Delete Comment --------------------
 
   // -------------------- Delete Comment --------------------
   @Delete(':id')

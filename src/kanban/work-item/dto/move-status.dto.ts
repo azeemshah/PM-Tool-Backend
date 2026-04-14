@@ -17,8 +17,4 @@ export class MoveStatusDto {
   @IsMongoId()
   @IsNotEmpty()
   boardId: string; // Board where the work item belongs
-
-  @IsMongoId()
-  @IsNotEmpty()
-  projectId: string; // Project where the work item belongs
 }

@@ -11,7 +11,7 @@ export enum WorkItemType {
   IMPROVEMENT = 'Improvement',
 }
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_workitems' })
 export class WorkItem extends Document {
   @Prop({ required: true })
   title: string;
@@ -22,8 +22,8 @@ export class WorkItem extends Document {
   @Prop({ enum: WorkItemType, required: true })
   type: WorkItemType;
 
-  @Prop({ type: Types.ObjectId, ref: 'KanbanProject' })
-  project?: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Workspaces' })
+  spaceid?: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'KanbanBoard' })
   board?: Types.ObjectId;
@@ -34,11 +34,20 @@ export class WorkItem extends Document {
   @Prop({ type: Types.ObjectId, ref: 'User' })
   assignee?: Types.ObjectId;
 
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  reporter?: Types.ObjectId;
+
   @Prop({ default: 'To Do' })
   status: string;
 
   @Prop({ default: 'Medium' })
   priority: string;
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'KanbanLabel' }], default: [] })
+  labels: Types.ObjectId[];
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Tag' }], default: [] })
+  tags: Types.ObjectId[]; // Tags for organizing and filtering work items
 
   @Prop({ type: Object, default: {} })
   metadata?: Record<string, any>; // Additional info like labels, tags, attachments
@@ -47,6 +56,8 @@ export class WorkItem extends Document {
 export const WorkItemSchema = SchemaFactory.createForClass(WorkItem);
 
 /* ================= Indexes ================= */
-WorkItemSchema.index({ project: 1, board: 1, status: 1 });
+WorkItemSchema.index({ spaceid: 1, board: 1, status: 1 });
 WorkItemSchema.index({ assignee: 1 });
 WorkItemSchema.index({ parent: 1 });
+WorkItemSchema.index({ tags: 1 });
+WorkItemSchema.index({ spaceid: 1, tags: 1 }); // For filtering by tags in workspace

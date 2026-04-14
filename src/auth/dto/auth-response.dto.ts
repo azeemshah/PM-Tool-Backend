@@ -7,6 +7,5 @@ export class AuthResponseDto {
     firstName: string;
     lastName: string;
     role: string;
-    currentWorkspace?: string | { _id: string; name: string };
   };
 }

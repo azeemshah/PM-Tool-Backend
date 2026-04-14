@@ -3,7 +3,7 @@ import { Document, Types } from 'mongoose';
 
 export type WorkspaceDocument = Workspace & Document;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_workspaces' })
 export class Workspace {
   @Prop({ required: true, trim: true })
   name: string;
@@ -12,13 +12,10 @@ export class Workspace {
   description: string;
 
   @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
-  createdBy: Types.ObjectId;
+  OwnedBy: Types.ObjectId;
 
   @Prop({ type: [Types.ObjectId], ref: 'User', default: [] })
   members: Types.ObjectId[];
-
-  @Prop({ type: [Types.ObjectId], ref: 'Project', default: [] })
-  projects: Types.ObjectId[];
 
   @Prop({ default: 'active', enum: ['active', 'inactive', 'archived'] })
   status: string;
@@ -34,6 +31,9 @@ export class Workspace {
 
   @Prop({ required: true, unique: true, trim: true })
   inviteCode: string;
+
+  @Prop({ required: true, enum: ['kanban', 'scrumboard'], default: 'kanban' })
+  boardType: string;
 }
 
 export const WorkspaceSchema = SchemaFactory.createForClass(Workspace);

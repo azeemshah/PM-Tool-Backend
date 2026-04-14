@@ -7,11 +7,11 @@ import { Document, Types } from 'mongoose';
   Stores user-specific or team-specific widget configurations for Kanban dashboards
 */
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_dashboardwidgets' })
 export class DashboardWidget extends Document {
-  /* ================= Project ================= */
-  @Prop({ type: Types.ObjectId, ref: 'KanbanProject', required: true })
-  project: Types.ObjectId;
+  /* ================= Workspace ================= */
+  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
+  workspace: Types.ObjectId;
 
   /* ================= Widget Type ================= */
   @Prop({
@@ -46,9 +46,8 @@ export class DashboardWidget extends Document {
   isVisible: boolean;
 }
 
-export const DashboardWidgetSchema =
-  SchemaFactory.createForClass(DashboardWidget);
+export const DashboardWidgetSchema = SchemaFactory.createForClass(DashboardWidget);
 
 /* ================= Indexes ================= */
-DashboardWidgetSchema.index({ project: 1, user: 1 });
+DashboardWidgetSchema.index({ workspace: 1, user: 1 });
 DashboardWidgetSchema.index({ widgetType: 1 });

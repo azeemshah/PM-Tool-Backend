@@ -14,7 +14,7 @@ export const MemberSchema = new Schema(
     },
     role: {
       type: String,
-      enum: ['Owner', 'Admin', 'Member', 'Viewer'],
+      enum: ['Owner', 'Admin', 'Team Lead', 'Project Manager', 'Member', 'Viewer', 'Watcher'],
       default: 'Member',
       required: true,
     },
@@ -25,6 +25,7 @@ export const MemberSchema = new Schema(
   },
   {
     timestamps: true,
+    collection: 'pm_members',
   },
 );
 

@@ -14,11 +14,42 @@ import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
+import { InviteMemberDto } from './dto/invite-member.dto';
+import { AcceptInviteDto } from './dto/accept-invite.dto';
+import { Roles } from '../common/decorators/roles.decorator';
+import { WorkspaceRolesGuard } from '@/common/guards/workspace-roles.guard';
 
-@Controller('members')
+@Controller('pm-members')
 @UseGuards(JwtAuthGuard)
 export class MemberController {
   constructor(private memberService: MemberService) {}
+
+  /**
+   * Join workspace by invite code
+   * POST /members/join/:inviteCode
+   * 🌐 PUBLIC – allow unauthenticated users to join via invite link
+   */
+  @Public()
+  @Post('join/:inviteCode')
+  async joinWorkspace(@Param('inviteCode') inviteCode: string, @Request() req: any) {
+    return this.memberService.joinWorkspaceByInviteCode(inviteCode, req.user?.userId);
+  }
+
+  // 🔐 ADMIN ONLY
+  @Roles('Owner', 'Admin')
+  @UseGuards(WorkspaceRolesGuard)
+  @Post('invite')
+  async inviteMember(@Body() dto: InviteMemberDto, @Request() req: any) {
+    await this.memberService.sendInvitation(dto.email, dto.role, req.user.userId, dto.workspaceId);
+    return { message: 'Invitation email sent' };
+  }
+
+  // 🌐 PUBLIC – invite link access
+  @Public()
+  @Post('invite/accept')
+  async acceptInvite(@Body() dto: AcceptInviteDto) {
+    return this.memberService.acceptInvitation(dto.token);
+  }
 
   /**
    * Add a new member to a workspace
@@ -49,20 +80,6 @@ export class MemberController {
   }
 
   /**
-   * Get member statistics
-   * GET /members/workspace/:workspaceId/stats
-   */
-  @Get('workspace/:workspaceId/stats')
-  async getMemberStats(@Param('workspaceId') workspaceId: string) {
-    const stats = await this.memberService.getMemberStats(workspaceId);
-    return {
-      statusCode: 200,
-      message: 'Member statistics retrieved',
-      data: stats,
-    };
-  }
-
-  /**
    * Get all members of a workspace with available roles
    * GET /members/workspace/:workspaceId
    */
@@ -72,9 +89,12 @@ export class MemberController {
 
     // Return available roles along with members
     const roles = [
-      { _id: 'admin', name: 'ADMIN' },
-      { _id: 'member', name: 'MEMBER' },
-      { _id: 'viewer', name: 'VIEWER' },
+      { _id: 'admin', name: 'Admin' },
+      { _id: 'team_lead', name: 'Team Lead' },
+      { _id: 'project_manager', name: 'Project Manager' },
+      { _id: 'member', name: 'Member' },
+      { _id: 'viewer', name: 'Viewer' },
+      { _id: 'watcher', name: 'Watcher' },
     ];
 
     return {
@@ -129,32 +149,5 @@ export class MemberController {
       statusCode: 200,
       message: result.message,
     };
-  }
-
-  /**
-   * Join workspace by invite code
-   * POST /members/join/:inviteCode
-   */
-  @Public()
-  @Post('join/:inviteCode')
-  async joinWorkspaceByInvite(@Param('inviteCode') inviteCode: string, @Request() req: any) {
-    console.log('🌐 API Request: POST /members/join/:inviteCode');
-    console.log('📋 inviteCode:', inviteCode);
-    console.log('👤 User ID from request:', req.user?.userId);
-    console.log('👤 Full user object:', req.user);
-
-    const result = await this.memberService.joinWorkspaceByInvite(req.user?.userId, inviteCode);
-
-    const response = {
-      statusCode: 200,
-      message: result.message,
-      data: {
-        workspaceId: result.workspaceId,
-        role: result.role,
-      },
-    };
-
-    console.log('📤 Sending response:', response);
-    return response;
   }
 }

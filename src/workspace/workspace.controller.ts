@@ -10,13 +10,16 @@ import {
   Request,
   HttpStatus,
   HttpCode,
+  Query,
 } from '@nestjs/common';
 import { WorkspaceService } from './workspace.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { WorkspacePermissionGuard } from '../common/guards/workspace-permission.guard';
+import { Permissions } from '../common/decorators/permissions.decorator';
 
-@Controller('workspace')
+@Controller('pm-workspace')
 @UseGuards(JwtAuthGuard)
 export class WorkspaceController {
   constructor(private readonly workspaceService: WorkspaceService) {}
@@ -42,8 +45,8 @@ export class WorkspaceController {
     };
   }
 
-  @Get(':id')
-  async findById(@Param('id') id: string) {
+  @Get(':workspaceId')
+  async findById(@Param('workspaceId') id: string) {
     const workspace = await this.workspaceService.findById(id);
     return {
       success: true,
@@ -52,9 +55,15 @@ export class WorkspaceController {
     };
   }
 
-  @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateWorkspaceDto: UpdateWorkspaceDto) {
-    const workspace = await this.workspaceService.update(id, updateWorkspaceDto);
+  @Patch(':workspaceId')
+  @UseGuards(WorkspacePermissionGuard)
+  @Permissions('MANAGE_WORKSPACE_SETTINGS')
+  async update(
+    @Request() req: any,
+    @Param('workspaceId') id: string,
+    @Body() updateWorkspaceDto: UpdateWorkspaceDto,
+  ) {
+    const workspace = await this.workspaceService.update(id, updateWorkspaceDto, req.user.userId);
     return {
       success: true,
       message: 'Workspace updated successfully',
@@ -62,42 +71,35 @@ export class WorkspaceController {
     };
   }
 
-  @Delete(':id')
-  async delete(@Param('id') id: string) {
-    await this.workspaceService.delete(id);
+  @Delete(':workspaceId')
+  @UseGuards(WorkspacePermissionGuard)
+  @Permissions('DELETE_WORKSPACE')
+  async delete(@Request() req: any, @Param('workspaceId') id: string) {
+    await this.workspaceService.delete(id, req.user.userId);
     return {
       success: true,
       message: 'Workspace deleted successfully',
     };
   }
 
-  @Post(':id/members/:userId')
-  async addMember(@Param('id') id: string, @Param('userId') userId: string) {
-    const workspace = await this.workspaceService.addMember(id, userId);
-    return {
-      success: true,
-      message: 'Member added to workspace',
-      workspace,
-    };
+  @Get('analytics/:workspaceId')
+  getWorkspaceAnalytics(
+    @Param('workspaceId') workspaceId: string,
+    @Query('timeframe') timeframe?: string,
+  ) {
+    return this.workspaceService.getAnalytics(workspaceId, timeframe);
   }
 
-  @Delete(':id/members/:userId')
-  async removeMember(@Param('id') id: string, @Param('userId') userId: string) {
-    const workspace = await this.workspaceService.removeMember(id, userId);
-    return {
-      success: true,
-      message: 'Member removed from workspace',
-      workspace,
-    };
+  @Get('velocity/:workspaceId')
+  getWorkspaceVelocity(@Param('workspaceId') workspaceId: string) {
+    return this.workspaceService.getVelocityAnalytics(workspaceId);
   }
 
-  @Get(':id/members')
-  async getMembers(@Param('id') id: string) {
-    const members = await this.workspaceService.getMembers(id);
-    return {
-      success: true,
-      message: 'Members fetched successfully',
-      members,
-    };
+  @Get('cfd/:workspaceId')
+  getWorkspaceCFD(
+    @Param('workspaceId') workspaceId: string,
+    @Query('timeframe') timeframe: string = 'monthly',
+  ) {
+    return this.workspaceService.getCFDAnalytics(workspaceId, timeframe);
   }
 }

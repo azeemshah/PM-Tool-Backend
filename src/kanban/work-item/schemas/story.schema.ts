@@ -3,15 +3,14 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { WorkItem, WorkItemType } from './work-item.schema';
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_stories' })
 export class Story extends WorkItem {
   @Prop({
-    type: String,                 
+    type: String,
     enum: WorkItemType,
     default: WorkItemType.STORY,
   })
   type: WorkItemType;
-
 
   @Prop({ type: Types.ObjectId, ref: 'Epic', required: true })
   epic: Types.ObjectId; // Parent Epic
@@ -26,4 +25,4 @@ export class Story extends WorkItem {
 export const StorySchema = SchemaFactory.createForClass(Story);
 
 /* ================= Indexes ================= */
-StorySchema.index({ project: 1, epic: 1, status: 1 });
+StorySchema.index({ spaceid: 1, epic: 1, status: 1 });

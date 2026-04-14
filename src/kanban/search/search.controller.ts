@@ -1,18 +1,9 @@
 // src/search/search.controller.ts
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
-  Body,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query } from '@nestjs/common';
 import { SearchService } from './search.service';
 import { SavedFilterDto } from './dto/saved-filter.dto';
 
-@Controller('kanban/search')
+@Controller('pm-kanban/search')
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}
 
@@ -22,13 +13,10 @@ export class SearchController {
     return this.searchService.createFilter(filterDto);
   }
 
-  /* ================= Get All Filters for User/Project ================= */
+  /* ================= Get All Filters for User/Workspace ================= */
   @Get('filters')
-  getFilters(
-    @Query('projectId') projectId: string,
-    @Query('userId') userId: string,
-  ) {
-    return this.searchService.getFilters(projectId, userId);
+  getFilters(@Query('workspaceId') workspaceId: string, @Query('userId') userId: string) {
+    return this.searchService.getFilters(workspaceId, userId);
   }
 
   /* ================= Get Single Filter ================= */

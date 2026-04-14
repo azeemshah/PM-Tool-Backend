@@ -1,5 +1,8 @@
 export enum Role {
   ADMIN = 'ADMIN',
+  TEAM_LEAD = 'TEAM_LEAD',
+  PROJECT_MANAGER = 'PROJECT_MANAGER',
   MEMBER = 'MEMBER',
   VIEWER = 'VIEWER',
+  WATCHER = 'WATCHER',
 }

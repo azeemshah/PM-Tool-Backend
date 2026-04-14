@@ -5,7 +5,7 @@ import { WorkItem } from '../../work-item/schemas/work-item.schema';
 
 export type AttachmentDocument = Attachment & Document;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_attachments' })
 export class Attachment extends Document {
   @Prop({ type: Types.ObjectId, ref: 'WorkItem', required: true })
   workItem: Types.ObjectId; // The work item the attachment belongs to

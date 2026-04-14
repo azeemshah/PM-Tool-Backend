@@ -8,11 +8,11 @@ import { Document, Types } from 'mongoose';
   Used for delivery forecasting, SLA, customer satisfaction
 */
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_leadtimereports' })
 export class LeadTimeReport extends Document {
-  /* ================= Project ================= */
-  @Prop({ type: Types.ObjectId, ref: 'KanbanProject', required: true })
-  project: Types.ObjectId;
+  /* ================= Workspace ================= */
+  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
+  workspace: Types.ObjectId;
 
   /* ================= Work Item ================= */
   @Prop({ type: Types.ObjectId, ref: 'WorkItem', required: true })
@@ -46,9 +46,8 @@ export class LeadTimeReport extends Document {
   column?: Types.ObjectId;
 }
 
-export const LeadTimeReportSchema =
-  SchemaFactory.createForClass(LeadTimeReport);
+export const LeadTimeReportSchema = SchemaFactory.createForClass(LeadTimeReport);
 
 /* ================= Indexes ================= */
-LeadTimeReportSchema.index({ project: 1, completedDate: 1 });
+LeadTimeReportSchema.index({ workspace: 1, completedDate: 1 });
 LeadTimeReportSchema.index({ workItem: 1 }, { unique: true });

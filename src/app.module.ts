@@ -5,27 +5,28 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { EmailModule } from './email/email.module';
-import { DashboardModule } from './dashboard/dashboard.module';
 import { KanbanModule } from './kanban/kanban.module';
-import { ProjectManagementModule } from './project-management/project-management.module';
 import { WorkspaceModule } from './workspace/workspace.module';
 import { MemberModule } from './member/member.module';
+import { ItemModule } from './work-items/work-item.module';
+import { SprintModule } from './sprint/sprint.module';
+import { TimeLogModule } from './time-log/time-log.module';
 
 @Module({
   imports: [
     // Configuration
-    MongooseModule.forRoot('mongodb://localhost:27017/pm_tool'),
-    ProjectManagementModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
     }),
 
-    // Database
+    // Database (MongoDB)
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         uri: configService.get<string>('MONGODB_URI'),
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
       }),
       inject: [ConfigService],
     }),
@@ -46,16 +47,12 @@ import { MemberModule } from './member/member.module';
     AuthModule,
     UsersModule,
     EmailModule,
-    DashboardModule,
     KanbanModule,
     WorkspaceModule,
     MemberModule,
-    // ProjectsModule,
-    // IssueModule,
-    // SprintModule,
-    // TimeLogModule,
-    // UsersModule,
-    AuthModule,
+    ItemModule,
+    SprintModule,
+    TimeLogModule,
   ],
 })
 export class AppModule {}

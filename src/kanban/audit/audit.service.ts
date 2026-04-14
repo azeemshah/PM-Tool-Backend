@@ -5,7 +5,7 @@ import { Model, Types } from 'mongoose';
 import { AuditLog } from './schemas/audit-log.schema';
 
 interface AuditQuery {
-  projectId?: string;
+  workspaceId?: string;
   userId?: string;
   action?: string;
   targetType?: string;
@@ -21,15 +21,12 @@ export class AuditService {
   /* ================= Get All Logs with Filters ================= */
   async getAllLogs(query: AuditQuery) {
     const filter: any = {};
-    if (query.projectId) filter.project = new Types.ObjectId(query.projectId);
+    if (query.workspaceId) filter.workspace = new Types.ObjectId(query.workspaceId);
     if (query.userId) filter.user = new Types.ObjectId(query.userId);
     if (query.action) filter.action = query.action;
     if (query.targetType) filter.targetType = query.targetType;
 
-    return this.auditModel
-      .find(filter)
-      .sort({ createdAt: -1 })
-      .exec();
+    return this.auditModel.find(filter).sort({ createdAt: -1 }).exec();
   }
 
   /* ================= Get Logs by User ================= */
@@ -40,10 +37,10 @@ export class AuditService {
       .exec();
   }
 
-  /* ================= Get Logs by Project ================= */
-  async getLogsByProject(projectId: string) {
+  /* ================= Get Logs by Workspace ================= */
+  async getLogsByWorkspace(workspaceId: string) {
     return this.auditModel
-      .find({ project: new Types.ObjectId(projectId) })
+      .find({ workspace: new Types.ObjectId(workspaceId) })
       .sort({ createdAt: -1 })
       .exec();
   }

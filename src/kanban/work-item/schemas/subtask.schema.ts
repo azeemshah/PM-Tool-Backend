@@ -3,7 +3,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { WorkItem, WorkItemType } from './work-item.schema';
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_subtasks' })
 export class Subtask extends WorkItem {
   @Prop({
     type: String,
@@ -23,5 +23,5 @@ export class Subtask extends WorkItem {
 export const SubtaskSchema = SchemaFactory.createForClass(Subtask);
 
 /* ================= Indexes ================= */
-SubtaskSchema.index({ project: 1, task: 1, status: 1 });
+SubtaskSchema.index({ spaceid: 1, task: 1, status: 1 });
 SubtaskSchema.index({ assignee: 1 });

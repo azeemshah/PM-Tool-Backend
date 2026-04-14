@@ -1,91 +1,144 @@
+import { Subtask } from './../../kanban/work-item/schemas/subtask.schema';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, Schema as MongooseSchema } from 'mongoose';
 
-/**
- * WorkItem Schema - Maps to unified Issue hierarchy
- * Maintained for backwards compatibility with work-items endpoints
- * 
- * Maps to Issue types:
- * - EPIC -> epic
- * - STORY -> story
- * - TASK -> task
- * - BUG -> bug
- * - SUBTASK -> subtask
- */
-@Schema({ timestamps: true })
-export class WorkItem extends Document {
-  @Prop({ required: true })
-  projectId: Types.ObjectId;
-
-  /**
-   * Issue type following Jira hierarchy:
-   * - epic: Top level (no parent)
-   * - story: Under epic
-   * - task: Under epic
-   * - bug: Under epic
-   * - subtask: Under story/task/bug (only via parentId)
-   */
-  @Prop({ required: true })
-  issueType: string;
-
-  @Prop({ required: true })
-  summary: string;
-
-  @Prop()
-  description: string;
-
-  @Prop({ default: 'CREATE' })
-  status: string;
-
-  @Prop()
-  priority: string;
-
-  @Prop()
-  assigneeId: Types.ObjectId;
-
-  @Prop({ required: true })
-  reporterId: Types.ObjectId;
-
-  @Prop()
-  sprintId: Types.ObjectId;
-
-  @Prop()
-  teamId: Types.ObjectId;
-
-  /**
-   * For Subtask: Parent issue ID (Story/Task/Bug)
-   * For others: null
-   */
-  @Prop()
-  parentId: Types.ObjectId;
-
-  /**
-   * For Story/Task/Bug: Epic ID
-   * For Subtask: null
-   */
-  @Prop()
-  epicId: Types.ObjectId;
-
-  @Prop({ type: [String] })
-  labels: string[];
-
-  @Prop()
-  storyPoints: number;
-
-  @Prop()
-  startDate: Date;
-
-  @Prop()
-  dueDate: Date;
-
-  @Prop({ default: false })
-  isFlagged: boolean;
-
-  @Prop()
-  resolution: string;
-
-  @Prop()
-  resolutionDate: Date;
+export enum ItemPriority {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  CRITICAL = 'critical',
 }
 
-export const WorkItemSchema = SchemaFactory.createForClass(WorkItem);
+export enum ItemType {
+  STORY = 'story',
+  BUG = 'bug',
+  TASK = 'task',
+  EPIC = 'epic',
+  SUBTASK = 'subtask',
+  IMPROVEMENT = 'improvement',
+}
+
+export enum ItemStatus {
+  BACKLOG = 'Backlog',
+  TODO = 'To Do',
+  INPROGRESS = 'In Progress',
+  REVIEW = 'In Review',
+  BLOCKED = 'Blocked',
+  DONE = 'Done',
+  CLOSED = 'Closed',
+}
+
+@Schema({ timestamps: true, collection: 'pm_items' })
+export class Item extends Document {
+  @Prop({ required: true })
+  title: string;
+
+  @Prop()
+  description?: string;
+
+  @Prop({ enum: ItemType, required: true })
+  type: ItemType;
+
+  @Prop({ required: true, default: ItemStatus.BACKLOG })
+  status: string;
+
+  // Workspace isolation
+  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true, index: true })
+  workspace: Types.ObjectId;
+
+  // Column only when on board
+  @Prop({ type: Types.ObjectId, ref: 'KanbanColumn', default: null })
+  column?: Types.ObjectId;
+
+  // Parent item (epic or task)
+  @Prop({ type: Types.ObjectId, ref: 'Item', default: null, index: true })
+  parent?: Types.ObjectId;
+
+  @Prop({
+    enum: ItemPriority,
+    default: ItemPriority.MEDIUM,
+    index: true,
+  })
+  priority?: ItemPriority;
+
+  // User assigned to this item
+  // (This likely already existed but needed proper ref + default)
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'User',
+    default: null,
+    index: true,
+  })
+  assignedTo?: Types.ObjectId;
+
+  // User who reported/created the issue
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'User',
+    default: null,
+    index: true,
+  })
+  reporter?: Types.ObjectId;
+
+  // Start date for timeline (Gantt Chart)
+  @Prop({
+    type: Date,
+    default: null,
+  })
+  startDate?: Date;
+
+  // Due date for completion
+  @Prop({
+    type: Date,
+    default: null,
+  })
+  dueDate?: Date;
+
+  @Prop({ type: [String], default: [] })
+  labels: string[];
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Tag' }], default: [] })
+  tags: Types.ObjectId[];
+
+  // Custom fields support (flexible storage for workspace-specific custom fields)
+  @Prop({
+    type: [
+      {
+        name: String,
+        fieldType: String, // e.g., text, number, dropdown, multi-select, checkbox, date, user, url
+        value: MongooseSchema.Types.Mixed,
+        options: [String], // for dropdown / multi-select
+        userValue: { type: Types.ObjectId, ref: 'User', default: null }, // for user picker
+      },
+    ],
+    default: [],
+  })
+  customFields: any[];
+
+  // Time tracking & estimation (minutes)
+  @Prop({ type: Number, default: 0 })
+  originalEstimate?: number;
+
+  @Prop({ type: Number, default: 0 })
+  remainingEstimate?: number;
+
+  @Prop({ type: Number, default: 0 })
+  timeSpent?: number;
+
+  @Prop({ type: Number, default: null })
+  storyPoints?: number;
+
+  // Materialized path for fast hierarchy queries
+  @Prop({ required: true, index: true })
+  path: string;
+
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export const ItemSchema = SchemaFactory.createForClass(Item);
+export type ItemDocument = Item & Document;
+
+// Helpful compound indexes
+ItemSchema.index({ workspace: 1, path: 1 });
+ItemSchema.index({ workspace: 1, status: 1 });

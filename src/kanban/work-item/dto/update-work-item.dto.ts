@@ -1,7 +1,7 @@
 // src/work-item/dto/update-work-item.dto.ts
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateWorkItemDto } from './create-work-item.dto';
-import { IsOptional, IsString, IsEnum, IsMongoId, IsISO8601 } from 'class-validator';
+import { IsOptional, IsString, IsEnum, IsMongoId, IsISO8601, IsArray } from 'class-validator';
 import { WorkItemType } from './create-work-item.dto';
 
 /* 
@@ -23,10 +23,6 @@ export class UpdateWorkItemDto extends PartialType(CreateWorkItemDto) {
 
   @IsMongoId()
   @IsOptional()
-  projectId?: string;
-
-  @IsMongoId()
-  @IsOptional()
   boardId?: string;
 
   @IsMongoId()
@@ -36,6 +32,18 @@ export class UpdateWorkItemDto extends PartialType(CreateWorkItemDto) {
   @IsMongoId()
   @IsOptional()
   assigneeId?: string;
+
+  @IsMongoId()
+  @IsOptional()
+  assignee?: string;
+
+  @IsMongoId()
+  @IsOptional()
+  reporterId?: string;
+
+  @IsMongoId()
+  @IsOptional()
+  reporter?: string;
 
   @IsString()
   @IsOptional()
@@ -48,4 +56,14 @@ export class UpdateWorkItemDto extends PartialType(CreateWorkItemDto) {
   @IsISO8601()
   @IsOptional()
   dueDate?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  labels?: string[];
+
+  @IsArray()
+  @IsMongoId({ each: true })
+  @IsOptional()
+  tags?: string[]; // Array of tag IDs to assign to this work item
 }

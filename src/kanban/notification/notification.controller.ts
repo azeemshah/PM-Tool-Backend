@@ -3,7 +3,7 @@ import { Controller, Get, Post, Patch, Param, Body, Delete } from '@nestjs/commo
 import { NotificationService } from './notification.service';
 import { Types } from 'mongoose';
 
-@Controller('kanban/notifications')
+@Controller('pm-kanban/notifications')
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
 
@@ -16,6 +16,7 @@ export class NotificationController {
   /* ================= Get User Notifications ================= */
   @Get('user/:userId')
   getUserNotifications(@Param('userId') userId: string) {
+    console.log('NotificationController: Getting notifications for user', userId);
     return this.notificationService.findByUser(new Types.ObjectId(userId));
   }
 
@@ -29,6 +30,12 @@ export class NotificationController {
   @Patch('user/:userId/read-all')
   markAllAsRead(@Param('userId') userId: string) {
     return this.notificationService.markAllAsRead(new Types.ObjectId(userId));
+  }
+
+  /* ================= Delete All Notifications ================= */
+  @Delete('user/:userId/clear-all')
+  deleteAll(@Param('userId') userId: string) {
+    return this.notificationService.deleteAll(new Types.ObjectId(userId));
   }
 
   /* ================= Delete Notification ================= */

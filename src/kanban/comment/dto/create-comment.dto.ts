@@ -1,5 +1,5 @@
 // src/kanban/comment/dto/create-comment.dto.ts
-import { IsMongoId, IsOptional, IsString } from 'class-validator';
+import { IsMongoId, IsOptional, IsString, IsArray } from 'class-validator';
 
 export class CreateCommentDto {
   @IsMongoId()
@@ -10,7 +10,12 @@ export class CreateCommentDto {
   readonly parentCommentId?: string; // Optional: ID of the parent comment for threaded comments
 
   @IsString()
-  readonly content: string; // The comment content
+  @IsOptional()
+  readonly content?: string; // The comment content
+
+  @IsArray()
+  @IsOptional()
+  readonly attachments?: { fileName: string; fileUrl: string; fileType?: string }[];
 
   @IsMongoId()
   @IsOptional()

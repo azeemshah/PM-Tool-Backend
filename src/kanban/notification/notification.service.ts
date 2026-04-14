@@ -1,29 +1,50 @@
-// src/kanban/notification/notification.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Notification } from './schemas/notification.schema';
+import { NotificationGateway } from './notification.gateway';
 
 @Injectable()
 export class NotificationService {
   constructor(
     @InjectModel(Notification.name)
     private readonly notificationModel: Model<Notification>,
+    private readonly notificationGateway: NotificationGateway,
   ) {}
 
   /* ================= Create Notification ================= */
   async create(payload: Partial<Notification>) {
+    console.log('NotificationService: Creating notification', payload);
     const notification = new this.notificationModel({
       ...payload,
       isRead: false,
     });
-    return notification.save();
+    let savedNotification = await notification.save();
+
+    // Populate workspace details
+    savedNotification = await savedNotification.populate('workspace', 'name');
+
+    console.log('NotificationService: Saved notification', savedNotification._id);
+
+    // Emit real-time notification
+    if (savedNotification.recipient) {
+      const recipientId = savedNotification.recipient.toString();
+      console.log(`NotificationService: Emitting to gateway for recipient: ${recipientId}`);
+      try {
+        this.notificationGateway.sendNotification(recipientId, savedNotification);
+      } catch (error) {
+        console.error(`NotificationService: Failed to emit notification to ${recipientId}`, error);
+      }
+    }
+
+    return savedNotification;
   }
 
   /* ================= Get Notifications by User ================= */
   async findByUser(userId: Types.ObjectId) {
     return this.notificationModel
-      .find({ user: userId })
+      .find({ recipient: userId })
+      .populate('workspace', 'name')
       .sort({ createdAt: -1 })
       .exec();
   }
@@ -46,16 +67,19 @@ export class NotificationService {
   /* ================= Mark All Notifications as Read ================= */
   async markAllAsRead(userId: Types.ObjectId) {
     return this.notificationModel.updateMany(
-      { user: userId, isRead: false },
+      { recipient: userId, isRead: false },
       { isRead: true },
     );
   }
 
+  /* ================= Delete All Notifications ================= */
+  async deleteAll(userId: Types.ObjectId) {
+    return this.notificationModel.deleteMany({ recipient: userId });
+  }
+
   /* ================= Delete Notification ================= */
   async delete(notificationId: Types.ObjectId) {
-    const notification = await this.notificationModel.findByIdAndDelete(
-      notificationId,
-    );
+    const notification = await this.notificationModel.findByIdAndDelete(notificationId);
 
     if (!notification) {
       throw new NotFoundException('Notification not found');

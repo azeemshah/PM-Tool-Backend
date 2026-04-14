@@ -4,7 +4,7 @@ import * as bcrypt from 'bcryptjs';
 
 export type UserDocument = User & Document;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_users' })
 export class User {
   @Prop({ required: true, trim: true })
   firstName: string;
@@ -43,6 +43,12 @@ export class User {
   passwordResetExpires: Date;
 
   @Prop({ default: null })
+  otp: string;
+
+  @Prop({ default: null })
+  otpExpires: Date;
+
+  @Prop({ default: null })
   refreshToken: string;
 
   @Prop({ default: null })
@@ -52,12 +58,6 @@ export class User {
   lastLoginAt: Date;
 
   // For future JIRA features
-  @Prop({ type: [String], default: [] })
-  projectIds: string[];
-
-  @Prop({ type: [String], default: [] })
-  teamIds: string[];
-
   // Method to compare passwords
   async comparePassword(candidatePassword: string): Promise<boolean> {
     return bcrypt.compare(candidatePassword, this.password);
@@ -69,7 +69,7 @@ export class User {
       this.password = await bcrypt.hash(this.password, 12);
     }
   }
-  
+
   // Virtual field for full name
   get name(): string {
     return `${this.firstName} ${this.lastName}`;
@@ -79,8 +79,13 @@ export class User {
 export const UserSchema = SchemaFactory.createForClass(User);
 
 // Add virtual for name
-UserSchema.virtual('name').get(function() {
+UserSchema.virtual('name').get(function () {
   return `${this.firstName} ${this.lastName}`;
+});
+
+// Add virtual for profilePicture (alias for avatar)
+UserSchema.virtual('profilePicture').get(function () {
+  return this.avatar;
 });
 
 // Ensure virtuals are included in JSON
@@ -90,7 +95,7 @@ UserSchema.set('toObject', { virtuals: true });
 // Hash password before saving
 UserSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  
+
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });

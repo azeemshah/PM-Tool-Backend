@@ -5,7 +5,7 @@ import { WorkItem } from '../../work-item/schemas/work-item.schema';
 
 export type EstimationDocument = Estimation & Document;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_estimations' })
 export class Estimation extends Document {
   @Prop({ type: Types.ObjectId, ref: 'WorkItem', required: true })
   workItem: Types.ObjectId; // Reference to the work item

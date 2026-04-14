@@ -27,23 +27,18 @@ export class KanbanReportService {
   /* ================= Cumulative Flow ================= */
   async getCumulativeFlow(query: ReportQueryDto) {
     const filter: any = {};
-    if (query.projectId) filter.project = new Types.ObjectId(query.projectId);
     if (query.fromDate || query.toDate) {
       filter.date = {};
       if (query.fromDate) filter.date.$gte = new Date(query.fromDate);
       if (query.toDate) filter.date.$lte = new Date(query.toDate);
     }
 
-    return this.cumulativeFlowModel
-      .find(filter)
-      .sort({ date: 1 })
-      .exec();
+    return this.cumulativeFlowModel.find(filter).sort({ date: 1 }).exec();
   }
 
   /* ================= Cycle Time ================= */
   async getCycleTime(query: ReportQueryDto) {
     const filter: any = {};
-    if (query.projectId) filter.project = new Types.ObjectId(query.projectId);
     if (query.fromDate || query.toDate) {
       filter.endDate = {};
       if (query.fromDate) filter.endDate.$gte = new Date(query.fromDate);
@@ -60,7 +55,6 @@ export class KanbanReportService {
   /* ================= Lead Time ================= */
   async getLeadTime(query: ReportQueryDto) {
     const filter: any = {};
-    if (query.projectId) filter.project = new Types.ObjectId(query.projectId);
     if (query.fromDate || query.toDate) {
       filter.completedDate = {};
       if (query.fromDate) filter.completedDate.$gte = new Date(query.fromDate);
@@ -77,9 +71,8 @@ export class KanbanReportService {
   /* ================= Workload ================= */
   async getWorkload(query: ReportQueryDto) {
     const filter: any = {};
-    if (query.projectId) filter.project = new Types.ObjectId(query.projectId);
     if (query.userIds?.length) {
-      filter.user = { $in: query.userIds.map(id => new Types.ObjectId(id)) };
+      filter.user = { $in: query.userIds.map((id) => new Types.ObjectId(id)) };
     }
     if (query.fromDate || query.toDate) {
       filter.startDate = {};

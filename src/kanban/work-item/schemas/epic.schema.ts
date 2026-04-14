@@ -3,10 +3,10 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { WorkItem, WorkItemType } from './work-item.schema';
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_epics' })
 export class Epic extends WorkItem {
-    @Prop({
-    type: String,                  
+  @Prop({
+    type: String,
     enum: WorkItemType,
     default: WorkItemType.EPIC,
   })
@@ -25,4 +25,4 @@ export class Epic extends WorkItem {
 export const EpicSchema = SchemaFactory.createForClass(Epic);
 
 /* ================= Indexes ================= */
-EpicSchema.index({ project: 1, status: 1 });
+EpicSchema.index({ spaceid: 1, status: 1 });

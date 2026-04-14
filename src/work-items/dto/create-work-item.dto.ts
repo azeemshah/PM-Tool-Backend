@@ -1,111 +1,133 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsString,
   IsEnum,
+  IsMongoId,
   IsOptional,
+  IsString,
   IsDateString,
   IsArray,
-  IsBoolean,
   IsNumber,
+  Min,
+  ValidateNested,
 } from 'class-validator';
-import { Types } from 'mongoose';
+import { Type } from 'class-transformer';
+import { ItemStatus, ItemType, ItemPriority } from '../schemas/work-item.schema';
 
-/**
- * Updated IssueType enum to match unified Issue schema
- * - Epic: Top level (no parent)
- * - Story: Under Epic
- * - Task: Under Epic
- * - Bug: Under Epic
- * - Subtask: Under Story/Task/Bug
- */
-export enum IssueType {
-  EPIC = 'epic',
-  STORY = 'story',
-  TASK = 'task',
-  BUG = 'bug',
-  SUBTASK = 'subtask',
+export enum CustomFieldType {
+  TEXT = 'text',
+  NUMBER = 'number',
+  DROPDOWN = 'dropdown',
+  MULTI_SELECT = 'multi-select',
+  CHECKBOX = 'checkbox',
+  DATE = 'date',
+  USER = 'user',
+  URL = 'url',
 }
 
-export enum Priority {
-  LOWEST = 'lowest',
-  LOW = 'low',
-  MEDIUM = 'medium',
-  HIGH = 'high',
-  HIGHEST = 'highest',
-}
-
-export class CreateWorkItemDto {
-  @ApiProperty({ description: 'Project ID' })
-  projectId: Types.ObjectId;
-
-  @ApiProperty({ enum: IssueType, description: 'Type of issue following Jira hierarchy' })
-  @IsEnum(IssueType)
-  issueType: IssueType;
-
-  @ApiProperty()
+export class CustomFieldDto {
   @IsString()
-  summary: string;
+  name: string;
 
-  @ApiPropertyOptional({ description: 'Rich text / HTML' })
+  @IsEnum(CustomFieldType)
+  fieldType: CustomFieldType;
+
+  // value can be different types depending on fieldType; keep optional and flexible
   @IsOptional()
-  description?: string;
+  value?: any;
 
-  @ApiPropertyOptional({ enum: Priority })
-  @IsOptional()
-  priority?: Priority;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  assigneeId?: Types.ObjectId;
-
-  @ApiProperty()
-  reporterId: Types.ObjectId;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  sprintId?: Types.ObjectId;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  teamId?: Types.ObjectId;
-
-  /**
-   * For Subtask ONLY: Parent issue ID (Story/Task/Bug)
-   * For Epic/Story/Task/Bug: Use epicId field instead
-   */
-  @ApiPropertyOptional({
-    description: 'Parent issue ID - only for Subtask type. For Story/Task/Bug, use epicId.',
-  })
-  @IsOptional()
-  parentId?: Types.ObjectId;
-
-  /**
-   * For Story/Task/Bug ONLY: Epic ID
-   * For Subtask: Leave empty, use parentId instead
-   */
-  @ApiPropertyOptional({
-    description: 'Epic ID - only for Story/Task/Bug under an Epic',
-  })
-  @IsOptional()
-  epicId?: Types.ObjectId;
-
-  @ApiPropertyOptional()
   @IsOptional()
   @IsArray()
+  @IsString({ each: true })
+  options?: string[];
+
+  @IsOptional()
+  @IsMongoId()
+  userValue?: string;
+}
+
+export class CreateItemDto {
+  @IsString()
+  title: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsEnum(ItemType)
+  type: ItemType;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  // ---------------- New fields ----------------
+
+  @IsOptional()
+  @IsEnum(ItemPriority)
+  priority?: ItemPriority;
+
+  @IsOptional()
+  @IsMongoId()
+  assignedTo?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  reporter?: string;
+
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dueDate?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   labels?: string[];
 
-  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  @IsMongoId({ each: true })
+  tags?: string[];
+
+  // ---------------- Existing relations ----------------
+
+  @IsMongoId()
+  workspace: string;
+
+  @IsOptional()
+  @IsMongoId()
+  column?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  parent?: string;
+
+  // ---------------- Estimates & story points (minutes)
   @IsOptional()
   @IsNumber()
+  @Min(0)
+  originalEstimate?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  remainingEstimate?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  timeSpent?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   storyPoints?: number;
 
-  @ApiPropertyOptional()
   @IsOptional()
-  @IsDateString()
-  startDate?: Date;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsDateString()
-  dueDate?: Date;
+  @ValidateNested({ each: true })
+  @Type(() => CustomFieldDto)
+  @IsArray()
+  customFields?: CustomFieldDto[];
 }

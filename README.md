@@ -122,3 +122,11 @@ This boilerplate is designed to support JIRA-like features:
 ## License
 
 MIT
+
+
+
+19 Mon  Create a SpprintBoard Dashboard and Implementation
+20 Tue  Create a Sprint Board 
+21 Wed    Styling SprintSection and Implement Backend Functionality
+22 Thurs  Bug Fix SprintBoard 
+23 Friday  theme Work Black and Dark

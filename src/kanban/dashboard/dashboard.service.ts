@@ -15,17 +15,17 @@ export class DashboardService {
   async createWidget(data: Partial<DashboardWidget>) {
     const widget = new this.dashboardModel({
       ...data,
-      project: new Types.ObjectId(data.project),
+      workspace: new Types.ObjectId(data.workspace),
       user: new Types.ObjectId(data.user),
     });
     return widget.save();
   }
 
-  /* ================= Get All Widgets for User/Project ================= */
-  async getWidgets(projectId: string, userId: string) {
+  /* ================= Get All Widgets for User/Workspace ================= */
+  async getWidgets(workspaceId: string, userId: string) {
     return this.dashboardModel
       .find({
-        project: new Types.ObjectId(projectId),
+        workspace: new Types.ObjectId(workspaceId),
         user: new Types.ObjectId(userId),
       })
       .sort({ positionY: 1, positionX: 1 })

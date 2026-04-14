@@ -8,7 +8,7 @@ import { Document, Types } from 'mongoose';
   Used for accountability, compliance, and activity history
 */
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_auditlogs' })
 export class AuditLog extends Document {
   /* ================= User ================= */
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
@@ -25,9 +25,9 @@ export class AuditLog extends Document {
   @Prop({ type: Types.ObjectId })
   targetId?: Types.ObjectId; // ID of the affected document
 
-  /* ================= Project Context ================= */
-  @Prop({ type: Types.ObjectId, ref: 'KanbanProject' })
-  project?: Types.ObjectId;
+  /* ================= Workspace Context ================= */
+  @Prop({ type: Types.ObjectId, ref: 'Workspace' })
+  workspace?: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'KanbanBoard' })
   board?: Types.ObjectId;
@@ -45,5 +45,5 @@ export const AuditLogSchema = SchemaFactory.createForClass(AuditLog);
 
 /* ================= Indexes ================= */
 AuditLogSchema.index({ user: 1, createdAt: -1 });
-AuditLogSchema.index({ project: 1, action: 1, createdAt: -1 });
+AuditLogSchema.index({ workspace: 1, action: 1, createdAt: -1 });
 AuditLogSchema.index({ targetType: 1, targetId: 1 });

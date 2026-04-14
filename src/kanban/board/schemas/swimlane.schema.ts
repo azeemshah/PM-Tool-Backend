@@ -5,7 +5,7 @@ import { KanbanBoard } from './kanban-board.schema';
 
 export type SwimlaneDocument = Swimlane & Document;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_swimlanes' })
 export class Swimlane extends Document {
   @Prop({ required: true })
   name: string; // Name of the swimlane

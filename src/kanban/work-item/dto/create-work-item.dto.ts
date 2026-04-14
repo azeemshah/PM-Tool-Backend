@@ -1,5 +1,13 @@
 // src/work-item/dto/create-work-item.dto.ts
-import { IsString, IsNotEmpty, IsOptional, IsEnum, IsMongoId, IsISO8601 } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEnum,
+  IsMongoId,
+  IsISO8601,
+  IsArray,
+} from 'class-validator';
 
 export enum WorkItemType {
   EPIC = 'Epic',
@@ -25,10 +33,6 @@ export class CreateWorkItemDto {
 
   @IsMongoId()
   @IsOptional()
-  projectId?: string; // Associated project
-
-  @IsMongoId()
-  @IsOptional()
   boardId?: string; // Associated Kanban board
 
   @IsMongoId()
@@ -43,6 +47,18 @@ export class CreateWorkItemDto {
   @IsOptional()
   assigneeId?: string; // Assigned user
 
+  @IsMongoId()
+  @IsOptional()
+  assignee?: string; // Assigned user (Alias for assigneeId to support frontend payload)
+
+  @IsMongoId()
+  @IsOptional()
+  reporterId?: string; // Reporter user
+
+  @IsMongoId()
+  @IsOptional()
+  reporter?: string; // Reporter user (Alias for reporterId to support frontend payload)
+
   @IsString()
   @IsOptional()
   status?: string; // e.g., 'To Do', 'In Progress', 'Done'
@@ -54,4 +70,14 @@ export class CreateWorkItemDto {
   @IsISO8601()
   @IsOptional()
   dueDate?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  labels?: string[];
+
+  @IsArray()
+  @IsMongoId({ each: true })
+  @IsOptional()
+  tags?: string[]; // Array of tag IDs to assign to this work item
 }

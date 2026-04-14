@@ -11,9 +11,20 @@ export enum NotificationType {
   ATTACHMENT_ADDED = 'ATTACHMENT_ADDED',
   MENTION = 'MENTION',
   DUE_DATE_REMINDER = 'DUE_DATE_REMINDER',
+  WORK_ITEM_CREATED = 'WORK_ITEM_CREATED',
+  WORK_ITEM_UPDATED = 'WORK_ITEM_UPDATED',
+  WORK_ITEM_DELETED = 'WORK_ITEM_DELETED',
+  MEMBER_ADDED = 'MEMBER_ADDED',
+  WORKSPACE_UPDATED = 'WORKSPACE_UPDATED',
+  WORKSPACE_DELETED = 'WORKSPACE_DELETED',
+  SPRINT_CREATED = 'SPRINT_CREATED',
+  SPRINT_STARTED = 'SPRINT_STARTED',
+  SPRINT_COMPLETED = 'SPRINT_COMPLETED',
+  SPRINT_UPDATED = 'SPRINT_UPDATED',
+  SYSTEM = 'SYSTEM',
 }
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_notifications' })
 export class Notification {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   recipient: Types.ObjectId;
@@ -27,8 +38,14 @@ export class Notification {
   @Prop({ required: true })
   message: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Project' })
-  project?: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Workspace' })
+  workspace?: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, refPath: 'onModel' })
+  relatedId?: Types.ObjectId;
+
+  @Prop({ type: String, enum: ['WorkItem', 'KanbanBoard', 'Sprint'] })
+  onModel?: string;
 
   @Prop({ type: Types.ObjectId, ref: 'WorkItem' })
   workItem?: Types.ObjectId;
@@ -37,5 +54,4 @@ export class Notification {
   isRead: boolean;
 }
 
-export const NotificationSchema =
-  SchemaFactory.createForClass(Notification);
+export const NotificationSchema = SchemaFactory.createForClass(Notification);

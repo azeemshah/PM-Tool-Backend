@@ -9,41 +9,47 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { KanbanBoardService } from './kanban-board.service';
 import { KanbanBoard } from './schemas/kanban-board.schema';
-import { KanbanColumn } from './schemas/kanban-column.schema';
+import { KanbanColumn } from '../column/schemas/column.schema';
 import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
-import { CreateColumnDto } from './dto/create-column.dto';
-import { UpdateColumnDto } from './dto/update-column.dto';
 import { MoveWorkItemDto } from './dto/move-work-item.dto';
-//import { CreateWorkItemDto } from './dto/create-work-item.dto';
-import { WorkItem } from '../work-item/schemas/work-item.schema';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { WorkspacePermissionGuard } from '../../common/guards/workspace-permission.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { WorkspaceRolesGuard } from '@/common/guards/workspace-roles.guard';
 
-@Controller('kanban/boards')
+@UseGuards(JwtAuthGuard)
+@Controller('pm-kanban')
 export class KanbanBoardController {
-  workItemService: any;
   constructor(private readonly boardService: KanbanBoardService) {}
 
   // -------------------- Boards --------------------
 
-  @Post()
+  @Post('boards')
+  @UseGuards(JwtAuthGuard, WorkspacePermissionGuard)
   async createBoard(@Body() createBoardDto: CreateBoardDto): Promise<KanbanBoard> {
     return this.boardService.createBoard(createBoardDto);
   }
 
-  @Get()
-  async findAllBoards(): Promise<KanbanBoard[]> {
-    return this.boardService.findAllBoards();
+  @Get('board/workspaces/:workspaceId/boards')
+  @UseGuards(JwtAuthGuard, WorkspacePermissionGuard)
+  async findBoardsByWorkspace(@Param('workspaceId') workspaceId: string): Promise<KanbanBoard[]> {
+    return this.boardService.findBoardsByWorkspaceId(workspaceId);
   }
 
-  @Get(':id')
+  @Get('board/:id')
+  @UseGuards(JwtAuthGuard, WorkspacePermissionGuard)
   async findBoardById(@Param('id') id: string): Promise<KanbanBoard> {
     return this.boardService.findBoardById(id);
   }
 
-  @Put(':id')
+  @Put('boards/:id')
+  @UseGuards(JwtAuthGuard, WorkspacePermissionGuard)
   async updateBoard(
     @Param('id') id: string,
     @Body() updateBoardDto: UpdateBoardDto,
@@ -51,55 +57,37 @@ export class KanbanBoardController {
     return this.boardService.updateBoard(id, updateBoardDto);
   }
 
-  @Delete(':id')
+  @Delete('boards/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, WorkspacePermissionGuard)
   async deleteBoard(@Param('id') id: string): Promise<void> {
     return this.boardService.deleteBoard(id);
   }
 
-  // -------------------- Columns --------------------
+  // -------------------- Board Columns --------------------
 
-  @Post(':boardId/columns')
-  async createColumn(
-    @Param('boardId') boardId: string,
-    @Body() createColumnDto: CreateColumnDto,
-  ): Promise<KanbanColumn> {
-    return this.boardService.createColumn(boardId, createColumnDto);
-  }
-
-  @Put(':boardId/columns/:columnId')
-  async updateColumn(
-    @Param('boardId') boardId: string,
-    @Param('columnId') columnId: string,
-    @Body() updateColumnDto: UpdateColumnDto,
-  ): Promise<KanbanColumn> {
-    return this.boardService.updateColumn(boardId, columnId, updateColumnDto);
-  }
-
-  @Delete(':boardId/columns/:columnId')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteColumn(
-    @Param('boardId') boardId: string,
-    @Param('columnId') columnId: string,
-  ): Promise<void> {
-    return this.boardService.deleteColumn(boardId, columnId);
-  }
-
-  @Get(':boardId/columns')
-  async getColumns(@Param('boardId') boardId: string): Promise<KanbanColumn[]> {
+  @Get('boards/:boardId/columns')
+  @UseGuards(JwtAuthGuard, WorkspacePermissionGuard)
+  async getBoardColumns(@Param('boardId') boardId: string): Promise<KanbanColumn[]> {
     return this.boardService.getBoardColumns(boardId);
   }
 
   // -------------------- Move Work Item --------------------
 
-  @Post(':boardId/move-work-item')
-  async moveWorkItem(@Param('boardId') boardId: string, @Body() moveWorkItemDto: MoveWorkItemDto) {
-    return this.boardService.moveWorkItem(boardId, moveWorkItemDto);
+  @Post('boards/:boardId/move-work-item')
+  @UseGuards(JwtAuthGuard, WorkspacePermissionGuard)
+  async moveWorkItem(
+    @Param('boardId') boardId: string,
+    @Body() moveWorkItemDto: MoveWorkItemDto,
+    @CurrentUser('userId') userId?: string,
+  ) {
+    return this.boardService.moveWorkItem(boardId, moveWorkItemDto, userId);
   }
 
   // -------------------- Reorder Cards in List --------------------
 
-  @Put(':boardId/columns/:columnId/reorder-cards')
+  @Put('boards/:boardId/columns/:columnId/reorder-cards')
+  @UseGuards(JwtAuthGuard, WorkspacePermissionGuard)
   async reorderCardsInList(
     @Param('boardId') boardId: string,
     @Param('columnId') columnId: string,

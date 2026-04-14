@@ -83,7 +83,10 @@ export class UsersService {
   }
 
   async setRefreshToken(id: string, token: string, expires: Date): Promise<void> {
-    await this.userModel.updateOne({ _id: id }, { refreshToken: token, refreshTokenExpires: expires });
+    await this.userModel.updateOne(
+      { _id: id },
+      { refreshToken: token, refreshTokenExpires: expires },
+    );
   }
 
   async clearRefreshToken(id: string): Promise<void> {
@@ -115,6 +118,32 @@ export class UsersService {
       })
       .select('+password')
       .exec();
+  }
+
+  async findByVerificationToken(token: string): Promise<UserDocument | null> {
+    return this.userModel.findOne({ emailVerificationToken: token }).exec();
+  }
+
+  async markEmailAsVerified(id: string): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: id },
+      {
+        isEmailVerified: true,
+        emailVerificationToken: null,
+      },
+    );
+  }
+
+  async setEmailVerificationToken(id: string, token: string): Promise<void> {
+    await this.userModel.updateOne({ _id: id }, { emailVerificationToken: token });
+  }
+
+  async setOtp(id: string, otp: string, expires: Date): Promise<void> {
+    await this.userModel.updateOne({ _id: id }, { otp, otpExpires: expires });
+  }
+
+  async clearOtp(id: string): Promise<void> {
+    await this.userModel.updateOne({ _id: id }, { otp: null, otpExpires: null });
   }
 
   async clearPasswordResetToken(id: string): Promise<void> {

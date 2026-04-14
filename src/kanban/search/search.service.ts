@@ -16,17 +16,17 @@ export class SearchService {
   async createFilter(filterDto: SavedFilterDto) {
     const filter = new this.savedFilterModel({
       ...filterDto,
-      project: new Types.ObjectId(filterDto.projectId),
+      workspace: new Types.ObjectId(filterDto.workspaceId),
       user: new Types.ObjectId(filterDto.userId),
     });
     return filter.save();
   }
 
-  /* ================= Get All Filters for User/Project ================= */
-  async getFilters(projectId: string, userId: string) {
+  /* ================= Get All Filters for User/Workspace ================= */
+  async getFilters(workspaceId: string, userId: string) {
     return this.savedFilterModel
       .find({
-        project: new Types.ObjectId(projectId),
+        workspace: new Types.ObjectId(workspaceId),
         user: new Types.ObjectId(userId),
       })
       .sort({ createdAt: -1 })

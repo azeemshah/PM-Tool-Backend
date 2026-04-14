@@ -1,22 +1,19 @@
 // src/kanban/board/schemas/kanban-board.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { KanbanColumn } from './kanban-column.schema';
+import { KanbanColumn } from '../../column/schemas/column.schema';
 
 export type KanbanBoardDocument = KanbanBoard & Document;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'pm_kanbanboards' })
 export class KanbanBoard extends Document {
+  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
+  workspaceId: Types.ObjectId;
+
   @Prop({ required: true })
   name: string;
 
   @Prop()
   description?: string;
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'KanbanColumn' }], default: [] })
-  columns: Types.ObjectId[];
-
 }
-
-
 export const KanbanBoardSchema = SchemaFactory.createForClass(KanbanBoard);
