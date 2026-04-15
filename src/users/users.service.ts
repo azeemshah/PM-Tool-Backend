@@ -1,15 +1,30 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { User, UserDocument } from './schemas/user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { plainToClass } from 'class-transformer';
+import { Item } from '@/work-items/schemas/work-item.schema';
+import { KanbanBoard } from '../kanban/board/schemas/kanban-board.schema';
+import { KanbanColumn } from '../kanban/column/schemas/column.schema';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+  constructor(
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel('Member') private memberModel: Model<any>,
+    @InjectModel('Workspace') private workspaceModel: Model<any>,
+    @InjectModel(Item.name) private workItemModel: Model<Item>,
+    @InjectModel(KanbanBoard.name) private boardModel: Model<KanbanBoard>,
+    @InjectModel(KanbanColumn.name) private columnModel: Model<KanbanColumn>,
+    @InjectModel('Comment') private commentModel: Model<any>,
+    @InjectModel('Attachment') private attachmentModel: Model<any>,
+    @InjectModel('Notification') private notificationModel: Model<any>,
+    @InjectModel('SavedFilter') private savedFilterModel: Model<any>,
+    @InjectModel('Sprint') private sprintModel: Model<any>,
+  ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserDocument> {
     // Check if user exists
@@ -78,6 +93,56 @@ export class UsersService {
     if (result.deletedCount === 0) {
       throw new NotFoundException('User not found');
     }
+  }
+
+  async deleteAccount(userId: string, deleteOwnedWorkspaces = false): Promise<void> {
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const userObjectId = new Types.ObjectId(userId);
+
+    const ownedWorkspaces = await this.workspaceModel.find({ OwnedBy: userObjectId }).select('_id');
+    if (ownedWorkspaces.length > 0 && !deleteOwnedWorkspaces) {
+      throw new ConflictException(
+        'You own one or more workspaces. Select delete all owned workspaces to continue.',
+      );
+    }
+
+    if (ownedWorkspaces.length > 0 && deleteOwnedWorkspaces) {
+      const ownedWorkspaceIds = ownedWorkspaces.map((workspace) => workspace._id.toString());
+
+      const workItems = await this.workItemModel.find({ workspace: { $in: ownedWorkspaceIds } });
+      const workItemIds = workItems.map((item: any) => item._id);
+
+      if (workItemIds.length > 0) {
+        await this.commentModel.deleteMany({ workItem: { $in: workItemIds } });
+        await this.attachmentModel.deleteMany({ workItem: { $in: workItemIds } });
+        await this.workItemModel.deleteMany({ workspace: { $in: ownedWorkspaceIds } });
+      }
+
+      await this.memberModel.deleteMany({ workspaceId: { $in: ownedWorkspaceIds } });
+      await this.savedFilterModel.deleteMany({ workspace: { $in: ownedWorkspaceIds } });
+      await this.notificationModel.deleteMany({ workspace: { $in: ownedWorkspaceIds } });
+      await this.sprintModel.deleteMany({ workspaceId: { $in: ownedWorkspaceIds } });
+
+      const boards = await this.boardModel.find({ workspaceId: { $in: ownedWorkspaceIds } });
+      const boardIds = boards.map((board: any) => board._id);
+      if (boardIds.length > 0) {
+        await this.columnModel.deleteMany({ BoardId: { $in: boardIds } });
+      }
+      await this.boardModel.deleteMany({ workspaceId: { $in: ownedWorkspaceIds } });
+      await this.workspaceModel.deleteMany({ _id: { $in: ownedWorkspaceIds } });
+    }
+
+    // Remove user from workspace members arrays before deleting account.
+    await this.workspaceModel.updateMany({ members: userObjectId }, { $pull: { members: userObjectId } });
+
+    // Remove explicit membership records.
+    await this.memberModel.deleteMany({ userId: userObjectId });
+
+    await this.userModel.deleteOne({ _id: userObjectId });
   }
 
   async updatePassword(id: string, newPassword: string): Promise<void> {

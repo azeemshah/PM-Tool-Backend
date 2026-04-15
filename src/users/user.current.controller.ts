@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Patch,
   Body,
   UseGuards,
@@ -14,6 +15,7 @@ import {
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { DeleteAccountDto } from './dto/delete-account.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import * as path from 'path';
@@ -114,6 +116,18 @@ export class UserCurrentController {
         name: updatedUser.name,
       },
     };
+  }
+
+  @Delete('account')
+  @UseGuards(JwtAuthGuard)
+  async deleteAccount(
+    @Request() req,
+    @Body() deleteAccountDto: DeleteAccountDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.usersService.deleteAccount(req.user.userId, !!deleteAccountDto?.deleteOwnedWorkspaces);
+    res.clearCookie('refreshToken');
+    return { message: 'Account deleted successfully' };
   }
 
   @Get('profile-picture-file/:filename')
