@@ -45,10 +45,9 @@ export class MemberController {
   }
 
   // 🌐 PUBLIC – invite link access
-  @Public()
   @Post('invite/accept')
-  async acceptInvite(@Body() dto: AcceptInviteDto) {
-    return this.memberService.acceptInvitation(dto.token);
+  async acceptInvite(@Body() dto: AcceptInviteDto, @Request() req: any) {
+    return this.memberService.acceptInvitation(dto.token, req.user.userId);
   }
 
   /**

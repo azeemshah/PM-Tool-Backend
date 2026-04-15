@@ -12,11 +12,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
-import { JwtService } from '@nestjs/jwt';
 import { Invitation, InvitationDocument } from './schemas/invitation.schema';
 import { EmailService } from '../email/email.service';
 import * as crypto from 'crypto';
-import * as bcrypt from 'bcryptjs';
 import { ConfigService } from '@nestjs/config';
 import { NotificationService } from '../kanban/notification/notification.service';
 import { NotificationType } from '../kanban/notification/schemas/notification.schema';
@@ -28,7 +26,6 @@ export class MemberService {
     @InjectModel('Workspace') private workspaceModel: Model<any>,
     @InjectModel('User') private userModel: Model<any>,
     @InjectModel(Invitation.name) private invitationModel: Model<InvitationDocument>,
-    private jwtService: JwtService,
     private mailService: EmailService,
     private notificationService: NotificationService,
     private configService: ConfigService,
@@ -449,7 +446,7 @@ export class MemberService {
   // ===============================
   // Accept invitation
   // ===============================
-  async acceptInvitation(token: string) {
+  async acceptInvitation(token: string, currentUserId: string) {
     try {
       console.log('🔍 [acceptInvitation] START: Received token:', token.substring(0, 10) + '...');
 
@@ -526,55 +523,21 @@ export class MemberService {
 
       const normalizedEmail = invite.email.trim().toLowerCase();
 
-      // Check if user already exists
-      let user = await this.userModel.findOne({ email: normalizedEmail });
-      console.log('✅ [acceptInvitation] User lookup - found:', !!user);
-
-      if (!user) {
-        // Create new user
-        const tempPassword = crypto.randomBytes(8).toString('hex');
-        let createdUser = false;
-        console.log('✅ [acceptInvitation] Creating new user for email:', normalizedEmail);
-
-        try {
-          user = await this.userModel.create({
-            email: normalizedEmail,
-            firstName: normalizedEmail.split('@')[0],
-            lastName: 'User',
-            password: tempPassword,
-            isEmailVerified: true,
-          });
-          createdUser = true;
-        } catch (error: any) {
-          if (error?.code === 11000) {
-            console.warn(
-              '⚠️ [acceptInvitation] User already existed during create, reloading by email:',
-              normalizedEmail,
-            );
-            user = await this.userModel.findOne({ email: normalizedEmail });
-            if (!user) {
-              throw error;
-            }
-          } else {
-            throw error;
-          }
-        }
-
-        if (createdUser) {
-          console.log('✅ [acceptInvitation] User created successfully - ID:', user._id);
-
-          // Send temp password via email only for brand-new accounts
-          try {
-            await this.mailService.sendTempPassword(normalizedEmail, tempPassword);
-            console.log('✅ [acceptInvitation] Temp password email sent to:', normalizedEmail);
-          } catch (emailError) {
-            console.warn(
-              '⚠️ [acceptInvitation] Failed to send temp password email:',
-              emailError.message,
-            );
-          }
-        }
+      if (!currentUserId) {
+        throw new UnauthorizedException('Please login to accept this invitation');
       }
+
+      const user = await this.userModel.findById(currentUserId);
+      if (!user) {
+        throw new UnauthorizedException('User not found. Please login again.');
+      }
+
+      const currentUserEmail = (user.email || '').trim().toLowerCase();
+      if (currentUserEmail !== normalizedEmail) {
+        throw new ForbiddenException('Please login with the invited email address to accept this invite');
+      }
+
+      console.log('✅ [acceptInvitation] Authenticated invited user validated:', currentUserEmail);
 
       // Create or update the workspace member atomically to avoid duplicate-key races.
       const member = await this.memberModel.findOneAndUpdate(
@@ -635,18 +598,10 @@ export class MemberService {
         }
       }
 
-      // Generate JWT access token
-      const accessToken = this.jwtService.sign({
-        sub: user._id,
-        email: user.email,
-      });
-
-      console.log('✅ [acceptInvitation] Access token generated successfully');
-      console.log('✅ [acceptInvitation] SUCCESS: Returning access token');
+      console.log('✅ [acceptInvitation] SUCCESS: Invitation accepted for authenticated user');
 
       return {
         message: 'Invitation accepted successfully',
-        accessToken,
         user: {
           id: user._id,
           email: user.email,
