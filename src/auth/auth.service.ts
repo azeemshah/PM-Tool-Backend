@@ -7,6 +7,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
 import { EmailService } from '../email/email.service';
 import { RegisterDto } from './dto/register.dto';
@@ -203,6 +204,11 @@ export class AuthService {
     const user = await this.usersService.findByResetToken(hashedToken);
     if (!user) {
       throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    const isSameAsCurrentPassword = await bcrypt.compare(newPassword, user.password);
+    if (isSameAsCurrentPassword) {
+      throw new BadRequestException('Current password and new password must be different');
     }
 
     // Update password
