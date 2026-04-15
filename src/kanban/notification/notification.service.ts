@@ -14,7 +14,6 @@ export class NotificationService {
 
   /* ================= Create Notification ================= */
   async create(payload: Partial<Notification>) {
-    console.log('NotificationService: Creating notification', payload);
     const notification = new this.notificationModel({
       ...payload,
       isRead: false,
@@ -24,12 +23,9 @@ export class NotificationService {
     // Populate workspace details
     savedNotification = await savedNotification.populate('workspace', 'name');
 
-    console.log('NotificationService: Saved notification', savedNotification._id);
-
     // Emit real-time notification
     if (savedNotification.recipient) {
       const recipientId = savedNotification.recipient.toString();
-      console.log(`NotificationService: Emitting to gateway for recipient: ${recipientId}`);
       try {
         this.notificationGateway.sendNotification(recipientId, savedNotification);
       } catch (error) {

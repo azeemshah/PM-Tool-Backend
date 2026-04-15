@@ -40,6 +40,43 @@ export class ItemService {
     private readonly historyService: HistoryService,
   ) {}
 
+  private normalizeId(value: any): string | undefined {
+    if (!value) return undefined;
+    if (typeof value === 'string') return value;
+    if (value instanceof Types.ObjectId) return value.toString();
+    if (value._id) return this.normalizeId(value._id);
+    if (typeof value.toString === 'function') return value.toString();
+    return undefined;
+  }
+
+  private async enforceMemberOwnItemOnly(
+    item: Item,
+    actorId?: string,
+    action: 'edit' | 'delete' | 'move' = 'edit',
+  ): Promise<void> {
+    if (!actorId || !item?.workspace) return;
+
+    const member: any = await this.memberModel
+      .findOne({ userId: actorId, workspaceId: item.workspace })
+      .select('role')
+      .lean();
+
+    if (!member || String(member.role || '').toLowerCase() !== 'member') {
+      return;
+    }
+
+    const creatorId = this.normalizeId((item as any).createdBy) || this.normalizeId(item.reporter);
+    if (!creatorId || creatorId !== actorId) {
+      throw new ForbiddenException(
+        action === 'delete'
+          ? 'Member cannot delete tasks created by other users'
+          : action === 'move'
+            ? "You can't move other users' cards"
+            : 'Member can edit only tasks they created',
+      );
+    }
+  }
+
   // ----------------- Estimates & Time Tracking -----------------
   async setEstimate(itemId: string, originalEstimate: number, actorId?: string) {
     if (!Types.ObjectId.isValid(itemId)) throw new BadRequestException('Invalid item id');
@@ -218,7 +255,24 @@ export class ItemService {
 
   async create(dto: CreateItemDto, userId?: string): Promise<Item> {
     let path = '';
-    console.log('DTO Received in Service:', dto);
+
+    if (userId && dto.workspace) {
+      const member: any = await this.memberModel
+        .findOne({ userId, workspaceId: dto.workspace })
+        .select('role')
+        .lean();
+
+      const isMember = String(member?.role || '').toLowerCase() === 'member';
+      const requestedReporter = this.normalizeId(dto.reporter);
+
+      if (isMember && requestedReporter && requestedReporter !== userId) {
+        throw new ForbiddenException('Member can only set themselves as reporter while creating');
+      }
+
+      if (isMember) {
+        dto.reporter = userId;
+      }
+    }
 
     // Set reporter if userId is provided
     if (userId && !dto.reporter) {
@@ -341,6 +395,7 @@ export class ItemService {
 
     const item = new this.itemModel({
       ...dto,
+      createdBy: userId ? new Types.ObjectId(userId) : undefined,
       status: initialStatus,
       column: columnId,
       path,
@@ -615,6 +670,8 @@ export class ItemService {
       throw new NotFoundException('Item not found');
     }
 
+    await this.enforceMemberOwnItemOnly(item, actorId, 'move');
+
     const oldStatus = item.status;
     const workspaceId = item.workspace;
 
@@ -673,6 +730,11 @@ export class ItemService {
   }
 
   async moveToBacklog(itemId: string, userId?: string) {
+    const existing = await this.itemModel.findById(itemId).exec();
+    if (!existing) throw new NotFoundException('Item not found');
+
+    await this.enforceMemberOwnItemOnly(existing, userId, 'move');
+
     const item = await this.itemModel.findByIdAndUpdate(
       itemId,
       {
@@ -691,6 +753,8 @@ export class ItemService {
   async update(itemId: string, dto: UpdateItemDto, actorId?: string): Promise<Item> {
     const item = await this.itemModel.findById(itemId);
     if (!item) throw new NotFoundException('Item not found');
+
+    await this.enforceMemberOwnItemOnly(item, actorId);
 
     const oldStatus = item.status;
     const oldColumn = item.column;
@@ -748,6 +812,8 @@ export class ItemService {
     const item = await this.itemModel.findById(itemId);
     if (!item) throw new NotFoundException('Item not found');
 
+    await this.enforceMemberOwnItemOnly(item, userId, 'delete');
+
     // Notify users before deletion (so we have the item data)
     await this.notifyUsers(item, 'deleted', userId);
 
@@ -792,6 +858,7 @@ export class ItemService {
     oldAssigneeId?: string,
   ): Promise<void> {
     const ids: string[] = [];
+    const reporterId = item.reporter ? (item.reporter as any).toString() : null;
 
     // NOTE: We do NOT blindly add assignee or reporter anymore.
     // We filter based on roles below.
@@ -820,20 +887,17 @@ export class ItemService {
             const role = member.role;
             const isMember = role && role.toLowerCase() === 'member';
 
-            if (isMember) {
-              console.log(
-                `[Notification Legacy] Member Found - ID: ${uid}, Match Assignee: ${assigneeId && uid === assigneeId}`,
-              );
-            }
-
             if (!isMember) {
               // Non-members (Admin, PM, etc) get all notifications
               ids.push(uid);
             } else {
-              // Members ONLY get notification if they are the assignee or old assignee
-              if ((assigneeId && uid === assigneeId) || (oldAssigneeId && uid === oldAssigneeId)) {
+              // Members get notification if they are assignee, old assignee, or reporter on create.
+              if (
+                (assigneeId && uid === assigneeId) ||
+                (oldAssigneeId && uid === oldAssigneeId) ||
+                (action === 'created' && reporterId && uid === reporterId)
+              ) {
                 ids.push(uid);
-                console.log(`[Notification Legacy] Member Added: ${uid}`);
               }
             }
           }
@@ -841,7 +905,10 @@ export class ItemService {
           // Force include assignee if missed
           if (assigneeId && !ids.includes(assigneeId)) {
             ids.push(assigneeId);
-            console.log(`[Notification Legacy] Force Added Assignee: ${assigneeId}`);
+          }
+
+          if (action === 'created' && reporterId && !ids.includes(reporterId)) {
+            ids.push(reporterId);
           }
         } else {
           console.warn('WorkItemService: Workspace not found during notification', item.workspace);
@@ -857,7 +924,10 @@ export class ItemService {
     const finalAssigneeId = item.assignedTo ? (item.assignedTo as any).toString() : null;
     if (finalAssigneeId && !ids.includes(finalAssigneeId)) {
       ids.push(finalAssigneeId);
-      console.log(`[Notification Legacy] Force Added Assignee (Fallback): ${finalAssigneeId}`);
+    }
+
+    if (action === 'created' && reporterId && !ids.includes(reporterId)) {
+      ids.push(reporterId);
     }
 
     // Get actor details
@@ -875,13 +945,10 @@ export class ItemService {
 
     const uniqueIds = Array.from(new Set(ids));
 
-    // Filter out actor from recipients
-    const recipients = uniqueIds.filter((id) => id !== actorId);
-
-    console.log('WorkItemService: NotifyUsers - Actor:', actorName, actorId);
-    console.log('WorkItemService: NotifyUsers - Action:', action);
-    console.log('WorkItemService: NotifyUsers - Recipients Count:', recipients.length);
-    console.log('WorkItemService: NotifyUsers - Recipients List:', recipients);
+    // Filter out actor from recipients, but keep them when they are the selected reporter on create.
+    const recipients = uniqueIds.filter(
+      (id) => id !== actorId || (action === 'created' && reporterId && id === reporterId),
+    );
 
     const sender = actorId
       ? new Types.ObjectId(actorId)
@@ -958,13 +1025,10 @@ export class ItemService {
       const workspaceIds = userWorkspaces.map((ws: any) => ws._id);
       const workspaceStrings = workspaceIds.map((id: any) => id.toString());
 
-      console.log('Workspace IDs to search:', workspaceStrings);
-
       // First check: items with matching workspace (no search term)
       const itemsWithWorkspace = await this.itemModel.countDocuments({
         $or: [{ workspace: { $in: workspaceIds } }, { workspace: { $in: workspaceStrings } }],
       });
-      console.log('Items with matching workspace:', itemsWithWorkspace);
 
       // Second check: items matching search term only
       const itemsWithSearchTerm = await this.itemModel.countDocuments({
@@ -973,7 +1037,6 @@ export class ItemService {
           { description: { $regex: searchTerm, $options: 'i' } },
         ],
       });
-      console.log('Items matching search term "' + searchTerm + '":', itemsWithSearchTerm);
 
       // Search items by workspace ID and search term using aggregation pipeline
       const workItems = await this.itemModel
@@ -1061,8 +1124,6 @@ export class ItemService {
           { $limit: 50 },
         ])
         .exec();
-
-      console.log('Final search results for term "' + searchTerm + '":', workItems.length);
 
       return {
         success: true,

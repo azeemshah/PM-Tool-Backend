@@ -37,6 +37,9 @@ export class WorkItem extends Document {
   @Prop({ type: Types.ObjectId, ref: 'User' })
   reporter?: Types.ObjectId;
 
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  createdBy?: Types.ObjectId;
+
   @Prop({ default: 'To Do' })
   status: string;
 
@@ -58,6 +61,7 @@ export const WorkItemSchema = SchemaFactory.createForClass(WorkItem);
 /* ================= Indexes ================= */
 WorkItemSchema.index({ spaceid: 1, board: 1, status: 1 });
 WorkItemSchema.index({ assignee: 1 });
+WorkItemSchema.index({ createdBy: 1 });
 WorkItemSchema.index({ parent: 1 });
 WorkItemSchema.index({ tags: 1 });
 WorkItemSchema.index({ spaceid: 1, tags: 1 }); // For filtering by tags in workspace

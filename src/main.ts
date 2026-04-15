@@ -69,8 +69,6 @@ async function bootstrap() {
 
   const port = configService.get('PORT') || 5000;
   await app.listen(port, '0.0.0.0');
-
-  console.log(`🚀 Application is running on: http://127.0.0.1:${port}/${apiPrefix}`);
 }
 
 bootstrap();

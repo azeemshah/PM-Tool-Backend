@@ -80,6 +80,14 @@ export class Item extends Document {
   })
   reporter?: Types.ObjectId;
 
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'User',
+    default: null,
+    index: true,
+  })
+  createdBy?: Types.ObjectId;
+
   // Start date for timeline (Gantt Chart)
   @Prop({
     type: Date,

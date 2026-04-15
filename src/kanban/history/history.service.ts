@@ -42,10 +42,6 @@ export class HistoryService {
     if (query.from) filter.createdAt.$gte = new Date(query.from);
     if (query.to) filter.createdAt.$lte = new Date(query.to);
 
-    // DEBUG: Log the filter and query parameters
-    console.log('HistoryService.list filter:', JSON.stringify(filter));
-    console.log('HistoryService.list sortOrder:', sortOrder);
-
     const [items, total] = await Promise.all([
       this.activityModel
         .find(filter)
@@ -66,11 +62,6 @@ export class HistoryService {
       }
       return item;
     });
-
-    // DEBUG: Log the first item to check population
-    if (formattedItems.length > 0) {
-      console.log('HistoryService.list first item:', JSON.stringify(formattedItems[0], null, 2));
-    }
 
     return {
       total,

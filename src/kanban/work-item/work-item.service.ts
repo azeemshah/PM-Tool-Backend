@@ -1,5 +1,5 @@
 // src/work-item/work-item.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { WorkItem } from './schemas/work-item.schema';
@@ -29,6 +29,63 @@ export class WorkItemService {
     private readonly historyService: HistoryService,
     private readonly notificationService: NotificationService,
   ) {}
+
+  private normalizeId(value: any): string | undefined {
+    if (!value) return undefined;
+    if (typeof value === 'string') return value;
+    if (value instanceof Types.ObjectId) return value.toString();
+    if (value._id) return this.normalizeId(value._id);
+    if (typeof value.toString === 'function') return value.toString();
+    return undefined;
+  }
+
+  private async resolveWorkspaceIdFromItem(item: any): Promise<string | undefined> {
+    const directWorkspaceId = this.normalizeId(item?.spaceid || item?.workspace);
+    if (directWorkspaceId) {
+      return directWorkspaceId;
+    }
+
+    const boardId = this.normalizeId(item?.board);
+    if (!boardId) {
+      return undefined;
+    }
+
+    const board = await this.boardModel.findById(boardId).select('workspaceId').lean();
+    return this.normalizeId((board as any)?.workspaceId);
+  }
+
+  private async enforceMemberOwnershipRules(
+    item: any,
+    actorId?: string,
+    assigneeTargetId?: string,
+  ): Promise<void> {
+    if (!actorId) {
+      return;
+    }
+
+    const workspaceId = await this.resolveWorkspaceIdFromItem(item);
+    if (!workspaceId) {
+      return;
+    }
+
+    const member: any = await this.memberModel
+      .findOne({ userId: actorId, workspaceId })
+      .select('role')
+      .lean();
+
+    if (!member || String(member?.role || '').toLowerCase() !== 'member') {
+      return;
+    }
+
+    const creatorId = this.normalizeId(item?.createdBy);
+    if (!creatorId || creatorId !== actorId) {
+      throw new ForbiddenException('Members can edit or delete only tasks they created');
+    }
+
+    if (assigneeTargetId && assigneeTargetId !== actorId) {
+      throw new ForbiddenException('Members cannot assign tasks to other users');
+    }
+  }
 
   private async getRecipientsByBoard(
     boardId?: Types.ObjectId | string,
@@ -66,10 +123,6 @@ export class WorkItemService {
       .find({ workspaceId: workspace._id })
       .populate('userId')
       .exec();
-    // console.log(`[Notification] Recipient candidates: ${members.length}`);
-    console.log(
-      `[Notification] Debug - WorkspaceId: ${workspace._id}, AssigneeId: ${assigneeId}, ReporterId: ${reporterId}`,
-    );
 
     // Check if actor is a Member (to broadcast their actions to everyone)
     let isActorMember = false;
@@ -81,7 +134,6 @@ export class WorkItemService {
       });
       if (actorMember && actorMember.role && actorMember.role.toLowerCase() === 'member') {
         isActorMember = true;
-        console.log(`[Notification] Actor ${actorId} is a Member. Broadcasting to all.`);
       }
     }
 
@@ -89,7 +141,6 @@ export class WorkItemService {
 
     // Add Workspace Owner (Always notify)
     if (workspace.OwnedBy) {
-      // console.log(`[Notification] Adding Owner: ${workspace.OwnedBy}`);
       recipientIds.push(workspace.OwnedBy.toString());
     }
 
@@ -98,14 +149,6 @@ export class WorkItemService {
       const uid = member.userId._id ? member.userId._id.toString() : member.userId.toString();
       const role = member.role;
       const isMember = role && role.toLowerCase() === 'member';
-
-      // console.log(`[Notification] Checking member: ${uid}, Role: ${role}, IsMember: ${isMember}, AssigneeId: ${assigneeId}`);
-
-      if (isMember) {
-        console.log(
-          `[Notification] Member Found - ID: ${uid}, Role: ${role}, Match Assignee: ${assigneeId && uid === assigneeId}, Match Reporter: ${reporterId && uid === reporterId}`,
-        );
-      }
 
       // Logic:
       // 1. If role is NOT 'Member', always notify.
@@ -119,20 +162,17 @@ export class WorkItemService {
         // Notify if they are assigned OR they are the reporter
         if ((assigneeId && uid === assigneeId) || (reporterId && uid === reporterId)) {
           recipientIds.push(uid);
-          console.log(`[Notification] Member Added to Recipients: ${uid}`);
         }
       }
     }
 
     // Force include assignee if they were missed (e.g. Member lookup issue, or just to be safe)
     if (assigneeId && !recipientIds.includes(assigneeId)) {
-      console.log(`[Notification] Force adding Assignee: ${assigneeId}`);
       recipientIds.push(assigneeId);
     }
 
     // Force include reporter if they were missed
     if (reporterId && !recipientIds.includes(reporterId)) {
-      console.log(`[Notification] Force adding Reporter: ${reporterId}`);
       recipientIds.push(reporterId);
     }
 
@@ -151,12 +191,41 @@ export class WorkItemService {
 
   /* ================= Create Work Item ================= */
   async create(createDto: CreateWorkItemDto, actorId?: string): Promise<WorkItem> {
-    console.log('KanbanWorkItemService: creating item', createDto);
-    console.log('KanbanWorkItemService: payload keys', Object.keys(createDto));
     let savedItem: WorkItem;
     try {
       // Map incoming DTO fields to schema fields (boardId -> board, etc.)
       const payload: any = { ...createDto };
+
+      let workspaceIdForRoleCheck: string | undefined;
+      if ((createDto as any).boardId) {
+        const board = await this.boardModel.findById((createDto as any).boardId).select('workspaceId').lean();
+        workspaceIdForRoleCheck = this.normalizeId((board as any)?.workspaceId);
+      }
+
+      if (actorId && workspaceIdForRoleCheck) {
+        const member: any = await this.memberModel
+          .findOne({ userId: actorId, workspaceId: workspaceIdForRoleCheck })
+          .select('role')
+          .lean();
+
+        const isMember = String(member?.role || '').toLowerCase() === 'member';
+        const requestedReporter =
+          this.normalizeId((createDto as any).reporterId) ||
+          this.normalizeId((createDto as any).reporter);
+
+        if (isMember && requestedReporter && requestedReporter !== actorId) {
+          throw new ForbiddenException('Member can only set themselves as reporter while creating');
+        }
+
+        if (isMember) {
+          payload.reporter = actorId;
+          delete payload.reporterId;
+        }
+      }
+
+      if (actorId) {
+        payload.createdBy = actorId;
+      }
       if ((createDto as any).boardId) {
         payload.board = (createDto as any).boardId;
         delete payload.boardId;
@@ -202,7 +271,6 @@ export class WorkItemService {
     let actorName: string | undefined;
 
     try {
-      console.log('KanbanWorkItemService: notifying users for create', (savedItem as any).board);
       const assigneeId = (savedItem as any)?.assignee?.toString();
       const reporterId = (savedItem as any)?.reporter?.toString();
 
@@ -214,7 +282,6 @@ export class WorkItemService {
         reporterId,
       );
 
-      console.log('KanbanWorkItemService: recipients found', recipients.length, recipients);
       actorName = await this.getActorName(actorId);
       const subject = `New ${savedItem.type} created: ${savedItem.title}`;
       const html = this.emailService.buildActivityTemplate({
@@ -261,6 +328,7 @@ export class WorkItemService {
     // Notify via notificationService
     try {
       const assigneeId = (savedItem as any)?.assignee?.toString();
+      const reporterId = (savedItem as any)?.reporter?.toString();
 
       for (const recipientId of recipients) {
         // Ensure recipientId is valid string or ObjectId
@@ -270,7 +338,7 @@ export class WorkItemService {
             : new Types.ObjectId(String(recipientId));
         const ridStr = rid.toString();
 
-        if (actorId && ridStr === actorId) {
+        if (actorId && ridStr === actorId && ridStr !== reporterId) {
           continue;
         }
 
@@ -318,15 +386,6 @@ export class WorkItemService {
       .populate('tags')
       .exec();
 
-    if (item) {
-      console.log(`[WorkItemService] findById(${id}):`, {
-        labels: item.labels,
-        tags: item.tags,
-        labelsType: Array.isArray(item.labels) ? 'array' : typeof item.labels,
-        tagsType: Array.isArray(item.tags) ? 'array' : typeof item.tags,
-      });
-    }
-
     if (!item) throw new NotFoundException('Work item not found');
     return item;
   }
@@ -336,6 +395,10 @@ export class WorkItemService {
     // Get the item before update to compare changes
     const originalItem = await this.workItemModel.findById(id).exec();
     if (!originalItem) throw new NotFoundException('Work item not found');
+
+    const requestedAssigneeId =
+      this.normalizeId((updateDto as any).assigneeId) || this.normalizeId((updateDto as any).assignee);
+    await this.enforceMemberOwnershipRules(originalItem, actorId, requestedAssigneeId);
 
     // Map DTO fields to schema fields before updating
     const updatePayload: any = { ...updateDto };
@@ -443,6 +506,10 @@ export class WorkItemService {
   /* ================= Delete Work Item ================= */
   async delete(id: string, actorId?: string): Promise<{ message: string }> {
     const existing = await this.workItemModel.findById(id).exec();
+    if (!existing) throw new NotFoundException('Work item not found');
+
+    await this.enforceMemberOwnershipRules(existing, actorId);
+
     const deleted = await this.workItemModel.findByIdAndDelete(id).exec();
     if (!deleted) throw new NotFoundException('Work item not found');
     try {
@@ -491,6 +558,8 @@ export class WorkItemService {
     const item = await this.workItemModel.findById(workItemId).exec();
     if (!item) throw new NotFoundException('Work item not found');
 
+    await this.enforceMemberOwnershipRules(item, actorId);
+
     const fromStatus = item.status;
     item.status = toStatus;
     const saved = await item.save();
@@ -536,6 +605,12 @@ export class WorkItemService {
     const { workItemId, userId } = assignDto;
     const item = await this.workItemModel.findById(workItemId).exec();
     if (!item) throw new NotFoundException('Work item not found');
+
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('Invalid assignee userId');
+    }
+
+    await this.enforceMemberOwnershipRules(item, actorId, userId);
 
     item.assignee = new Types.ObjectId(userId);
     const saved = await item.save();

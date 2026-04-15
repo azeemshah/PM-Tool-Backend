@@ -179,18 +179,10 @@ export class SprintService {
       throw new BadRequestException('Cannot add work-items to completed sprint');
     }
 
-    // Fetch valid work-items (same workspace)
-    console.log('🔍 addWorkItemsToSprintAndUpdateStatus - Searching for items:', {
-      ids: dto.workItemIds,
-      workspace: sprint.workspaceId,
-    });
-
     // 1. Fetch by IDs first (ignoring workspace for now to debug)
     const candidates = await this.workItemModel.find({
       _id: { $in: dto.workItemIds.map((id) => new Types.ObjectId(id)) },
     });
-
-    console.log(`✅ Found ${candidates.length} candidate items`);
 
     // 2. Filter by workspace in memory (safest)
     const workItems = candidates.filter((item) => {

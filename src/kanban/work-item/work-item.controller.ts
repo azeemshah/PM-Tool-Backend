@@ -23,7 +23,6 @@ export class WorkItemController {
     @Body() createDto: CreateWorkItemDto,
     @CurrentUser('userId') userId?: string,
   ) {
-    console.log('DTO Received in Controller:', createDto);
     return this.workItemService.create(createDto, userId);
   }
 
@@ -53,7 +52,7 @@ export class WorkItemController {
   }
 
   /* ================= Delete Work Item ================= */
-  @Roles('Owner', 'Admin')
+  @Roles('Owner', 'Admin', 'Member')
   @UseGuards(WorkspaceRolesGuard)
   @Delete(':id')
   async deleteWorkItem(@Param('id') id: string, @CurrentUser('userId') userId?: string) {

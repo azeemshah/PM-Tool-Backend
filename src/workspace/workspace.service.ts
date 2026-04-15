@@ -107,7 +107,6 @@ export class WorkspaceService {
           await column.save();
         }
 
-        console.log('Default Kanban board created for workspace:', savedWorkspace._id);
       } catch (error) {
         console.error('Failed to create default Kanban board:', error);
         // Don't fail workspace creation if board creation fails
@@ -153,7 +152,6 @@ export class WorkspaceService {
         });
         await defaultSprint.save();
 
-        console.log('Default Sprint board created for workspace:', savedWorkspace._id);
       } catch (error) {
         console.error('Failed to create default Sprint board:', error);
         // Don't fail workspace creation if sprint creation fails
@@ -181,7 +179,6 @@ export class WorkspaceService {
 
         // If no member documents exist but workspace has members, create them
         if (memberDocuments.length === 0 && workspace.members.length > 0) {
-          console.log('Creating missing member records for workspace:', workspace._id);
           for (const memberId of workspace.members) {
             try {
               const existingMember = await this.memberModel.findOne({
@@ -235,21 +232,14 @@ export class WorkspaceService {
       throw new NotFoundException('Workspace not found');
     }
 
-    console.log(
-      `[findById] Workspace ${workspaceId}: found, members count=${workspace.members.length}`,
-    );
-
     // Fetch member documents with roles and enrich with permissions
     let memberDocuments = await this.memberModel
       .find({ workspaceId: new Types.ObjectId(workspaceId) })
       .populate('userId', 'name email profilePicture firstName lastName')
       .exec();
 
-    console.log(`[findById] Member documents found: ${memberDocuments.length}`);
-
     // If no member documents exist but workspace has members, create them
     if (memberDocuments.length === 0 && workspace.members.length > 0) {
-      console.log(`[findById] Creating missing member records for workspace: ${workspaceId}`);
       for (const userId of workspace.members) {
         try {
           const existingMember = await this.memberModel.findOne({
@@ -259,16 +249,12 @@ export class WorkspaceService {
 
           if (!existingMember) {
             const role = userId.toString() === workspace.OwnedBy.toString() ? 'Owner' : 'Member';
-            console.log(`[findById] Creating member record: userId=${userId}, role=${role}`);
             const newMember = new this.memberModel({
               userId: new Types.ObjectId(userId),
               workspaceId: new Types.ObjectId(workspaceId),
               role: role,
             });
             await newMember.save();
-            console.log(`[findById] Member record created successfully`);
-          } else {
-            console.log(`[findById] Member record already exists for userId=${userId}`);
           }
         } catch (err) {
           console.error(`[findById] Failed to create member record for user ${userId}:`, err);
@@ -280,20 +266,12 @@ export class WorkspaceService {
         .find({ workspaceId: new Types.ObjectId(workspaceId) })
         .populate('userId', 'name email profilePicture firstName lastName')
         .exec();
-
-      console.log(`[findById] After migration - Member documents count: ${memberDocuments.length}`);
     }
 
     // Enrich members with permissions
     const enrichedMembers = memberDocuments.map((member: any) => {
-      const enriched = this.enrichMemberWithPermissions(member);
-      console.log(
-        `[findById] Enriched member: userId=${enriched.userId._id}, role=${enriched.role.name}, permissions=${enriched.role.permissions.length}`,
-      );
-      return enriched;
+      return this.enrichMemberWithPermissions(member);
     });
-
-    console.log(`[findById] Total enriched members: ${enrichedMembers.length}`);
 
     // Replace workspace members array with enriched member documents
     const workspaceObj = workspace.toObject ? workspace.toObject() : workspace;
@@ -600,8 +578,6 @@ export class WorkspaceService {
         .limit(6) // Limit to last 6 sprints for chart
         .exec();
 
-      console.log(`Found ${sprints.length} sprints for velocity calculation`);
-
       const completedStatuses = ['Done', 'Completed', 'Closed', 'Finished'];
 
       const matchStatus = (itemStatus: string, targets: string[]) => {
@@ -689,18 +665,6 @@ export class WorkspaceService {
         })
         .select('status createdAt updatedAt')
         .exec();
-
-      console.log(`[CFD] Found ${items.length} total items for workspace ${workspaceId}`);
-      if (items.length > 0) {
-        console.log(`[CFD] Sample item status: ${items[0].status}`);
-        console.log(
-          `[CFD] Status counts:`,
-          items.reduce((acc: any, item) => {
-            acc[item.status] = (acc[item.status] || 0) + 1;
-            return acc;
-          }, {}),
-        );
-      }
 
       const analyticsData: any[] = [];
       const now = new Date();
@@ -808,7 +772,6 @@ export class WorkspaceService {
         analyticsData.push(dataPoint);
       }
 
-      console.log(`[CFD] Final data point:`, analyticsData[analyticsData.length - 1]);
       return analyticsData;
     } catch (error) {
       console.error('Error calculating CFD:', error);

@@ -448,16 +448,12 @@ export class MemberService {
   // ===============================
   async acceptInvitation(token: string, currentUserId: string) {
     try {
-      console.log('🔍 [acceptInvitation] START: Received token:', token.substring(0, 10) + '...');
-
       if (!token || token.length < 10) {
         console.error('❌ [acceptInvitation] Invalid token format');
         throw new BadRequestException('Invalid token format');
       }
 
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-      console.log('🔍 [acceptInvitation] Generated tokenHash:', tokenHash.substring(0, 10) + '...');
-      console.log('🔍 [acceptInvitation] Looking for invitation in database...');
 
       const invite = await this.invitationModel.findOne({ tokenHash });
 
@@ -466,28 +462,9 @@ export class MemberService {
           '❌ [acceptInvitation] Invitation NOT found with tokenHash:',
           tokenHash.substring(0, 10) + '...',
         );
-        console.log('🔍 [acceptInvitation] Checking all invitations in database for debugging...');
         const allInvites = await this.invitationModel.find({});
-        console.log('📊 [acceptInvitation] Total invitations in DB:', allInvites.length);
-        allInvites.forEach((inv: any) => {
-          console.log(
-            '  - Status:',
-            inv.status,
-            'Email:',
-            inv.email,
-            'Hash:',
-            inv.tokenHash?.substring(0, 10) + '...',
-          );
-        });
         throw new UnauthorizedException('Invalid or expired invitation');
       }
-
-      console.log(
-        '✅ [acceptInvitation] Invitation found - Email:',
-        invite.email,
-        'Status:',
-        invite.status,
-      );
 
       if (invite.status === 'ACCEPTED') {
         console.error('❌ [acceptInvitation] Invitation already used');
@@ -500,8 +477,6 @@ export class MemberService {
         await invite.save();
         throw new GoneException('Invitation has expired. Please request a new one.');
       }
-
-      console.log('✅ [acceptInvitation] Invitation valid and not expired');
 
       // Map invitation role to Member schema role format
       const roleMap: Record<
@@ -537,8 +512,6 @@ export class MemberService {
         throw new ForbiddenException('Please login with the invited email address to accept this invite');
       }
 
-      console.log('✅ [acceptInvitation] Authenticated invited user validated:', currentUserEmail);
-
       // Create or update the workspace member atomically to avoid duplicate-key races.
       const member = await this.memberModel.findOneAndUpdate(
         {
@@ -561,12 +534,10 @@ export class MemberService {
           setDefaultsOnInsert: true,
         },
       );
-      console.log('✅ [acceptInvitation] Member upserted successfully - ID:', member._id);
 
       // Mark invite as accepted
       invite.status = 'ACCEPTED';
       await invite.save();
-      console.log('✅ [acceptInvitation] Invitation marked as ACCEPTED');
 
       // Add to workspace members array if not present
       const workspace = await this.workspaceModel.findById(invite.workspaceId);
@@ -597,8 +568,6 @@ export class MemberService {
           }
         }
       }
-
-      console.log('✅ [acceptInvitation] SUCCESS: Invitation accepted for authenticated user');
 
       return {
         message: 'Invitation accepted successfully',

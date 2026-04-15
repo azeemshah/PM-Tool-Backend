@@ -22,7 +22,7 @@ const rolePermissions: Record<string, string[]> = {
     'EDIT_PROJECT',
     'VIEW_ONLY',
   ],
-  [Role.MEMBER]: ['CREATE_TASK', 'EDIT_TASK', 'VIEW_ONLY'],
+  [Role.MEMBER]: ['CREATE_TASK', 'EDIT_TASK', 'DELETE_TASK', 'VIEW_ONLY'],
   [Role.VIEWER]: ['VIEW_ONLY'],
   [Role.WATCHER]: ['VIEW_ONLY'],
   Owner: [

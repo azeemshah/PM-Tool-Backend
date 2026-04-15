@@ -23,16 +23,15 @@ export class CommentGateway implements OnGatewayInit, OnGatewayConnection, OnGat
   private readonly logger = new Logger(CommentGateway.name);
 
   afterInit(server: Server) {
-    this.logger.log('CommentGateway initialized');
-    console.log('CommentGateway: WebSocket server initialized');
+    this.logger.debug('CommentGateway initialized');
   }
 
   handleConnection(client: Socket) {
-    this.logger.log(`Client connected to CommentGateway: ${client.id}`);
+    this.logger.debug(`Client connected to CommentGateway: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
-    this.logger.log(`Client disconnected from CommentGateway: ${client.id}`);
+    this.logger.debug(`Client disconnected from CommentGateway: ${client.id}`);
   }
 
   emitCommentCreated(payload: { workspaceId?: string; workItemId: string; comment: any }) {
