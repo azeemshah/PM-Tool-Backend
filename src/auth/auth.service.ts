@@ -117,6 +117,29 @@ export class AuthService {
     return { message: 'OTP sent to your email', email: user.email };
   }
 
+  async resendLoginOtp(email: string): Promise<{ message: string; email: string }> {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (user.status !== 'active') {
+      throw new UnauthorizedException('Account is not active');
+    }
+
+    if (!user.isEmailVerified) {
+      throw new UnauthorizedException('Please verify your email address');
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+    await this.usersService.setOtp(user._id.toString(), otp, otpExpires);
+    await this.emailService.sendLoginOtp(user.email, user.firstName, otp);
+
+    return { message: 'OTP resent successfully', email: user.email };
+  }
+
   async verifyLoginOtp(email: string, otp: string): Promise<AuthResponseDto> {
     const user = await this.usersService.findByEmailWithoutPassword(email);
 
