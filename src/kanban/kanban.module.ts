@@ -21,6 +21,7 @@ import { Swimlane, SwimlaneSchema } from './board/schemas/swimlane.schema';
 // Work Item
 import { WorkItemController } from './work-item/work-item.controller';
 import { WorkItemService } from './work-item/work-item.service';
+import { IssueGateway } from './work-item/issue.gateway';
 import { WorkItem, WorkItemSchema } from './work-item/schemas/work-item.schema';
 import { Epic, EpicSchema } from './work-item/schemas/epic.schema';
 import { Story, StorySchema } from './work-item/schemas/story.schema';
@@ -185,6 +186,7 @@ import { Tag, TagSchema } from './tag/schemas/tag.schema';
     KanbanBoardService,
     KanbanLabelService,
     WorkItemService,
+    IssueGateway,
     // TimeTrackingService, // DISABLED: Using new TimeLogModule from src/time-log instead
     AttachmentService,
     KanbanReportService,

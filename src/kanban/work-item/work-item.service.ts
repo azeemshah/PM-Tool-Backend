@@ -15,6 +15,7 @@ import { EmailService } from '../../email/email.service';
 import { HistoryService } from '../history/history.service';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationType } from '../notification/schemas/notification.schema';
+import { IssueGateway } from './issue.gateway';
 
 @Injectable()
 export class WorkItemService {
@@ -28,6 +29,7 @@ export class WorkItemService {
     private readonly emailService: EmailService,
     private readonly historyService: HistoryService,
     private readonly notificationService: NotificationService,
+    private readonly issueGateway: IssueGateway,
   ) {}
 
   private normalizeId(value: any): string | undefined {
@@ -355,6 +357,10 @@ export class WorkItemService {
           message = `${actorName || 'Someone'} assigned you to ${savedItem.type}: ${savedItem.title}`;
         }
 
+        if (reporterId && ridStr === reporterId && ridStr !== actorId) {
+          message = `${actorName || 'Someone'} assigned you as reporter for ${savedItem.type}: ${savedItem.title}`;
+        }
+
         await this.notificationService.create({
           recipient: rid,
           sender: actorId ? new Types.ObjectId(actorId) : undefined,
@@ -367,6 +373,17 @@ export class WorkItemService {
     } catch (err) {
       console.error('WorkItemService: Failed to notify on create', err);
     }
+
+    try {
+      const wsId = await this.resolveWorkspaceIdFromItem(savedItem);
+      this.issueGateway.emitIssueCreated({
+        workspaceId: wsId,
+        issue: savedItem,
+      });
+    } catch (err) {
+      console.error('[WorkItemService] Failed to emit issue.created', err);
+    }
+
     return savedItem;
   }
 
@@ -441,12 +458,30 @@ export class WorkItemService {
       const newAssigneeId = (updatedItem as any)?.assignee?.toString();
       const oldAssigneeId = (originalItem as any)?.assignee?.toString();
       const isAssigneeChanged = newAssigneeId && newAssigneeId !== oldAssigneeId;
+      const newReporterId = (updatedItem as any)?.reporter?.toString();
+      const oldReporterId = (originalItem as any)?.reporter?.toString();
+      const isReporterChanged = !!newReporterId && newReporterId !== oldReporterId;
+
+      if (isReporterChanged && (!actorId || newReporterId !== actorId)) {
+        await this.notificationService.create({
+          recipient: new Types.ObjectId(newReporterId),
+          sender: actorId ? new Types.ObjectId(actorId) : undefined,
+          type: NotificationType.WORK_ITEM_UPDATED,
+          message: `${actorName || 'Someone'} assigned you as reporter for ${updatedItem.type}: ${updatedItem.title}`,
+          workspace: (updatedItem as any)?.workspace,
+          workItem: updatedItem._id,
+        });
+      }
 
       for (const recipientId of recipients) {
         if (!Types.ObjectId.isValid(recipientId)) continue;
 
         const ridStr = recipientId.toString();
         if (actorId && ridStr === actorId) {
+          continue;
+        }
+
+        if (isReporterChanged && newReporterId && ridStr === newReporterId) {
           continue;
         }
 
@@ -500,6 +535,16 @@ export class WorkItemService {
       }
     } catch (e) {}
 
+    try {
+      const wsId = await this.resolveWorkspaceIdFromItem(updatedItem);
+      this.issueGateway.emitIssueUpdated({
+        workspaceId: wsId,
+        issue: updatedItem,
+      });
+    } catch (err) {
+      console.error('[WorkItemService] Failed to emit issue.updated', err);
+    }
+
     return updatedItem;
   }
 
@@ -537,6 +582,19 @@ export class WorkItemService {
         });
       }
     } catch (_) {}
+
+    try {
+      const wsId = await this.resolveWorkspaceIdFromItem(existing);
+      this.issueGateway.emitIssueDeleted({
+        workspaceId: wsId,
+        issueId: id,
+        title: existing?.title,
+        type: (existing as any)?.type,
+      });
+    } catch (err) {
+      console.error('[WorkItemService] Failed to emit issue.deleted', err);
+    }
+
     // Log activity
     try {
       const board = await this.boardModel.findById((existing as any)?.board).exec();
@@ -597,6 +655,26 @@ export class WorkItemService {
         details: { title: saved.title, board: saved.board },
       } as any);
     } catch (e) {}
+
+    try {
+      const wsId = await this.resolveWorkspaceIdFromItem(saved);
+      this.issueGateway.emitIssueUpdated({
+        workspaceId: wsId,
+        issue: saved,
+      });
+      this.issueGateway.emitActivityCreated({
+        workspaceId: wsId,
+        activity: {
+          type: 'status_change',
+          workItemId,
+          from: fromStatus,
+          to: toStatus,
+        },
+      });
+    } catch (err) {
+      console.error('[WorkItemService] Failed to emit issue/activity for status move', err);
+    }
+
     return saved;
   }
 
@@ -670,6 +748,17 @@ export class WorkItemService {
         details: { title: saved.title, assigneeId: userId },
       } as any);
     } catch (e) {}
+
+    try {
+      const wsId = await this.resolveWorkspaceIdFromItem(saved);
+      this.issueGateway.emitIssueUpdated({
+        workspaceId: wsId,
+        issue: saved,
+      });
+    } catch (err) {
+      console.error('[WorkItemService] Failed to emit issue.updated for assignment', err);
+    }
+
     return saved;
   }
 }
